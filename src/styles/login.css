@@ -1,0 +1,38 @@
+/* Fondo y estructura */
+.bg-custom {
+  @apply min-h-screen grid place-items-center bg-gray-50;
+}
+
+/* Estilos del formulario */
+.form-container {
+  @apply w-full max-w-sm bg-white border rounded-xl p-6 shadow-sm transform transition-all duration-300 hover:scale-105;
+}
+
+/* Título */
+.text-title {
+  @apply text-xl font-semibold mb-4 text-center text-[#27C5CE];
+}
+
+/* Estilo para los inputs */
+.input-field {
+  @apply border-2 border-gray-300 focus:border-[#AFD136] focus:ring-2 focus:ring-[#AFD136] p-2 rounded w-full mb-3;
+}
+
+/* Estilo para el botón de "Entrar" */
+.button-login {
+  @apply w-full bg-[#27C5CE] text-white py-2 rounded-lg hover:bg-[#1aa0b1] transition-colors duration-300;
+}
+
+/* Mensaje de error */
+.text-error {
+  @apply text-sm text-[#E74F20] mt-2;
+}
+
+/* Enlace de registro */
+.text-register {
+  @apply text-sm text-gray-600 mt-3;
+}
+
+.link-register {
+  @apply text-[#F0CF06] underline font-bold hover:text-[#e0b800] transition-colors duration-300;
+}

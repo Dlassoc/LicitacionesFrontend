@@ -1,0 +1,61 @@
+/* Fondo y estructura */
+.bg-custom {
+  @apply min-h-screen flex items-center justify-center bg-gray-50;
+}
+
+/* Estilos del formulario */
+.form-container {
+  @apply w-full max-w-md bg-white border rounded-2xl p-8 shadow-md transition-transform transform hover:scale-105;
+}
+
+/* Título */
+.text-title {
+  @apply text-2xl font-semibold text-center mb-6 text-[#27C5CE];
+}
+
+/* Estilo para los inputs */
+.input-field {
+  @apply border-2 border-gray-300 focus:ring-2 focus:ring-[#27C5CE] focus:border-[#27C5CE] p-2.5 rounded w-full mb-3 outline-none;
+}
+
+/* Estilo para los iconos de mostrar/ocultar contraseña */
+.eye-icon {
+  @apply absolute right-3 top-3 cursor-pointer;
+}
+
+/* Estilo para los mensajes de error */
+.text-error {
+  @apply text-sm text-[#E74F20] mb-4;
+}
+
+/* Barra de seguridad de la contraseña */
+.password-strength-bar {
+  @apply w-full bg-gray-200 rounded-full;
+}
+
+.password-strength {
+  @apply h-2 rounded-full;
+}
+
+.password-strength-text {
+  @apply text-sm;
+}
+
+/* Botón de acción */
+.button-register {
+  @apply w-full py-2.5 rounded-lg text-white font-medium transition-colors duration-200 bg-[#27C5CE] hover:bg-[#1aa0b1];
+}
+
+/* Botón deshabilitado (cuando está cargando) */
+.button-loading {
+  @apply bg-blue-400 cursor-not-allowed;
+}
+
+/* Enlace de inicio de sesión */
+.text-register {
+  @apply text-sm text-gray-600 text-center mt-4;
+}
+
+.link-register {
+  @apply text-[#27C5CE] underline font-bold hover:text-[#1aa0b1] transition-colors duration-300;
+}
