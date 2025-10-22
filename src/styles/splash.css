@@ -1,0 +1,61 @@
+/* Fondo a pantalla completa */
+.splash {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #f7f7f7 0%, #e9fcfd 100%);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  animation: splashFade .25s ease-out;
+}
+
+@keyframes splashFade { from { opacity: 0 } to { opacity: 1 } }
+
+/* Tarjeta central con animación sutil al aparecer */
+.splash-card {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow:
+    0 20px 25px -5px rgba(0,0,0,.1),
+    0 10px 10px -5px rgba(0,0,0,.04);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transform: scale(0.98);
+  opacity: 0;
+  animation: cardIn .25s ease-out forwards .05s;
+}
+
+@keyframes cardIn {
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Logo */
+.splash-logo { height: 36px; width: auto; display: block; }
+
+/* Spinner */
+.splash-spinner {
+  width: 22px; height: 22px; border-radius: 9999px;
+  border: 3px solid #27C5CE33;
+  border-top-color: #27C5CE;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Texto */
+.splash-text { margin: 0; font-size: 0.95rem; color: #0b5a61; }
+
+/* Modo oscuro automático */
+@media (prefers-color-scheme: dark) {
+  .splash { background: linear-gradient(180deg, #0d1b1e 0%, #0b2529 100%); }
+  .splash-card {
+    background: #0f1e21;
+    border-color: rgba(255,255,255,.06);
+    box-shadow:
+      0 20px 25px -5px rgba(0,0,0,.6),
+      0 10px 10px -5px rgba(0,0,0,.4);
+  }
+  .splash-text { color: #cdeff2; }
+}

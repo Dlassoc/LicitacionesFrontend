@@ -1,61 +1,90 @@
 /* Fondo y estructura */
-.bg-custom {
-  @apply min-h-screen flex items-center justify-center bg-gray-50;
-}
+.bg-custom { @apply min-h-screen flex items-center justify-center bg-gray-50; }
 
-/* Estilos del formulario */
+/* Tarjeta con animación sutil */
 .form-container {
-  @apply w-full max-w-md bg-white border rounded-2xl p-8 shadow-md transition-transform transform hover:scale-105;
+  @apply w-full max-w-md bg-white border rounded-2xl p-8 text-center;
+  @apply shadow-lg shadow-gray-200;
+  animation: fadeIn .5s ease-out;
 }
 
-/* Título */
-.text-title {
-  @apply text-2xl font-semibold text-center mb-6 text-[#27C5CE];
+/* Animación */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Estilo para los inputs */
+/* Título y subtítulo */
+.text-title { @apply text-3xl font-semibold text-[#27C5CE] mb-2 tracking-tight; }
+.text-subtitle { @apply text-sm text-gray-500 mb-6; }
+
+/* Etiquetas y bloques */
+.field-block { @apply mb-5; }
+.label-center { @apply block text-sm font-medium text-gray-700 mb-1 text-center; }
+
+/* Wrapper e iconos */
+.input-wrapper { @apply relative; }
+.input-icon-left { @apply absolute left-3 top-2.5 text-gray-400 pointer-events-none; }
+.input-icon-right-error { @apply absolute right-9 top-2.5 text-[#E74F20]; }
+
+/* Inputs base */
 .input-field {
-  @apply border-2 border-gray-300 focus:ring-2 focus:ring-[#27C5CE] focus:border-[#27C5CE] p-2.5 rounded w-full mb-3 outline-none;
+  @apply w-full rounded border border-gray-300 p-2.5 text-left bg-white;
+  @apply focus:border-[#27C5CE] focus:ring-1 focus:ring-[#27C5CE] shadow-sm transition;
 }
-
-/* Estilo para los iconos de mostrar/ocultar contraseña */
-.eye-icon {
-  @apply absolute right-3 top-3 cursor-pointer;
+.input-field:focus,
+.input-field:focus-visible {
+  outline: none;                 /* adiós borde negro por defecto */
+  border-color: #27C5CE;         /* borde turquesa */
+  box-shadow: 0 0 0 2px #27C5CE33; /* anillo suave (20% opacidad) */
+  caret-color: #27C5CE;          /* cursor del mismo color */
 }
+/* padding cuando hay icono a la izquierda o ambos lados */
+.input-with-lefticon { padding-left: 2.25rem; }
+.input-with-bothicons { padding-left: 2.25rem; padding-right: 2.25rem; }
 
-/* Estilo para los mensajes de error */
-.text-error {
-  @apply text-sm text-[#E74F20] mb-4;
-}
+/* Icono ojo (mismo para ambos campos) */
+.eye-icon { @apply absolute right-3 top-2.5 cursor-pointer text-[#27C5CE]; }
 
-/* Barra de seguridad de la contraseña */
-.password-strength-bar {
-  @apply w-full bg-gray-200 rounded-full;
-}
+/* Hints y errores */
+.hint-muted { @apply text-xs text-gray-500 mt-1; }
+/* Estado de error gana sobre el focus */
+.input-error:focus,
+.input-error:focus-visible {
+  border-color: #E74F20;
+  box-shadow: 0 0 0 2px rgba(231, 79, 32, 0.35);
+}.hint-error { @apply text-sm text-[#E74F20] mt-1; }
 
-.password-strength {
-  @apply h-2 rounded-full;
-}
+/* Barra fuerza password */
+.password-strength-bar { @apply w-full bg-gray-200 rounded-full overflow-hidden; }
+.password-strength { @apply h-2 rounded-full transition-all duration-500 ease-in-out; }
+.password-strength-text { @apply text-sm; }
 
-.password-strength-text {
-  @apply text-sm;
-}
+/* Error general */
+.text-error { @apply text-sm text-[#E74F20] mb-4; }
 
-/* Botón de acción */
-.button-register {
-  @apply w-full py-2.5 rounded-lg text-white font-medium transition-colors duration-200 bg-[#27C5CE] hover:bg-[#1aa0b1];
-}
+/* Botón: SE MANTIENE EXACTO COMO LO TENÍAS */
+.button-register { @apply w-full py-2.5 rounded-lg text-white font-medium transition-colors duration-200 bg-[#27C5CE] hover:bg-[#1aa0b1]; }
+.button-loading { @apply bg-blue-400 cursor-not-allowed; }
 
-/* Botón deshabilitado (cuando está cargando) */
-.button-loading {
-  @apply bg-blue-400 cursor-not-allowed;
-}
+/* Enlace login */
+.text-register { @apply text-sm text-gray-600 text-center mt-6; }
+.link-register { @apply text-[#27C5CE] underline font-bold hover:text-[#1aa0b1] transition-colors duration-300; }
 
-/* Enlace de inicio de sesión */
-.text-register {
-  @apply text-sm text-gray-600 text-center mt-4;
-}
-
-.link-register {
-  @apply text-[#27C5CE] underline font-bold hover:text-[#1aa0b1] transition-colors duration-300;
+@media (prefers-color-scheme: dark) {
+  .bg-custom { background: #0d1416; }
+  .form-container { background: #0f1e21; border-color: rgba(255,255,255,.08); box-shadow: 0 10px 20px rgba(0,0,0,.6); }
+  .text-title { color: #8de4ea; }
+  .label-center { color: #d7f5f7; }
+  .input-field {
+    background: #0f1e21; color: #e8f6f7; border-color: #224248;
+  }
+  .input-field:hover { border-color: #2b5860; }
+  .input-field:focus, .input-field:focus-visible {
+    border-color: #27C5CE; box-shadow: 0 0 0 2px #27C5CE55; caret-color: #27C5CE;
+  }
+  .input-wrapper:focus-within .input-icon-left { color: #8de4ea; }
+  .hint-muted { color: #94b9bd; }
+  .password-strength-bar { background: #1a2a2e; }
+  .text-register { color: #b7e7ea; }
 }

@@ -3,36 +3,32 @@
   @apply min-h-screen grid place-items-center bg-gray-50;
 }
 
-/* Estilos del formulario */
+/* Formulario con efecto “alzar” */
 .form-container {
-  @apply w-full max-w-sm bg-white border rounded-xl p-6 shadow-sm transform transition-all duration-300 hover:scale-105;
+  @apply w-full max-w-sm bg-white border rounded-2xl p-6 shadow-sm transform transition-all duration-300 hover:scale-105 text-center;
 }
 
-/* Título */
+/* Título (solo utilities nativas aquí) */
 .text-title {
-  @apply text-xl font-semibold mb-4 text-center text-[#27C5CE];
+  @apply text-xl font-semibold mb-4 text-[#27C5CE];
 }
 
-/* Estilo para los inputs */
+/* Inputs */
 .input-field {
-  @apply border-2 border-gray-300 focus:border-[#AFD136] focus:ring-2 focus:ring-[#AFD136] p-2 rounded w-full mb-3;
+  @apply border-2 border-gray-300 focus:ring-2 focus:ring-[#27C5CE] focus:border-[#27C5CE] p-2.5 rounded w-full mb-3 text-left;
 }
 
-/* Estilo para el botón de "Entrar" */
+/* Botón */
 .button-login {
   @apply w-full bg-[#27C5CE] text-white py-2 rounded-lg hover:bg-[#1aa0b1] transition-colors duration-300;
 }
 
-/* Mensaje de error */
-.text-error {
-  @apply text-sm text-[#E74F20] mt-2;
-}
+/* Error */
+.text-error { @apply text-sm text-[#E74F20] mt-2; }
 
-/* Enlace de registro */
-.text-register {
-  @apply text-sm text-gray-600 mt-3;
-}
+/* Enlace registro */
+.text-register { @apply text-sm text-gray-600 mt-3; }
+.link-register { @apply text-[#27C5CE] underline font-bold hover:text-[#1aa0b1] transition-colors duration-300; }
 
-.link-register {
-  @apply text-[#F0CF06] underline font-bold hover:text-[#e0b800] transition-colors duration-300;
-}
+/* Si usas icono de ojo aquí también */
+.eye-icon { @apply absolute right-3 top-3 cursor-pointer text-[#27C5CE]; }

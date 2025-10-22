@@ -1,40 +1,22 @@
+// src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-
-import App from "./app/App.jsx";
-import PreferencesPage from "./pages/PreferencesPage.jsx";
-import Login from "./pages/Login.jsx";
-import Register from "./pages/Register.jsx";
-import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import { BrowserRouter } from "react-router-dom";
+import ThemeProvider from "./components/ThemeProvider.jsx";
 import AuthProvider from "./auth/AuthContext.jsx";
-import "./index.css";
+import Root from "./root.jsx";              // <-- usa Root como router
+import "./styles/theme.css";                // <-- (si usas el tema manual)
+import "./index.css";                       // <-- tu global (si aplica)
+import "./styles/theme.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <App />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/preferencias"
-            element={
-              <ProtectedRoute>
-                <PreferencesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Root />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

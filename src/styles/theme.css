@@ -1,0 +1,177 @@
+/* ======================  TEMA CLARO (RESTORE)  ====================== */
+/* Activo cuando el HTML tiene data-theme="light". */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ---------- Splash (pantalla de carga) ---------- */
+:root[data-theme="light"] .splash {
+  background: linear-gradient(180deg, #f7f7f7 0%, #e9fcfd 100%);
+}
+:root[data-theme="light"] .splash-card {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow:
+    0 20px 25px -5px rgba(0,0,0,.1),
+    0 10px 10px -5px rgba(0,0,0,.04);
+}
+:root[data-theme="light"] .splash-text {
+  color: #0b5a61; /* dentro de tu paleta */
+}
+
+/* ---------- Header ---------- */
+:root[data-theme="light"] .header-bar {
+  background: linear-gradient(90deg, #f7f7f7 0%, #27C5CE 200%);
+  border-bottom-color: rgba(0, 0, 0, 0.25);
+}
+:root[data-theme="light"] .header-inner { color: #000; }
+:root[data-theme="light"] .user-chip { color: rgba(0,0,0,0.9); }
+:root[data-theme="light"] .search-wrap > * {
+  background: #fff; border-color: #e5e7eb; color: #111827; /* tailwind grays */
+}
+:root[data-theme="light"] .chip {
+  background: rgba(255,255,255,0.9);
+  color: #0b5a61;
+  border-color: rgba(39,197,206,0.35);
+}
+:root[data-theme="light"] .chip-value { color: #095158; }
+
+:root[data-theme="light"] .avatar-btn {
+  background: #53616a; color: #fff;
+  border-color: #27C5CE;            /* aro de marca */
+  box-shadow: 0 0 0 2px #ffffff;    /* aro blanco exterior */
+}
+:root[data-theme="light"] .user-menu {
+  background: #fff; border-color: rgba(0,0,0,.08);
+}
+:root[data-theme="light"] .menu-item { color: #0f172a; }
+:root[data-theme="light"] .menu-item:hover { background: rgba(39, 197, 206, 0.12); }
+:root[data-theme="light"] .menu-sep { background: rgba(0,0,0,.08); }
+
+/* Toggle tema (icono) en claro */
+:root[data-theme="light"] .theme-toggle {
+  background: #fff; color: #0b5a61; border: 1px solid rgba(0,0,0,0.25);
+}
+
+/* ---------- Formularios (login / register) ---------- */
+:root[data-theme="light"] .bg-custom { background: #f9fafb; } /* gray-50 */
+:root[data-theme="light"] .form-container {
+  background: #fff; border-color: #e5e7eb; /* gray-200 */
+  box-shadow: 0 10px 20px rgba(0,0,0,.06);
+}
+:root[data-theme="light"] .text-title { color: #27C5CE; }
+:root[data-theme="light"] .label-center { color: #374151; } /* gray-700 */
+:root[data-theme="light"] .input-field {
+  background: #fff; color: #111827; border-color: #d1d5db; /* gray-300 */
+}
+:root[data-theme="light"] .input-field:hover { border-color: #9CA3AF; } /* gray-400 */
+:root[data-theme="light"] .input-field:focus,
+:root[data-theme="light"] .input-field:focus-visible {
+  outline: none;
+  border-color: #27C5CE;
+  box-shadow: 0 0 0 2px #27C5CE33; /* anillo suave */
+  caret-color: #27C5CE;
+}
+:root[data-theme="light"] .input-wrapper:focus-within .input-icon-left { color: #27C5CE; }
+:root[data-theme="light"] .hint-muted { color: #6b7280; } /* gray-500 */
+:root[data-theme="light"] .password-strength-bar { background: #e5e7eb; } /* gray-200 */
+:root[data-theme="light"] .text-register { color: #4b5563; } /* gray-600 */
+
+/* ---------- Toast ---------- */
+:root[data-theme="light"] .toast {
+  background: #fff; color: #0b5a61; border-color: rgba(0,0,0,.08);
+}
+:root[data-theme="light"] .toast-dot { background: #27C5CE; box-shadow: 0 0 0 4px #27C5CE33; }
+
+/* ---------- Fondo general de páginas privadas ---------- */
+:root[data-theme="light"] body,
+:root[data-theme="light"] .bg-gray-50 {
+  background: #f9fafb !important; /* gray-50 */
+}
+
+/* ======================  DESACTIVAR CUALQUIER MODO OSCURO  ====================== */
+/* Si por error quedó data-theme="dark" en el HTML, estos resets devuelven el look claro. */
+:root:not([data-theme]), 
+:root[data-theme="dark"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] .splash,
+:root:not([data-theme]) .splash { background: linear-gradient(180deg, #f7f7f7 0%, #e9fcfd 100%); }
+:root[data-theme="dark"] .splash-card,
+:root:not([data-theme]) .splash-card { background: #fff; border-color: rgba(0,0,0,.06); }
+:root[data-theme="dark"] .header-bar,
+:root:not([data-theme]) .header-bar { background: linear-gradient(90deg, #f7f7f7 0%, #27C5CE 200%); }
+:root[data-theme="dark"] .header-inner,
+:root:not([data-theme]) .header-inner { color: #000; }
+/* …Puedes dejar estos resets mínimos o eliminarlos cuando estés seguro de que siempre seteas data-theme="light". */
+
+/* Activo cuando el usuario elige oscuro desde el botón */
+:root[data-theme="dark"] {
+  color-scheme: dark; /* hint para inputs nativos */
+}
+
+/* Splash */
+:root[data-theme="dark"] .splash {
+  background: linear-gradient(180deg, #0d1b1e 0%, #0b2529 100%);
+}
+:root[data-theme="dark"] .splash-card {
+  background: #0f1e21;
+  border-color: rgba(255,255,255,.06);
+  box-shadow:
+    0 20px 25px -5px rgba(0,0,0,.6),
+    0 10px 10px -5px rgba(0,0,0,.4);
+}
+:root[data-theme="dark"] .splash-text { color: #cdeff2; }
+
+/* Header */
+:root[data-theme="dark"] .header-bar {
+  background: linear-gradient(90deg, #0e0e0e 0%, #0b3b40 200%);
+  border-bottom-color: rgba(255,255,255,0.2);
+}
+:root[data-theme="dark"] .header-inner { color: #e8f6f7; }
+:root[data-theme="dark"] .user-chip { color: rgba(232,246,247,0.9); }
+:root[data-theme="dark"] .search-wrap > * {
+  background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7;
+}
+:root[data-theme="dark"] .chip {
+  background: rgba(15,30,33,0.9); color: #b7e7ea; border-color: rgba(39,197,206,0.35);
+}
+:root[data-theme="dark"] .chip-value { color: #c9fbff; }
+:root[data-theme="dark"] .avatar-btn { background: #1f2b30; box-shadow: 0 0 0 2px #0f1e21; }
+:root[data-theme="dark"] .user-menu {
+  background: #0f1e21; border-color: rgba(255,255,255,.08);
+}
+:root[data-theme="dark"] .menu-item { color: #e8f6f7; }
+:root[data-theme="dark"] .menu-item:hover { background: rgba(39, 197, 206, 0.18); }
+:root[data-theme="dark"] .menu-sep { background: rgba(255,255,255,.08); }
+
+/* Formularios (register/login) */
+:root[data-theme="dark"] .bg-custom { background: #0d1416; }
+:root[data-theme="dark"] .form-container {
+  background: #0f1e21; border-color: rgba(255,255,255,.08);
+  box-shadow: 0 10px 20px rgba(0,0,0,.6);
+}
+:root[data-theme="dark"] .text-title { color: #8de4ea; }
+:root[data-theme="dark"] .label-center { color: #d7f5f7; }
+:root[data-theme="dark"] .input-field {
+  background: #0f1e21; color: #e8f6f7; border-color: #224248;
+}
+:root[data-theme="dark"] .input-field:hover { border-color: #2b5860; }
+:root[data-theme="dark"] .input-field:focus,
+:root[data-theme="dark"] .input-field:focus-visible {
+  border-color: #27C5CE; box-shadow: 0 0 0 2px #27C5CE55; caret-color: #27C5CE;
+}
+:root[data-theme="dark"] .input-wrapper:focus-within .input-icon-left { color: #8de4ea; }
+:root[data-theme="dark"] .hint-muted { color: #94b9bd; }
+:root[data-theme="dark"] .password-strength-bar { background: #1a2a2e; }
+:root[data-theme="dark"] .text-register { color: #b7e7ea; }
+
+/* Toast */
+:root[data-theme="dark"] .toast {
+  background: #0f1e21; color: #cdeff2; border-color: rgba(255,255,255,.08);
+}
+:root[data-theme="dark"] .toast-dot { background: #27C5CE; box-shadow: 0 0 0 4px #27C5CE55; }
+
+/* Fondo general de páginas privadas */
+:root[data-theme="dark"] body, 
+:root[data-theme="dark"] .bg-gray-50 { background: #0d1416 !important; }

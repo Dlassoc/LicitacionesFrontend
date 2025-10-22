@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
-import { FaEye, FaEyeSlash } from "react-icons/fa";  // Para los iconos de ojo
-import logo from '../assets/logo_emergente.png';  // Importar la imagen desde la carpeta 'assets'
-import '../styles/register.css'; // Importar el archivo CSS
+import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaExclamationCircle } from "react-icons/fa";
+import logo from "../assets/logo_emergente.png";
+import SplashScreen from "../components/SplashScreen.jsx";
+import "../styles/register.css";
 
 export default function Register() {
   const { register, ready, user } = useAuth();
@@ -18,21 +19,21 @@ export default function Register() {
 
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [showPw, setShowPw] = useState(false);           // un solo ojo para ambos
+  const [passwordStrength, setPasswordStrength] = useState(0); // 0–100
 
-  // Si ya está logueado, redirigir
-  if (ready && user) {
-    navigate("/", { replace: true });
-  }
+  // no permitir ver la página si ya está logueado
+  if (ready && user) navigate("/", { replace: true });
+
+  const confirmMismatch =
+    form.confirmPassword.length > 0 && form.confirmPassword !== form.password;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
-
     if (name === "password") {
-      setPasswordStrength(value.length);
+      // fuerza simplificada solo por longitud (para pruebas)
+      setPasswordStrength(Math.min(value.length * 10, 100));
     }
   };
 
@@ -48,10 +49,7 @@ export default function Register() {
     e.preventDefault();
     setMsg("");
     const error = validateForm();
-    if (error) {
-      setMsg(error);
-      return;
-    }
+    if (error) return setMsg(error);
 
     try {
       setLoading(true);
@@ -62,134 +60,156 @@ export default function Register() {
       });
       navigate("/", { replace: true });
     } catch (err) {
-      setMsg(err.message || "No se pudo registrar");
+      setMsg(err?.message || "No se pudo registrar");
     } finally {
       setLoading(false);
     }
   };
 
+  const strengthClass =
+    passwordStrength >= 70 ? "bg-green-500" :
+    passwordStrength >= 40 ? "bg-yellow-500" : "bg-red-500";
+
+  const strengthLabel =
+    passwordStrength >= 70 ? "Segura" :
+    passwordStrength >= 40 ? "Moderada" : "Débil";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      
-      <form
-        onSubmit={submit}
-        className="form-container"
-      >
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <img src={logo} alt="Logo de Emergente" className="w-48 h-auto mx-auto" /> {/* Aumentar tamaño */}
-        </div>
+    <>
+      {loading && <SplashScreen text="Creando tu cuenta…" />}
 
-        <h2 className="text-2xl font-semibold text-center mb-6 text-[#27C5CE]">Crear cuenta</h2>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
-          <input
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            type="text"
-            placeholder="EJ. Juan Pérez"
-            className="input-field"
-            required
-            minLength={2}
-            autoComplete="name"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-          <input
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            type="email"
-            placeholder="Ej. usuario@dominio.com"
-            className="input-field"
-            required
-            autoComplete="email"
-          />
-        </div>
-
-        <div className="mb-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-          <div className="relative">
-            <input
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              type={showPassword ? "text" : "password"}
-              placeholder="Mínimo 6 caracteres"
-              className="input-field"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-            <span
-            className="absolute right-3 top-3 cursor-pointer text-[#27C5CE]" // Aplicando color azul principal
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </span>
+      <div className="bg-custom">
+        <form onSubmit={submit} className="form-container">
+          {/* Logo */}
+          <div className="mb-5">
+            <img src={logo} alt="Logo de Emergente" className="w-48 h-auto mx-auto" />
           </div>
-          <p className="text-xs text-gray-500 mt-1">La contraseña debe tener al menos 6 caracteres.</p>
-        </div>
 
-        <div className="mb-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
-          <div className="relative">
-            <input
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirma tu contraseña"
-              className="input-field"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-            <span
-            className="absolute right-3 top-3 cursor-pointer text-[#27C5CE]" // Aplicando color azul principal
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-            </span>
-          </div>
-        </div>
+          <h2 className="text-title">Crear cuenta</h2>
 
-        <div className="mb-4">
-          <div className="relative pt-1 mb-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Seguridad de la contraseña</label>
-            <div className="flex mb-2 items-center justify-between">
-              <div className="password-strength-bar">
-                <div
-                  className={`password-strength ${passwordStrength > 8 ? "bg-green-500" : passwordStrength > 5 ? "bg-yellow-500" : "bg-red-500"}`}
-                  style={{ width: `${passwordStrength * 10}%` }}
-                ></div>
-              </div>
+          {/* Nombre */}
+          <div className="field-block">
+            <label className="label-center">Nombre completo</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaUser /></span>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                type="text"
+                placeholder="EJ. Juan Pérez"
+                className="input-field input-with-lefticon"
+                required
+                minLength={2}
+                autoComplete="name"
+              />
             </div>
-            <p className={`password-strength-text ${passwordStrength > 8 ? "text-green-500" : passwordStrength > 5 ? "text-yellow-500" : "text-red-500"}`}>
-              {passwordStrength > 8 ? "Segura" : passwordStrength > 5 ? "Moderada" : "Débil"}
-            </p>
           </div>
-        </div>
 
-        {msg && <p className="text-error">{msg}</p>} {/* Usando la clase de CSS importada */}
+          {/* Email */}
+          <div className="field-block">
+            <label className="label-center">Correo electrónico</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaEnvelope /></span>
+              <input
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                type="email"
+                placeholder="Ej. usuario@dominio.com"
+                className="input-field input-with-lefticon"
+                required
+                autoComplete="email"
+              />
+            </div>
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className={`button-register ${loading ? "button-loading" : ""}`} // Usando la clase de CSS importada
-        >
-          {loading ? "Registrando..." : "Registrarme"}
-        </button>
+          {/* Password */}
+          <div className="field-block">
+            <label className="label-center">Contraseña</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaLock /></span>
+              <input
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                type={showPw ? "text" : "password"}
+                placeholder="Mínimo 6 caracteres"
+                className="input-field input-with-bothicons"
+                required
+                minLength={6}
+                autoComplete="new-password"
+              />
+              <span className="eye-icon" onClick={() => setShowPw((v) => !v)} aria-label="Mostrar/Ocultar contraseñas">
+                {showPw ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+            <p className="hint-muted">La contraseña debe tener al menos 6 caracteres.</p>
+          </div>
 
-        <p className="text-register">
-          ¿Ya tienes cuenta?{" "}
-          <Link to="/login" className="link-register">Inicia sesión</Link>
-        </p>
-      </form>
-    </div>
+          {/* Confirm Password */}
+          <div className="field-block">
+            <label className="label-center">Confirmar contraseña</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaLock /></span>
+              <input
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                type={showPw ? "text" : "password"}
+                placeholder="Confirma tu contraseña"
+                className={`input-field input-with-bothicons ${confirmMismatch ? "input-error" : ""}`}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                aria-invalid={confirmMismatch}
+                aria-describedby={confirmMismatch ? "confirm-help" : undefined}
+              />
+              {confirmMismatch && (
+                <span className="input-icon-right-error" aria-hidden="true">
+                  <FaExclamationCircle />
+                </span>
+              )}
+              <span className="eye-icon" onClick={() => setShowPw((v) => !v)} aria-label="Mostrar/Ocultar contraseñas">
+                {showPw ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+            {confirmMismatch && (
+              <p id="confirm-help" className="hint-error">Las contraseñas no coinciden.</p>
+            )}
+          </div>
+
+          {/* Barra de seguridad */}
+          <div className="mb-4">
+            <div className="relative pt-1 mb-2">
+              <label className="label-center">Seguridad de la contraseña</label>
+              <div className="flex mb-1 items-center justify-between">
+                <div className="password-strength-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={passwordStrength}>
+                  <div className={`password-strength ${strengthClass}`} style={{ width: `${passwordStrength}%` }} />
+                </div>
+              </div>
+              <p className={`password-strength-text ${
+                passwordStrength >= 70 ? "text-green-500" :
+                passwordStrength >= 40 ? "text-yellow-500" : "text-red-500"
+              }`}>
+                {strengthLabel}
+              </p>
+            </div>
+          </div>
+
+          {/* Mensaje general */}
+          {msg && <p className="text-error">{msg}</p>}
+
+          {/* Botón — NO modificar estilos */}
+          <button type="submit" disabled={loading} className={`button-register ${loading ? "button-loading" : ""}`}>
+            {loading ? "Registrando..." : "Registrarme"}
+          </button>
+
+          <p className="text-register">
+            ¿Ya tienes cuenta? <Link to="/login" className="link-register">Inicia sesión</Link>
+          </p>
+        </form>
+      </div>
+    </>
   );
 }

@@ -1,73 +1,119 @@
 import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
-import logo from '../assets/logo_emergente.png';  // Importar la imagen desde la carpeta 'assets'
-import '../styles/login.css'; // Importar el archivo CSS
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
+import logo from "../assets/logo_emergente.png";
+import SplashScreen from "../components/SplashScreen.jsx";
+import "../styles/register.css"; // reutilizamos mismas clases visuales
 
 export default function Login() {
   const { login, ready, user } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [msg, setMsg] = useState("");
   const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from || "/";
 
-  if (ready && user) {
-    navigate(from, { replace: true });
-  }
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+
+  // si ya está autenticado y el contexto listo, redirige a inicio
+  if (ready && user) navigate("/app", { replace: true });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const validateForm = () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "El correo no es válido.";
+    if (!form.password) return "Ingresa tu contraseña.";
+    return null;
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setMsg("");
+    const error = validateForm();
+    if (error) return setMsg(error);
+
     try {
-      await login({ email, password });
-      navigate(from, { replace: true });
+      setLoading(true);
+      await login({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+      navigate("/", { replace: true });
     } catch (err) {
-      setMsg(err.message || "No se pudo iniciar sesión");
+      setMsg(err?.message || "No se pudo iniciar sesión");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gray-50">
-      <form onSubmit={submit} className="form-container">
-        
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <img src={logo} alt="Logo de Emergente" className="w-48 h-auto mx-auto" /> {/* Aumentar tamaño */}
-        </div>
+    <>
+      {loading && <SplashScreen text="Ingresando…" />}
 
-        <h2 className="text-title">Iniciar sesión</h2>
+      <div className="bg-custom">
+        <form onSubmit={submit} className="form-container">
+          {/* Logo */}
+          <div className="mb-5">
+            <img src={logo} alt="Logo de Emergente" className="w-48 h-auto mx-auto" />
+          </div>
 
-        <input
-          className="input-field"
-          placeholder="Correo"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          required
-        />
-        <input
-          className="input-field"
-          placeholder="Contraseña"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-        <button className="button-login">
-          Entrar
-        </button>
-        {msg && <p className="text-error">{msg}</p>}
-        <p className="text-register">
-          ¿No tienes cuenta?{" "}
-          <Link to="/register" className="link-register">
-            Regístrate
-          </Link>
-        </p>
-      </form>
-    </div>
+          <h2 className="text-title">Inicia sesión</h2>
+
+          {/* Email */}
+          <div className="field-block">
+            <label className="label-center">Correo electrónico</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaEnvelope /></span>
+              <input
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                type="email"
+                placeholder="Ej. usuario@dominio.com"
+                className="input-field input-with-lefticon"
+                required
+                autoComplete="email"
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="field-block">
+            <label className="label-center">Contraseña</label>
+            <div className="input-wrapper">
+              <span className="input-icon-left"><FaLock /></span>
+              <input
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                type={showPw ? "text" : "password"}
+                placeholder="Tu contraseña"
+                className="input-field input-with-bothicons"
+                required
+                autoComplete="current-password"
+              />
+              <span className="eye-icon" onClick={() => setShowPw((v) => !v)} aria-label="Mostrar/Ocultar contraseña">
+                {showPw ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+          </div>
+
+          {/* Mensaje de error */}
+          {msg && <p className="text-error">{msg}</p>}
+
+          {/* Botón — usaremos el mismo estilo del register para consistencia */}
+          <button type="submit" disabled={loading} className={`button-register ${loading ? "button-loading" : ""}`}>
+            {loading ? "Ingresando..." : "Ingresar"}
+          </button>
+
+          <p className="text-register">
+            ¿No tienes cuenta? <Link to="/register" className="link-register">Crear cuenta</Link>
+          </p>
+        </form>
+      </div>
+    </>
   );
 }

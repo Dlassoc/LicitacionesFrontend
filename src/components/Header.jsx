@@ -1,7 +1,12 @@
-import React from "react";
+// src/components/Header.jsx
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import SearchForm from "../features/SearchForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
+import logo from "../assets/logo_emergente.png";
+
+import "../styles/header.css";
 
 export default function Header({ chips, onBuscar, onLimpiar }) {
   const { user, logout } = useAuth();
@@ -11,6 +16,24 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const hideSearch = pathname === "/preferencias" || isAuthPage;
 
+  // estado del menú tipo YouTube
+  const [openMenu, setOpenMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // cerrar menú al hacer click fuera o presionar ESC
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenu(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setOpenMenu(false);
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
   const doLogout = async () => {
     try {
       await logout();
@@ -19,62 +42,84 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
     }
   };
 
+  const initial = (user?.name || user?.email || "U").trim()[0]?.toUpperCase();
+
   return (
-    <div className="sticky top-0 z-10 bg-gray-50/90 backdrop-blur border-b border-gray-200">
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-900">
-            🔍 Buscador de proyectos SECOP II
-          </h1>
+    <div className="header-bar">
+      <div className="header-inner">
+        <div className="header-row">
+          {/* Logo marca */}
+          <Link to={isAuthPage ? "/login" : "/app"} className="brand-wrap" aria-label="Inicio">
+            <img src={logo} alt="Emergente" className="brand-logo" />
+          </Link>
 
+          {/* Acciones (no visibles en login/register) */}
           {!isAuthPage && (
-            <div className="flex items-center gap-3">
-              {user && (
-                <span className="text-sm text-gray-700">
-                  {user.name ? `${user.name} · ` : ""}{user.email}
-                </span>
-              )}
+            <div className="header-actions">
+              {/* Toggle de tema claro/oscuro */}
+              <ThemeToggle />
 
-              {pathname !== "/preferencias" ? (
-                <Link
-                  to="/preferencias"
-                  className="px-3 py-1.5 rounded border hover:bg-gray-100 transition text-sm"
-                >
-                  Preferencias
-                </Link>
-              ) : (
-                <Link
-                  to="/"
-                  className="px-3 py-1.5 rounded border hover:bg-gray-100 transition text-sm"
-                >
-                  Volver
-                </Link>
-              )}
+              {/* Chip con el nombre o email */}
+              {user && <span className="user-chip">{user.name ? user.name : user.email}</span>}
 
-              <button
-                onClick={doLogout}
-                className="px-3 py-1.5 rounded border hover:bg-gray-100 transition text-sm"
-              >
-                Cerrar sesión
-              </button>
+              {/* Avatar + menú tipo YouTube */}
+              <div className="user-menu-wrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className="avatar-btn"
+                  aria-haspopup="menu"
+                  aria-expanded={openMenu}
+                  onClick={() => setOpenMenu((v) => !v)}
+                >
+                  <span aria-hidden="true">{initial}</span>
+                </button>
+
+                {openMenu && (
+                  <div className="user-menu" role="menu" aria-label="Menú de usuario">
+                    <ul className="menu-list">
+                      <li>
+                        <Link
+                          to="/preferencias"
+                          className="menu-item"
+                          role="menuitem"
+                          onClick={() => setOpenMenu(false)}
+                        >
+                          Preferencias
+                        </Link>
+                      </li>
+
+                      <li className="menu-sep" role="separator" />
+
+                      <li>
+                        <button
+                          type="button"
+                          className="menu-item danger"
+                          role="menuitem"
+                          onClick={doLogout}
+                        >
+                          Cerrar sesión
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
+        {/* Buscador y chips (no visibles en /preferencias ni en auth pages) */}
         {!hideSearch && (
           <>
-            <div className="mt-4">
+            <div className="search-wrap">
               <SearchForm onBuscar={onBuscar} onClear={onLimpiar} />
             </div>
 
             {chips?.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="chips-wrap">
                 {chips.map(({ key, label, value }) => (
-                  <span
-                    key={key}
-                    className="inline-flex items-center gap-2 text-xs bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-full"
-                  >
-                    {label}: <span className="font-medium">{value}</span>
+                  <span key={key} className="chip">
+                    {label}: <span className="chip-value">{value}</span>
                   </span>
                 ))}
               </div>
