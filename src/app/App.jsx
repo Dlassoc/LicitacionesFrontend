@@ -19,23 +19,33 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
+  // NEW: flag para saber si el loading fue disparado por "buscar" (no por paginación)
+  const [searching, setSearching] = useState(false);
+  const handleBuscar = async (...args) => {
+    setSearching(true);
+    try {
+      await buscar(...args);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const abrirModal = (item) => { setSelectedItem(item); setModalOpen(true); };
   const cerrarModal = () => { setModalOpen(false); setSelectedItem(null); };
 
   // 1) Splash a pantalla completa mientras el contexto Auth se inicializa
   if (!ready) return <SplashScreen text="Validando sesión…" />;
 
-  // 2) Overlay de splash solo en la PRIMERA carga (evita tapar UI en paginaciones)
-  const showInitialSplash =
-    loading && lastQuery && (!resultados || resultados.length === 0) && offset === 0;
+  // 2) Splash visible cada vez que comienza una búsqueda (sin limpiar filtros)
+  //    - Solo se activa cuando el loading viene de handleBuscar (no de goPage)
+  const showSplash = loading && searching;
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {showInitialSplash && <SplashScreen text="Cargando resultados…" />}
+    <div className="min-h-screen main-bg relative">
+      {showSplash && <SplashScreen text={lastQuery ? `Buscando proyectos…` : "Cargando resultados…"} />}
 
-      <Header chips={chips} onBuscar={buscar} onLimpiar={limpiar} />
+      <Header chips={chips} onBuscar={handleBuscar} onLimpiar={limpiar} />
 
-      {/* 3) Toast de bienvenida — aparece un momento y se va solo */}
       {ready && user && (
         <WelcomeToast text={`Bienvenido de nuevo, ${user.name || user.email} 👋`} />
       )}

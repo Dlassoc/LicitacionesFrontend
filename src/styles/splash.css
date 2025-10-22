@@ -1,61 +1,82 @@
-/* Fondo a pantalla completa */
+/* ====== LIGHT (por defecto) ====== */
 .splash {
   position: fixed;
   inset: 0;
-  background: linear-gradient(180deg, #f7f7f7 0%, #e9fcfd 100%);
   display: grid;
   place-items: center;
-  z-index: 50;
-  animation: splashFade .25s ease-out;
+  background: var(--splash-gradient);
+  z-index: 1000;
 }
 
-@keyframes splashFade { from { opacity: 0 } to { opacity: 1 } }
+.splash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  z-index: 0;
+}
 
-/* Tarjeta central con animación sutil al aparecer */
-.splash-card {
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 16px;
-  padding: 28px 32px;
-  box-shadow:
-    0 20px 25px -5px rgba(0,0,0,.1),
-    0 10px 10px -5px rgba(0,0,0,.04);
+/* Caja HORIZONTAL mejorada */
+.splash-box {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
-  transform: scale(0.98);
-  opacity: 0;
-  animation: cardIn .25s ease-out forwards .05s;
+  gap: 20px;
+
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 24px 32px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 20px 45px rgba(2,6,23,0.12);
 }
 
-@keyframes cardIn {
-  to { transform: scale(1); opacity: 1; }
+/* Logo a la izquierda */
+.splash-logo {
+  width: 180px;
+  height: auto;
+  display: block;
 }
 
-/* Logo */
-.splash-logo { height: 36px; width: auto; display: block; }
+/* Columna derecha: ahora EN FILA (spinner + texto alineados) */
+.splash-info {
+  display: flex;
+  align-items: center;   /* ← centra verticalmente spinner y texto */
+  gap: 12px;             /* espacio entre spinner y texto */
+  min-height: 30px;      /* asegura altura agradable */
+}
 
-/* Spinner */
 .splash-spinner {
-  width: 22px; height: 22px; border-radius: 9999px;
-  border: 3px solid #27C5CE33;
+  width: 30px; height: 30px;
+  border: 3px solid rgba(0,0,0,0.15);
   border-top-color: #27C5CE;
+  border-radius: 50%;
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Texto */
-.splash-text { margin: 0; font-size: 0.95rem; color: #0b5a61; }
-
-/* Modo oscuro automático */
-@media (prefers-color-scheme: dark) {
-  .splash { background: linear-gradient(180deg, #0d1b1e 0%, #0b2529 100%); }
-  .splash-card {
-    background: #0f1e21;
-    border-color: rgba(255,255,255,.06);
-    box-shadow:
-      0 20px 25px -5px rgba(0,0,0,.6),
-      0 10px 10px -5px rgba(0,0,0,.4);
-  }
-  .splash-text { color: #cdeff2; }
+.splash-text {
+  font-size: 1rem;
+  line-height: 1;        /* para que quede centrado con el spinner */
+  color: #334155;
+  font-weight: 500;
+  letter-spacing: .2px;
 }
+
+/* ====== DARK ====== */
+.dark .splash { background: var(--splash-gradient); }
+
+.dark .splash::before {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.dark .splash-box {
+  background: rgba(15, 22, 36, 0.78);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+}
+
+.dark .splash-text { color: #cbd5e1; }
+.dark .splash-spinner { border-color: rgba(255,255,255,0.15); }

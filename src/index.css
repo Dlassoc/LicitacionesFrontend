@@ -4,7 +4,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global */
-body {
-  @apply bg-gray-50 text-gray-900 font-brand-body;
+/* Global + variables */
+@layer base {
+  html, body, #root { @apply h-full; }
+
+  :root {
+    /* fondo de la página principal (main) */
+    --main-gradient: linear-gradient(180deg, #F6F9FC 0%, #EEF2F7 100%);
+    /* interior del ResultsPanel */
+    --panel-inner-bg: #ffffff;
+    --panel-border: #E5E7EB;
+    --panel-text-muted: #64748B;
+    --panel-error: #DC2626;
+    --panel-button: #27C5CE;
+    --panel-button-text: #0F172A;
+  }
+  .dark {
+    --main-gradient: linear-gradient(180deg, #0B1220 0%, #0A0F1A 100%);
+    --panel-inner-bg: #0f172a; /* ajusta si quieres otro */
+    --panel-border: #1F2937;
+    --panel-text-muted: #9AA4B2;
+    --panel-error: #F87171;
+    --panel-button: #27C5CE;
+    --panel-button-text: #E5E7EB;
+  }
+ :root {
+    /* splash exclusivo */
+    --splash-gradient: linear-gradient(90deg, rgba(246,254,255,0.6) 0%, rgba(6,53,58,0.25) 100%);
+  }
+  .dark {
+    --splash-gradient: linear-gradient(90deg, rgba(11,18,32,0.85) 0%, rgba(6,53,58,0.40) 100%);
+  }
+  body {
+    @apply bg-gray-50 text-gray-900 font-brand-body dark:bg-slate-950 dark:text-slate-100;
+  }
 }
+
+/* fondo reutilizable del main */
+.main-bg { background: var(--main-gradient); }

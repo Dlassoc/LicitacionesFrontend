@@ -1,15 +1,16 @@
-// src/components/SplashScreen.jsx
 import React from "react";
-import logo from "../assets/logo_emergente.png";
 import "../styles/splash.css";
+import logo from "../assets/logo_emergente.png";
 
-export default function SplashScreen({ text = "Ingresando…" }) {
+export default function SplashScreen({ text = "Cargando proyectos…" }) {
   return (
-    <div className="splash">
-      <div className="splash-card">
+    <div className="splash" role="status" aria-live="polite" aria-busy="true">
+      <div className="splash-box">
         <img src={logo} alt="Emergente" className="splash-logo" />
-        <div className="splash-spinner" aria-label="Cargando" />
-        <p className="splash-text">{text}</p>
+        <div className="splash-info">
+          <div className="splash-spinner" />
+          <div className="splash-text">{text}</div>
+        </div>
       </div>
     </div>
   );

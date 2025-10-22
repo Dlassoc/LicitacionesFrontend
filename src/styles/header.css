@@ -1,12 +1,18 @@
 /* Barra fija con color de marca y blur sutil */
 .header-bar {
-  @apply sticky top-0 z-10 backdrop-blur;
-  background: linear-gradient(90deg, #f7f7f7 0%, #27C5CE 200%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+  @apply sticky top-0 z-30 backdrop-blur; /* elevado para quedar encima del panel */
+  background: linear-gradient(90deg, #f9f9f9 0%, rgba(39, 197, 206, 0.18) 75%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 /* Contenedor interno */
 .header-inner { @apply max-w-6xl mx-auto px-4 py-4; color: #000000; }
+
+/* Fondo principal de la app (main) */
+.main-bg {
+  background: linear-gradient(90deg, rgba(247,247,247,0.8) 0%, rgba(39,197,206,0.18) 200%);
+  background-color: transparent;
+}
 
 /* Fila superior */
 .header-row { @apply flex items-center justify-between; }
@@ -20,7 +26,7 @@
 .header-actions { @apply flex items-center gap-3; }
 .user-chip { @apply text-sm; color: rgba(0, 0, 0, 0.9); }
 
-/* (si vuelves a usarlos) botones planos */
+/* Botones planos (si los vuelves a usar) */
 .btn-header {
   @apply px-3 py-1.5 rounded text-sm transition-colors duration-200;
   color: #000000; border: 1px solid rgba(0, 0, 0, 0.7); background: white;
@@ -31,8 +37,13 @@
 .search-wrap { @apply mt-4; }
 .search-wrap > * { @apply bg-white rounded-lg p-3 shadow-sm border; }
 
-/* Chips */
-.chips-wrap { @apply mt-3 flex flex-wrap gap-2; }
+/* Chips con aire extra y sin superposición con el panel */
+.chips-wrap {
+  @apply mt-3 flex flex-wrap gap-2;
+  margin-bottom: 14px;   /* separa del ResultsPanel */
+  position: relative;
+  z-index: 5;            /* por debajo del header sticky del panel (z-10) */
+}
 .chip {
   @apply inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full border;
   background: rgba(255, 255, 255, 0.9);
@@ -78,11 +89,32 @@
 .menu-item:hover { background: rgba(39, 197, 206, 0.12); }
 .menu-item:active { background: rgba(39, 197, 206, 0.2); }
 
+/* Toggle de tema */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 9999px;
+  background: white; color: #0b5a61;
+  border: 1px solid rgba(0,0,0,0.25);
+  transition: background-color .15s ease, transform .05s ease;
+}
+.theme-toggle:hover { background: rgba(0,0,0,0.06); }
+.theme-toggle:active { transform: scale(0.98); }
 
+/* Fuerza estilo "Cerrar sesión" en rojo */
+.user-menu .menu-item.danger,
+.user-menu .menu-item.danger:visited {
+  color: #E74F20 !important;
+}
+.user-menu .menu-item.danger:hover {
+  background: rgba(196, 0, 0, 0.12) !important;
+  color: #E74F20;
+}
+
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   .header-bar {
-    background: linear-gradient(90deg, #0e0e0e 0%, #0b3b40 200%);
-    border-bottom-color: rgba(255,255,255,0.2);
+    background: linear-gradient(90deg, #0e0e0e 0%, rgba(39, 197, 206, 0.20) 60%);
+    border-bottom-color: rgba(255,255,255,0.12);
   }
   .header-inner { color: #e8f6f7; }
   .user-chip { color: rgba(232, 246, 247, 0.9); }
@@ -95,26 +127,4 @@
   .menu-item { color: #e8f6f7; }
   .menu-item:hover { background: rgba(39, 197, 206, 0.18); }
   .menu-sep { background: rgba(255,255,255,.08); }
-}
-
-.theme-toggle {
-  display: inline-grid; place-items: center;
-  width: 36px; height: 36px; border-radius: 9999px;
-  background: white; color: #0b5a61;
-  border: 1px solid rgba(0,0,0,0.25);
-  transition: background-color .15s ease, transform .05s ease;
-}
-.theme-toggle:hover { background: rgba(0,0,0,0.06); }
-.theme-toggle:active { transform: scale(0.98); }
-
-/* === Fuerza estilo "Cerrar sesión" en rojo (gana por especificidad y orden) === */
-.user-menu .menu-item.danger,
-.user-menu .menu-item.danger:visited {
-  color: #E74F20 !important; /* rojo de tu paleta */
-}
-
-/* el hover de danger debe ganar al hover general de .menu-item */
-.user-menu .menu-item.danger:hover {
-  background: rgba(196, 0, 0, 0.12) !important; /* rojo suave */
-  color: #E74F20;
 }
