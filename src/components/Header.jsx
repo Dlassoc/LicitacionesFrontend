@@ -5,7 +5,6 @@ import SearchForm from "../features/SearchForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import logo from "../assets/logo_emergente.png";
-
 import "../styles/header.css";
 
 export default function Header({ chips, onBuscar, onLimpiar }) {
@@ -14,10 +13,11 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
   const navigate = useNavigate();
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
-  // Oculta buscador/chips en la vista de preferencias y en páginas de auth
   const hideSearch = pathname.startsWith("/app/preferences") || isAuthPage;
 
-  // estado del menú tipo YouTube
+  // mostrar “Inicio” en el menú solo si NO estamos en /app
+  const showMenuHome = pathname !== "/app";
+
   const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -77,7 +77,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                     <ul className="menu-list">
                       <li>
                         <Link
-                          to="/app/preferences"   // ← ruta correcta
+                          to="/app/preferences"
                           className="menu-item"
                           role="menuitem"
                           onClick={() => setOpenMenu(false)}
@@ -85,6 +85,19 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                           Preferencias
                         </Link>
                       </li>
+
+                      {showMenuHome && (
+                        <li>
+                          <Link
+                            to="/app"
+                            className="menu-item"
+                            role="menuitem"
+                            onClick={() => setOpenMenu(false)}
+                          >
+                            Inicio
+                          </Link>
+                        </li>
+                      )}
 
                       <li className="menu-sep" role="separator" />
 
@@ -106,7 +119,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
           )}
         </div>
 
-        {/* Buscador y chips (no visibles en /app/preferences ni en auth pages) */}
+        {/* Buscador y chips (ocultos en preferencias y auth) */}
         {!hideSearch && (
           <>
             <div className="search-wrap">

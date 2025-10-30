@@ -5,7 +5,9 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import App from "./app/App.jsx";
-import Preferences from "./pages/Preferences.jsx"; // ← nueva página
+
+// IMPORTA la página que ya incluye el Header:
+import PreferencesPage from "./pages/PreferencesPage.jsx";
 
 export default function Root() {
   return (
@@ -18,17 +20,17 @@ export default function Root() {
         path="/app"
         element={
           <ProtectedRoute>
-            <App />
+            <App /> {/* Aquí tu App con Header propio */}
           </ProtectedRoute>
         }
       />
 
-      {/* Ruta protegida para Preferencias */}
+      {/* /app/preferences usando la página que SÍ pinta el Header */}
       <Route
         path="/app/preferences"
         element={
           <ProtectedRoute>
-            <Preferences />
+            <PreferencesPage />
           </ProtectedRoute>
         }
       />

@@ -1,42 +1,33 @@
+/* Reset del template para no estrechar ni centrar toda la app */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: initial;
 }
 
+/* Asegura que no haya margen del body */
+body {
+  margin: 0;
+}
+
+/* Resto opcional del template (si lo sigues usando) */
 .logo {
   height: 6em;
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cff56);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #5361657a);
-}
+.logo:hover { filter: drop-shadow(0 0 2em #646cff56); }
+.logo.react:hover { filter: drop-shadow(0 0 2em #5361657a); }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
-
 @media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+  a:nth-of-type(2) .logo { animation: logo-spin infinite 20s linear; }
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
+.card { padding: 2em; }
+.read-the-docs { color: #888; }
