@@ -14,13 +14,13 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
   const navigate = useNavigate();
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
-  const hideSearch = pathname === "/preferencias" || isAuthPage;
+  // Oculta buscador/chips en la vista de preferencias y en páginas de auth
+  const hideSearch = pathname.startsWith("/app/preferences") || isAuthPage;
 
   // estado del menú tipo YouTube
   const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef(null);
 
-  // cerrar menú al hacer click fuera o presionar ESC
   useEffect(() => {
     const onClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenu(false);
@@ -56,10 +56,8 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
           {/* Acciones (no visibles en login/register) */}
           {!isAuthPage && (
             <div className="header-actions">
-              {/* Toggle de tema claro/oscuro */}
               <ThemeToggle />
 
-              {/* Chip con el nombre o email */}
               {user && <span className="user-chip">{user.name ? user.name : user.email}</span>}
 
               {/* Avatar + menú tipo YouTube */}
@@ -79,7 +77,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                     <ul className="menu-list">
                       <li>
                         <Link
-                          to="/preferencias"
+                          to="/app/preferences"   // ← ruta correcta
                           className="menu-item"
                           role="menuitem"
                           onClick={() => setOpenMenu(false)}
@@ -108,7 +106,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
           )}
         </div>
 
-        {/* Buscador y chips (no visibles en /preferencias ni en auth pages) */}
+        {/* Buscador y chips (no visibles en /app/preferences ni en auth pages) */}
         {!hideSearch && (
           <>
             <div className="search-wrap">

@@ -5,6 +5,7 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import App from "./app/App.jsx";
+import Preferences from "./pages/Preferences.jsx"; // ← nueva página
 
 export default function Root() {
   return (
@@ -12,6 +13,7 @@ export default function Root() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
       <Route
         path="/app"
         element={
@@ -20,6 +22,17 @@ export default function Root() {
           </ProtectedRoute>
         }
       />
+
+      {/* Ruta protegida para Preferencias */}
+      <Route
+        path="/app/preferences"
+        element={
+          <ProtectedRoute>
+            <Preferences />
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

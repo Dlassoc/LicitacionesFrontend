@@ -42,3 +42,12 @@
 
 /* fondo reutilizable del main */
 .main-bg { background: var(--main-gradient); }
+
+/* en algún css global */
+.fade-in {
+  animation: fadeInUp .25s ease-out;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

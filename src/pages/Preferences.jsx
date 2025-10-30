@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
@@ -13,54 +13,99 @@ export default function Preferences({ unlocked = true }) {
   const [msg, setMsg] = useState("");
   const [subs, setSubs] = useState([]);
 
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [loadingSubs, setLoadingSubs] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+
   const hasSavedSubs = subs.length > 0;
   const isActive = useMemo(() => unlocked || hasSavedSubs, [unlocked, hasSavedSubs]);
 
-  const loadSession = async () => {
+  const safeJson = async (res) => {
     try {
-      const r = await fetch(`${API_BASE}/auth/me`, { method: "GET", credentials: "include" });
-      if (r.ok) {
-        const data = await r.json();
-        setEmail(data?.email || "");
-        setName(data?.name || "");
-        setMsg("");
-      } else {
-        setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
-      }
+      return await res.json();
     } catch {
-      setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
+      return {};
     }
   };
 
-  const loadSubs = async (em) => {
-    if (!em) return setSubs([]);
+  const loadSession = useCallback(async () => {
+    setLoadingSession(true);
+    setMsg("");
+    try {
+      const r = await fetch(`${API_BASE}/auth/me`, { method: "GET", credentials: "include" });
+      if (!r.ok) {
+        setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
+        setEmail("");
+        setName("");
+        return;
+      }
+      const data = await safeJson(r);
+      setEmail(data?.email || "");
+      setName(data?.name || "");
+    } catch {
+      setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
+      setEmail("");
+      setName("");
+    } finally {
+      setLoadingSession(false);
+    }
+  }, []);
+
+  const loadSubs = useCallback(async (em) => {
+    if (!em) {
+      setSubs([]);
+      return;
+    }
+    setLoadingSubs(true);
     try {
       const r = await fetch(`${API_BASE}/subscriptions?email=${encodeURIComponent(em)}`, {
         credentials: "include",
       });
-      const data = await r.json();
-      setSubs(data.subscriptions || []);
+      if (!r.ok) {
+        // 401/404/500: no tumbar la UI
+        setSubs([]);
+        return;
+      }
+      const data = await safeJson(r);
+      setSubs(Array.isArray(data.subscriptions) ? data.subscriptions : []);
     } catch {
       setSubs([]);
+    } finally {
+      setLoadingSubs(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadSession(); }, []);
-  useEffect(() => { if (email) loadSubs(email); }, [email]);
+  useEffect(() => {
+    loadSession();
+  }, [loadSession]);
+
+  useEffect(() => {
+    if (email) loadSubs(email);
+  }, [email, loadSubs]);
 
   const save = async () => {
     setMsg("");
+    if (!email) {
+      setMsg("No hay correo de sesión. Inicia sesión para guardar tus preferencias.");
+      return;
+    }
+    setSaving(true);
     try {
-      if (email) {
-        await fetch(`${API_BASE}/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, name }),
-        });
+      // 1) upsert de usuario (opcional pero útil)
+      const rUser = await fetch(`${API_BASE}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, name }),
+      });
+      if (!rUser.ok) {
+        const je = await safeJson(rUser);
+        throw new Error(je?.error || "No se pudo guardar el usuario");
       }
 
-      const res = await fetch(`${API_BASE}/subscriptions`, {
+      // 2) crear/actualizar suscripción
+      const rSub = await fetch(`${API_BASE}/subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -71,37 +116,62 @@ export default function Preferences({ unlocked = true }) {
           ciudad,
         }),
       });
-      const data = await res.json();
-      if (!data.ok) throw new Error("Error al guardar suscripción");
+      const data = await safeJson(rSub);
+      if (!rSub.ok || data?.ok === false) {
+        throw new Error(data?.error || "Error al guardar suscripción");
+      }
+
       await loadSubs(email);
       setMsg("Intereses guardados. Te enviaremos novedades automáticamente.");
     } catch (e) {
-      setMsg("Error: " + e.message);
+      setMsg("Error: " + (e.message || "No se pudo guardar"));
+    } finally {
+      setSaving(false);
     }
   };
 
   const deactivate = async (id) => {
-    await fetch(`${API_BASE}/subscriptions/${id}/deactivate`, {
-      method: "POST",
-      credentials: "include",
-    });
-    await loadSubs(email);
+    if (!id) return;
+    try {
+      await fetch(`${API_BASE}/subscriptions/${id}/deactivate`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignorar error para no bloquear UI
+    } finally {
+      await loadSubs(email);
+    }
   };
 
   const runNow = async () => {
+    if (!email) {
+      setMsg("No hay correo de sesión. Inicia sesión para probar el envío.");
+      return;
+    }
+    setRunning(true);
     try {
-      const url = `${API_BASE}/subscriptions/run-digest-now?email=${encodeURIComponent(email)}&days_back=7&force=true`;
+      const url = `${API_BASE}/subscriptions/run-digest-now?email=${encodeURIComponent(
+        email
+      )}&days_back=7&force=true`;
       const res = await fetch(url, { method: "POST", credentials: "include" });
-      const data = await res.json();
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "No se pudo ejecutar el envío manual");
+      }
+
       const itemsCount =
         typeof data.items === "number"
           ? data.items
           : typeof data.items_untrimmed === "number"
           ? data.items_untrimmed
           : 0;
-      setMsg(`Se ejecutó el envío: emails_sent=${data.emails_sent}, items=${itemsCount}. Revisa tu correo.`);
-    } catch {
-      setMsg("No se pudo ejecutar el envío manual.");
+      setMsg(`Se ejecutó el envío: emails_sent=${data.emails_sent ?? "?"}, items=${itemsCount}. Revisa tu correo.`);
+    } catch (e) {
+      setMsg("No se pudo ejecutar el envío manual. " + (e.message || ""));
+    } finally {
+      setRunning(false);
     }
   };
 
@@ -110,13 +180,24 @@ export default function Preferences({ unlocked = true }) {
       {!isActive && (
         <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] rounded-lg flex items-center justify-center z-10">
           <div className="text-center px-6">
-            <p className="font-medium text-gray-800">Para configurar tus preferencias, realiza primero una búsqueda.</p>
-            <p className="text-sm text-gray-500 mt-1">Si ya tienes suscripciones guardadas, esta sección se activará automáticamente.</p>
+            <p className="font-medium text-gray-800">
+              Para configurar tus preferencias, realiza primero una búsqueda.
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Si ya tienes suscripciones guardadas, esta sección se activará automáticamente.
+            </p>
           </div>
         </div>
       )}
 
       <h3 className="text-lg font-semibold mb-2">Preferencias y suscripciones</h3>
+
+      {/* Estado de sesión */}
+      {loadingSession ? (
+        <p className="text-sm text-gray-500 mb-2">Cargando sesión…</p>
+      ) : msg && !email ? (
+        <p className="text-sm text-red-600 mb-2">{msg}</p>
+      ) : null}
 
       {/* Identidad */}
       <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -132,7 +213,10 @@ export default function Preferences({ unlocked = true }) {
         </div>
         <div className="flex flex-col">
           <label className="text-xs text-gray-500 mb-1">Correo</label>
-          <div className="border p-2 rounded bg-gray-50 text-gray-700" title="Este correo proviene de tu sesión">
+          <div
+            className="border p-2 rounded bg-gray-50 text-gray-700"
+            title="Este correo proviene de tu sesión"
+          >
             {email || "—"}
           </div>
         </div>
@@ -167,24 +251,28 @@ export default function Preferences({ unlocked = true }) {
         <button
           onClick={save}
           className="bg-blue-900 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={!isActive || !email}
+          disabled={!isActive || !email || saving}
         >
-          Guardar intereses
+          {saving ? "Guardando…" : "Guardar intereses"}
         </button>
         <button
           onClick={runNow}
           className="border px-4 py-2 rounded disabled:opacity-50"
-          disabled={!isActive || !email}
+          disabled={!isActive || !email || running}
         >
-          Probar envío ahora
+          {running ? "Ejecutando…" : "Probar envío ahora"}
         </button>
       </div>
 
-      {msg && <p className="text-sm mt-2 text-gray-600">{msg}</p>}
+      {msg && email && <p className="text-sm mt-2 text-gray-600">{msg}</p>}
 
+      {/* Suscripciones */}
       <div className="mt-4">
         <h4 className="font-semibold mb-2">Tus suscripciones</h4>
-        {subs.length === 0 ? (
+
+        {loadingSubs ? (
+          <p className="text-sm text-gray-500">Cargando suscripciones…</p>
+        ) : subs.length === 0 ? (
           <p className="text-sm text-gray-500">No tienes suscripciones activas.</p>
         ) : (
           <ul className="space-y-2">
@@ -193,14 +281,19 @@ export default function Preferences({ unlocked = true }) {
                 <div>
                   <div>
                     <b>{s.palabras_clave}</b>{" "}
-                    {s.departamento ? `• ${s.departamento}` : ""} {s.ciudad ? `• ${s.ciudad}` : ""}
+                    {s.departamento ? `• ${s.departamento}` : ""}{" "}
+                    {s.ciudad ? `• ${s.ciudad}` : ""}
                   </div>
                   <div className="text-xs text-gray-500">
                     Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
                   </div>
                 </div>
                 {s.is_active ? (
-                  <button onClick={() => deactivate(s.id)} className="text-red-600 text-xs underline" disabled={!isActive}>
+                  <button
+                    onClick={() => deactivate(s.id)}
+                    className="text-red-600 text-xs underline disabled:opacity-50"
+                    disabled={!isActive}
+                  >
                     Desactivar
                   </button>
                 ) : (

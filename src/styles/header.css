@@ -1,9 +1,10 @@
 /* Barra fija con color de marca y blur sutil */
 .header-bar {
-  @apply sticky top-0 z-30 backdrop-blur; /* elevado para quedar encima del panel */
+  @apply sticky top-0 z-50 backdrop-blur; /* subimos a z-50 */
   background: linear-gradient(90deg, #f9f9f9 0%, rgba(39, 197, 206, 0.18) 75%);
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
+
 
 /* Contenedor interno */
 .header-inner { @apply max-w-6xl mx-auto px-4 py-4; color: #000000; }
