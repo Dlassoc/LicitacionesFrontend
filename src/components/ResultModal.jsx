@@ -119,46 +119,46 @@ export default function ResultModal({ open, item, onClose }) {
   );
 
   useEffect(() => {
-    let abort = false;
-    (async () => {
-      setDocsErr("");
-      setDocs([]);
-      setDebugQuery(null);
+  let abort = false;
+  (async () => {
+    setDocsErr("");
+    setDocs([]);
+    setDebugQuery(null);
 
-      if (!idPortafolio) return;
+    if (!idPortafolio) return;
 
-      setDocsLoading(true);
-      try {
-        const clean = idPortafolio.trim();
+    setDocsLoading(true);
+    try {
+      const clean = idPortafolio.trim();
 
-        // WHERE robusto sin $select para evitar "no-such-column"
-        const where = `(upper(trim(proceso)) = upper('${clean}') OR proceso LIKE '${clean}%')`;
+      // WHERE robusto sin $select para evitar "no-such-column"
+      const where = `(upper(trim(proceso)) = upper('${clean}') OR proceso LIKE '${clean}%')`;
 
-        const params = new URLSearchParams();
-        params.set("$where", where);
-        params.set("$limit", "200");
-        // Nota: evitamos $order para no depender del nombre exacto de la fecha
+      const params = new URLSearchParams();
+      params.set("$where", where);
+      params.set("$limit", "200");
 
-        const url = `${DMGG_API}?${params.toString()}`;
-        setDebugQuery({ DMGG_API, params: Object.fromEntries(params.entries()) });
+      const url = `${DMGG_API}?${params.toString()}`;
+      setDebugQuery({ DMGG_API, params: Object.fromEntries(params.entries()) });
 
-        const res = await fetch(url, { method: "GET" });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => "");
-          throw new Error(`Socrata respondió ${res.status}: ${txt || "error"}`);
-        }
-        const raw = await res.json();
-        // Mapeamos y nos quedamos con los que efectivamente tienen URL descargable
-        const mapped = Array.isArray(raw) ? raw.map(mapDoc).filter(d => !!d.url) : [];
-        if (!abort) setDocs(mapped);
-      } catch (e) {
-        if (!abort) setDocsErr(e.message || "Error al cargar descargas");
-      } finally {
-        if (!abort) setDocsLoading(false);
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Socrata respondió ${res.status}: ${txt || "error"}`);
       }
-    })();
-    return () => { abort = true; };
-  }, [idPortafolio]);
+      const raw = await res.json();
+      // Mapeamos y nos quedamos con los que efectivamente tienen URL descargable
+      const mapped = Array.isArray(raw) ? raw.map(mapDoc).filter(d => !!d.url) : [];
+      if (!abort) setDocs(mapped);
+    } catch (e) {
+      if (!abort) setDocsErr(e.message || "Error al cargar descargas");
+    } finally {
+      if (!abort) setDocsLoading(false);
+    }
+  })();
+  return () => { abort = true; };
+}, [idPortafolio]);
+
 
   // ==== Metadatos ya existentes del modal ====
   const title = item.Entidad || "Proyecto sin nombre";
@@ -314,12 +314,12 @@ export default function ResultModal({ open, item, onClose }) {
             </div>
 
             {docsLoading ? (
-              <p className="mt-2 text-sm text-gray-500">Cargando documentos…</p>
+              <p className="mt-2 text-sm text-black">Cargando documentos…</p>
             ) : docsErr ? (
               <p className="mt-2 text-sm text-red-600">{docsErr}</p>
             ) : docs.length === 0 ? (
               <div className="mt-2">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-black">
                   No se encontraron documentos para este portafolio.
                 </p>
                 {/* Debug opcional: muestra la consulta construida */}
