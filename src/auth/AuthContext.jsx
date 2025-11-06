@@ -1,7 +1,7 @@
 // app/auth/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { API_ENDPOINTS } from "../config/api.js";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
 
@@ -15,7 +15,7 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+        const res = await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" });
         if (res.ok) setUser(await res.json());
         else setUser(null);
       } catch {
@@ -30,7 +30,7 @@ export default function AuthProvider({ children }) {
   //   Registro de usuario
   // ============================
   async function register({ email, name, password }) {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+    const res = await fetch(API_ENDPOINTS.REGISTER, {
       method: "POST",
       credentials: "include", // importante para usar cookies HttpOnly
       headers: { "Content-Type": "application/json" },
@@ -40,7 +40,7 @@ export default function AuthProvider({ children }) {
     if (!res.ok) throw new Error("No se pudo registrar");
 
     // Obtener sesión actual
-    const me = await (await fetch(`${API_BASE}/auth/me`, { credentials: "include" })).json();
+    const me = await (await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" })).json();
     setUser(me);
   }
 
@@ -48,7 +48,7 @@ export default function AuthProvider({ children }) {
   //   Inicio de sesión
   // ============================
   async function login({ email, password }) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(API_ENDPOINTS.LOGIN, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -56,7 +56,7 @@ export default function AuthProvider({ children }) {
     });
     if (!res.ok) throw new Error("No se pudo iniciar sesión");
 
-    const me = await (await fetch(`${API_BASE}/auth/me`, { credentials: "include" })).json();
+    const me = await (await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" })).json();
     setUser(me);
   }
 
@@ -64,7 +64,7 @@ export default function AuthProvider({ children }) {
   //   Cierre de sesión
   // ============================
   async function logout() {
-    await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
+    await fetch(API_ENDPOINTS.LOGOUT, { method: "POST", credentials: "include" });
     setUser(null);
   }
 

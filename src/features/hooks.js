@@ -1,7 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
-
-// base del backend (usa variable de entorno o fallback)
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+import { API_ENDPOINTS } from "../config/api.js";
 
 /**
  * Hook de búsqueda para la API SECOP (Procesos)
@@ -27,7 +25,7 @@ export function useSearchResults(initialLimit = 21) {
 
       try {
         const params = new URLSearchParams(paramsObj);
-        const res = await fetch(`${API_BASE}/secop/buscar?${params.toString()}`);
+        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`);
 
         if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
 

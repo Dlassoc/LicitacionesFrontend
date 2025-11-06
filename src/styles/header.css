@@ -7,7 +7,7 @@
 
 
 /* Contenedor interno */
-.header-inner { @apply max-w-6xl mx-auto px-4 py-4; color: #000000; }
+.header-inner { @apply max-w-6xl mx-auto px-2 py-1; color: #000000; }
 
 /* Fondo principal de la app (main) */
 .main-bg {

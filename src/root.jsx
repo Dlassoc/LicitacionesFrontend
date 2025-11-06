@@ -6,8 +6,9 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import App from "./app/App.jsx";
 
-// IMPORTA la página que ya incluye el Header:
+// IMPORTA las páginas que ya incluyen el Header:
 import PreferencesPage from "./pages/PreferencesPage.jsx";
+import ExtractIAPage from "./pages/ExtractIAPage.jsx";
 
 export default function Root() {
   return (
@@ -31,6 +32,16 @@ export default function Root() {
         element={
           <ProtectedRoute>
             <PreferencesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* /app/extract-ia para el extractor de IA */}
+      <Route
+        path="/app/extract-ia"
+        element={
+          <ProtectedRoute>
+            <ExtractIAPage />
           </ProtectedRoute>
         }
       />
