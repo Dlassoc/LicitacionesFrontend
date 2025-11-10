@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../styles/toast.css";
+import "../styles/components/toast.css";
 
 export default function WelcomeToast({ text = "Bienvenido", timeout = 2500 }) {
   const [show, setShow] = useState(true);

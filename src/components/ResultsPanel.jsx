@@ -1,8 +1,7 @@
 import React from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
-import "../styles/results-panel.css";
-import "../styles/results-panel.css";
+import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
   resultados, loading, error,

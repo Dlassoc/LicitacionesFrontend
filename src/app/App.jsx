@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import Header from "../components/Header.jsx";
 import ResultsPanel from "../components/ResultsPanel.jsx";
 import ResultModal from "../components/ResultModal.jsx";
@@ -30,8 +30,15 @@ export default function App() {
     }
   };
 
-  const abrirModal = (item) => { setSelectedItem(item); setModalOpen(true); };
-  const cerrarModal = () => { setModalOpen(false); setSelectedItem(null); };
+  const abrirModal = useCallback((item) => { 
+    setSelectedItem(item); 
+    setModalOpen(true); 
+  }, []);
+
+  const cerrarModal = useCallback(() => { 
+    setModalOpen(false); 
+    setSelectedItem(null); 
+  }, []);
 
   // 1) Splash a pantalla completa mientras el contexto Auth se inicializa
   if (!ready) return <SplashScreen text="Validando sesión…" />;

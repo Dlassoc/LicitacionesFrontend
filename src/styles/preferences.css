@@ -1,0 +1,238 @@
+/* ============================= PREFERENCES ============================= */
+
+.preferences-wrapper {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: white;
+  max-width: 48rem;
+  position: relative;
+}
+
+.preferences-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(1px);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.preferences-overlay-content {
+  text-align: center;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.preferences-overlay-title {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.preferences-overlay-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.preferences-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.preferences-loading-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.preferences-error-text {
+  font-size: 0.875rem;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+.preferences-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .preferences-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.preferences-grid-full {
+  grid-column: 1 / -1;
+}
+
+.preferences-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.preferences-field-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.preferences-input {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.preferences-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.preferences-input:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.preferences-display {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+.preferences-section-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.preferences-section-description {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.preferences-financial-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .preferences-financial-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.preferences-button-group {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.preferences-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background-color: white;
+  color: #1f2937;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preferences-button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.preferences-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preferences-button-primary {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.preferences-button-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.preferences-status-message {
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.preferences-status-success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.preferences-status-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.preferences-sub-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.preferences-sub-title {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.preferences-sub-item {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+  background-color: #f9fafb;
+}
+
+.preferences-sub-item-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.preferences-sub-item-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.preferences-sub-item-button {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preferences-sub-item-button:hover {
+  background-color: #dc2626;
+}

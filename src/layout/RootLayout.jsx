@@ -2,7 +2,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import Header from "../components/Header.jsx";
-import "../components/header.css"; // importa tus estilos del header
+import "../styles/global/header.css"; // importa tus estilos del header
 
 export default function RootLayout() {
   return (

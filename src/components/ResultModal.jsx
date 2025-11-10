@@ -1,5 +1,14 @@
 // src/components/ResultModal.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useDocumentDownload } from "../hooks/useDocumentDownload.js";
+import API_BASE_URL from "../config/api.js";
+import ModalHeader from "./modal/ModalHeader.jsx";
+import DocumentMetadata from "./modal/DocumentMetadata.jsx";
+import DescriptionSection from "./modal/DescriptionSection.jsx";
+import CategoriesSection from "./modal/CategoriesSection.jsx";
+import DownloadsSection from "./modal/DownloadsSection.jsx";
+import AnalysisSection from "./modal/AnalysisSection.jsx";
+import "../styles/components/result-modal.css";
 
 /* ==== Helpers para hallar ID_Portafolio de forma robusta ==== */
 const canon = (k) =>
@@ -203,6 +212,8 @@ const FIN_RULES = [
 
   // Documentos del proceso (backup)
   { re: /\bestudios?\s+previo[s]?\b/,                                        score: 80,  label: "estudios previos" },
+  { re: /\b_?est_?prev\b/i,                                                  score: 78,  label: "estudio previo (abreviado)" },
+  { re: /\best\.?\s*prev\b/i,                                                score: 76,  label: "est. prev (forma corta)" },
   { re: /\bpliego(s)?\s+de\s+condiciones\s+definitivo\b/,                    score: 78,  label: "pliego de condiciones definitivo" },
   { re: /\bpliego(s)?\s+de\s+condiciones\b/,                                 score: 72,  label: "pliego de condiciones" },
   { re: /\bcondiciones\s+generales\b/,                                       score: 60,  label: "condiciones generales" },
@@ -257,6 +268,27 @@ function tagFinancialIndicatorDocs(docs) {
   return tagged.map(({ _score, _reason, ...rest }) => rest);
 }
 
+/* ======== Funciones helper para el componente ======== */
+const prettyKey = (k) =>
+  k.replace(/_/g, " ")
+   .replace(/([A-Z])/g, " $1")
+   .replace(/\s+/g, " ")
+   .trim();
+
+const renderVal = (v) => {
+  if (v === null || v === undefined || v === "") return "No disponible";
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "No disponible";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+};
+
+const previewText = (txt, maxChars = 320) =>
+  txt.length > maxChars ? txt.slice(0, maxChars).trim() + "…" : txt;
+
+const isDescriptionKey = (k) => /descripci[oó]n/i.test(k);
+
+const OMIT_FIELDS = new Set(["Enlace_oficial", "Documentos", "URL_Proceso", "ID_Portafolio", "id_del_portafolio", "Codigo_categoria", "Categorias_adicionales"]);
+
 /* =============================== Componente =============================== */
 
 export default function ResultModal({ open, item, onClose }) {
@@ -282,11 +314,30 @@ export default function ResultModal({ open, item, onClose }) {
   const [docsErr, setDocsErr] = useState("");
   const [debugQuery, setDebugQuery] = useState(null);
 
+  // Obtener idPortafolio ANTES de usarlo en el hook
   const idx = useMemo(() => buildIndex(item), [item]);
   const idPortafolio = useMemo(
     () => get(item, idx, ["ID_Portafolio", "id_del_portafolio", "idPortafolio", "id_portafolio"], null),
-    [item, idx]
+    [idx]
   );
+
+  // Análisis automático de indicadores financieros
+  // Buscar el documento con indicadores detectados
+  const docWithIndicators = useMemo(() => {
+    return docs.find((d) => d.es_documento_indicadores === true) || null;
+  }, [docs]);
+
+  const { analyzing, analyzed, error: analysisError, analyze } = useDocumentDownload(
+    docWithIndicators, // Solo el documento con indicadores detectados
+    idPortafolio
+  );
+
+  // NO auto-trigger: el usuario decide cuándo analizar profundamente con el botón "Escanear"
+  // useEffect(() => {
+  //   if (docs.length > 0 && !docsLoading && !docsErr && !analyzing) {
+  //     analyze();
+  //   }
+  // }, [docs, docsLoading, docsErr, analyzing, analyze]);
 
   useEffect(() => {
     let abort = false;
@@ -340,75 +391,58 @@ export default function ResultModal({ open, item, onClose }) {
   const title = item.Entidad || "Proyecto sin nombre";
   const urlProceso = item.URL_Proceso || item.Enlace_oficial || null;
 
-  const prettyKey = (k) =>
-    k.replace(/_/g, " ")
-     .replace(/([A-Z])/g, " $1")
-     .replace(/\s+/g, " ")
-     .trim();
-
-  const renderVal = (v) => {
-    if (v === null || v === undefined || v === "") return "No disponible";
-    if (Array.isArray(v)) return v.length ? v.join(", ") : "No disponible";
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
-  };
-
-  const OMIT = new Set(["Enlace_oficial", "Documentos", "URL_Proceso", "ID_Portafolio", "id_del_portafolio"]);
-  const isDescriptionKey = (k) => /descripci[oó]n/i.test(k);
-
-  const entries = Object.entries(item).filter(([key]) => !OMIT.has(key));
+  const entries = Object.entries(item).filter(([key]) => !OMIT_FIELDS.has(key));
   const descEntries = entries.filter(([key]) => isDescriptionKey(key));
   const chipEntries = entries.filter(([key]) => !isDescriptionKey(key));
 
-  const previewText = (txt, maxChars = 320) =>
-    txt.length > maxChars ? txt.slice(0, maxChars).trim() + "…" : txt;
-
   return (
-    <div className="fixed inset-0 z-[1000]">
+    <div 
+      className="result-modal-overlay"
+      onClick={onClose}
+    >
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-[2px]"
-        onClick={onClose}
+        className="result-modal-backdrop"
         aria-hidden="true"
       />
 
-      <div className="relative flex min-h-screen items-center justify-center p-4">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-          className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-10 shadow-2xl ring-1 ring-black/5 text-[15px] leading-relaxed"
-          style={{ fontFamily: "Arial, Helvetica, ui-sans-serif, system-ui" }}
-        >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        className="result-modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+      >
+          {/* Overlay de carga: SOLO mostrar cuando se está ANALIZANDO un documento */}
+          {analyzing && (
+            <div className="result-modal-analyzing-overlay">
+              <div className="result-modal-analyzing-content">
+                <div className="result-modal-analyzing-spinner" />
+                <div className="result-modal-analyzing-text">
+                  <p>Analizando indicadores financieros...</p>
+                  <p>Por favor espera</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 rounded-full px-2 text-3xl leading-none text-gray-500 hover:text-gray-700"
+            className="result-modal-close-btn"
             aria-label="Cerrar"
           >
             ×
           </button>
 
           {/* Header */}
-          <div className="text-center">
-            <h2
-              id="modal-title"
-              className="text-[30px] md:text-[34px] leading-tight font-semibold tracking-tight"
-            >
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 bg-clip-text text-transparent">
-                {title}
-              </span>
-            </h2>
-
-            <div className="mx-auto mt-5 h-px w-28 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-          </div>
+          <ModalHeader title={title} />
 
           {/* Enlace al proceso */}
           {urlProceso && (
-            <div className="mt-6 flex items-center justify-center">
+            <div className="result-modal-process-link">
               <a
                 href={urlProceso}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-[14px] text-blue-700 shadow-sm transition hover:bg-blue-50"
                 title="Abrir enlace del proceso"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -418,155 +452,40 @@ export default function ResultModal({ open, item, onClose }) {
           )}
 
           {/* Chips de metadatos */}
-          {chipEntries.length > 0 && (
-            <div className="mt-7 mx-auto max-w-2xl">
-              <div className="flex flex-wrap justify-center gap-2">
-                {chipEntries.map(([key, value]) => (
-                  <span
-                    key={key}
-                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] text-gray-800 shadow-sm"
-                    title={`${prettyKey(key)}: ${renderVal(value)}`}
-                  >
-                    <span className="mr-1 text-gray-500">{prettyKey(key)}:</span>
-                    <span className="font-semibold">{renderVal(value)}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <DocumentMetadata entries={chipEntries} />
 
           {/* Descripción */}
-          {descEntries.length > 0 && (
-            <div className="mt-8 mx-auto max-w-2xl text-center">
-              <div className="inline-flex items-center justify-center rounded-full bg-gray-100 px-3 py-1 text-[12px] text-gray-600">
-                Descripción del procedimiento
-              </div>
+          <DescriptionSection descEntries={descEntries} descExpanded={descExpanded} setDescExpanded={setDescExpanded} />
 
-              <div className="mt-3 mx-auto max-w-prose">
-                <div className="relative rounded-2xl border border-gray-100 bg-gray-50/70 p-5 text-left shadow-sm">
-                  <div className="pointer-events-none absolute -top-3 left-5 select-none text-3xl text-gray-200">
-                    &ldquo;
-                  </div>
-
-                  <p className="relative z-10 text-[15px] text-gray-800 whitespace-pre-wrap">
-                    {(() => {
-                      const [, value] = descEntries[0];
-                      const full = renderVal(value);
-                      return descExpanded ? full : previewText(full, 420);
-                    })()}
-                  </p>
-
-                  {!descExpanded && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-2xl bg-gradient-to-t from-gray-50/90 to-transparent" />
-                  )}
-                </div>
-
-                {(() => {
-                  const [, value] = descEntries[0];
-                  const full = renderVal(value);
-                  const isLong = full && full.length > 420;
-                  if (!isLong) return null;
-                  return (
-                    <button
-                      className="mt-3 text-sm text-blue-700 underline"
-                      onClick={() => setDescExpanded((v) => !v)}
-                    >
-                      {descExpanded ? "Ver menos" : "Ver más"}
-                    </button>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
+          {/* Categorías */}
+          <CategoriesSection 
+            codigoPrincipal={item.Codigo_categoria} 
+            categoriasAdicionales={item.Categorias_adicionales}
+          />
 
           {/* ====== Descargas asociadas (dmgg-8hin) ====== */}
-          <div className="mt-10">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-black">Descargas asociadas</h4>
-              <div className="text-xs text-gray-500">
-                ID Portafolio: {idPortafolio || "—"}
-              </div>
-            </div>
+          <DownloadsSection 
+            docs={docs} 
+            docsLoading={docsLoading} 
+            docsErr={docsErr} 
+            idPortafolio={idPortafolio}
+            debugQuery={debugQuery}
+          />
 
-            {docsLoading ? (
-              <p className="mt-2 text-sm text-black">Cargando documentos…</p>
-            ) : docsErr ? (
-              <p className="mt-2 text-sm text-red-600">{docsErr}</p>
-            ) : docs.length === 0 ? (
-              <div className="mt-2">
-                <p className="text-sm text-black">
-                  No se encontraron documentos para este portafolio.
-                </p>
-                {debugQuery && (
-                  <pre className="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap">
-                    {JSON.stringify(debugQuery, null, 2)}
-                  </pre>
-                )}
-              </div>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {docs.map((d, i) => {
-                  const isIndicador = d.es_documento_indicadores === true;
-                  return (
-                    <li
-                      key={i}
-                      className={`border rounded p-3 flex items-start justify-between gap-3 transition ${
-                        isIndicador
-                          ? "border-yellow-500 bg-yellow-50/60 ring-2 ring-yellow-300"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium text-black">{d.titulo || "Documento"}</div>
-                          {isIndicador && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-[11px] font-semibold text-yellow-800">
-                              ⭐ Posibles indicadores financieros
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {d.tipo ? `Tipo: ${d.tipo} • ` : ""}
-                          {d.fecha ? `Fecha: ${d.fecha}` : ""}
-                          {d.tamanio ? ` • Tamaño: ${d.tamanio}` : ""}
-                        </div>
-                        {isIndicador && d.razon && (
-                          <div className="text-xs text-yellow-700 mt-1">
-                            💡 {d.razon}
-                          </div>
-                        )}
-                      </div>
-                      {d.url ? (
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`text-sm underline shrink-0 transition ${
-                            isIndicador
-                              ? "text-yellow-700 font-semibold hover:text-yellow-900"
-                              : "text-blue-700 hover:text-blue-900"
-                          }`}
-                          title={d.url}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Descargar
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-400">Sin URL</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          {/* ====== Análisis de indicadores financieros ====== */}
+          <AnalysisSection 
+            docWithIndicators={docWithIndicators}
+            analyzing={analyzing}
+            analyzed={analyzed}
+            analysisError={analysisError}
+            analyze={analyze}
+          />
 
           {/* Footer */}
-          <div className="mt-9 flex justify-center">
-            <div className="h-1 w-16 rounded-full bg-gray-200" />
+          <div className="result-modal-footer">
+            <div className="result-modal-divider" />
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -1,0 +1,151 @@
+/* ============================= RESULT MODAL ============================= */
+
+/* Contenedor fijo del modal */
+.result-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Fondo oscuro con blur */
+.result-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Caja principal del modal */
+.result-modal-dialog {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 768px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 1rem;
+  background-color: white;
+  padding: 2.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  font-family: Arial, Helvetica, ui-sans-serif, system-ui;
+}
+
+/* Botón cerrar */
+.result-modal-close-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border-radius: 9999px;
+  padding: 0.5rem;
+  font-size: 1.875rem;
+  line-height: 1;
+  color: #6b7280;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.result-modal-close-btn:hover {
+  color: #374151;
+}
+
+/* Overlay de análisis (spinner fullscreen) */
+.result-modal-analyzing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.result-modal-analyzing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.result-modal-analyzing-spinner {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 9999px;
+  border: 4px solid #60a5fa;
+  border-top-color: #2563eb;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.result-modal-analyzing-text {
+  text-align: center;
+}
+
+.result-modal-analyzing-text p:first-child {
+  font-weight: 600;
+  color: #111827;
+  font-size: 1rem;
+}
+
+.result-modal-analyzing-text p:last-child {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Enlace del proceso */
+.result-modal-process-link {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-modal-process-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #bfdbfe;
+  background-color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s;
+  text-decoration: none;
+}
+
+.result-modal-process-link a:hover {
+  background-color: #eff6ff;
+}
+
+/* Footer divisor */
+.result-modal-footer {
+  margin-top: 2.25rem;
+  display: flex;
+  justify-content: center;
+}
+
+.result-modal-divider {
+  height: 4px;
+  width: 4rem;
+  border-radius: 9999px;
+  background-color: #e5e7eb;
+}

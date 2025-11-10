@@ -1,0 +1,191 @@
+/* ============================= ANALYSIS SECTION ============================= */
+
+.analysis-section-container {
+  margin-top: 2.5rem;
+}
+
+.analysis-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.analysis-section-title {
+  font-weight: 500;
+  color: black;
+}
+
+.analysis-section-button {
+  padding: 0.375rem 0.75rem;
+  background-color: #2563eb;
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.analysis-section-button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.analysis-section-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.analysis-section-analyzing {
+  border-radius: 0.5rem;
+  border: 1px solid #bfdbfe;
+  background-color: #eff6ff;
+  padding: 1rem;
+  text-align: center;
+}
+
+.analysis-section-analyzing-spinner {
+  display: inline-block;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  border: 2px solid #60a5fa;
+  border-top-color: #2563eb;
+  margin-right: 0.5rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.analysis-section-analyzing-text {
+  font-size: 0.875rem;
+  color: #0c4a6e;
+  display: inline;
+}
+
+.analysis-section-error {
+  border-radius: 0.5rem;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  padding: 0.75rem;
+}
+
+.analysis-section-error-text {
+  font-size: 0.875rem;
+  color: #b91c1c;
+}
+
+.analysis-section-success {
+  border-radius: 0.5rem;
+  border: 1px solid #86efac;
+  background-color: #f0fdf4;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.analysis-section-success-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analysis-section-success-title {
+  font-weight: 600;
+  color: #166534;
+}
+
+.analysis-section-success-pages {
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.analysis-section-success-pages strong {
+  font-weight: 600;
+}
+
+.analysis-section-preview-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analysis-section-preview-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-preview-box {
+  background-color: white;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  color: #374151;
+  max-height: 12rem;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.analysis-section-indicators-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analysis-section-indicators-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-indicators-box {
+  background-color: white;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.analysis-section-indicators-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.analysis-section-indicators-item {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.analysis-section-indicators-item strong {
+  font-weight: 600;
+}
+
+.analysis-section-notes {
+  font-size: 0.75rem;
+  color: #4b5563;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.analysis-section-notes strong {
+  font-weight: 600;
+}
+
+.analysis-section-no-indicators {
+  background-color: white;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}

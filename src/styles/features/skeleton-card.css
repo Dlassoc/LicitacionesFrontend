@@ -1,0 +1,69 @@
+/* ============================= SKELETON CARD ============================= */
+
+.skeleton-card-container {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  padding: 1rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton-card-title {
+  height: 1rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 75%;
+}
+
+.skeleton-card-lines {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-card-line-1 {
+  height: 0.75rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 50%;
+}
+
+.skeleton-card-line-2 {
+  height: 0.75rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 66%;
+}
+
+.skeleton-card-line-3 {
+  height: 0.75rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 33%;
+}
+
+.skeleton-card-footer {
+  margin-top: 0.75rem;
+  height: 1rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 25%;
+}
+
+.skeleton-card-footer-meta {
+  margin-top: 0.5rem;
+  height: 0.75rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  width: 40%;
+}

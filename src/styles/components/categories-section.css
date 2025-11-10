@@ -1,0 +1,68 @@
+/* ============================= CATEGORIES SECTION ============================= */
+
+.categories-section-container {
+  margin-top: 2rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 20rem;
+}
+
+.categories-section-box {
+  border-radius: 0.5rem;
+  border: 1px solid #c7d2e0;
+  background-color: rgba(224, 231, 255, 0.5);
+  padding: 1.25rem;
+}
+
+.categories-section-group {
+  margin-bottom: 1rem;
+}
+
+.categories-section-group:last-child {
+  margin-bottom: 0;
+}
+
+.categories-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1e1b4b;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Categoría Principal */
+.categories-section-primary {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background-color: #4f46e5;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+}
+
+/* Categorías Adicionales Wrapper */
+.categories-section-additional-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.categories-section-additional-item {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid #a5b4fc;
+  background-color: white;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.categories-section-text {
+  font-size: 0.875rem;
+  color: #4f46e5;
+}

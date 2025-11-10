@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import "../styles/features/search-form.css";
 
 // listas como en tu versión
 const DEPARTAMENTOS_COLOMBIA = [
@@ -82,33 +83,33 @@ export default function SearchForm({ onBuscar, onClear }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col md:flex-row md:flex-wrap gap-2 items-stretch bg-white p-5 rounded shadow"
+      className="search-form-wrapper"
     >
       <input
         type="text"
         placeholder="Palabras clave"
         value={termino}
         onChange={(e) => setTermino(e.target.value)}
-        className="border p-2 rounded w-full md:w-40"
+        className="search-form-input"
       />
       <input
         type="date"
         value={fechaInicio}
         onChange={(e) => setFechaInicio(e.target.value)}
-        className="border p-2 rounded md:w-40"
+        className="search-form-date-input"
         aria-label="Fecha inicio"
       />
       <input
         type="date"
         value={fechaFin}
         onChange={(e) => setFechaFin(e.target.value)}
-        className="border p-2 rounded md:w-40"
+        className="search-form-date-input"
         aria-label="Fecha fin"
       />
       <select
         value={departamento}
         onChange={(e) => setDepartamento(e.target.value)}
-        className="border p-2 rounded md:w-40"
+        className="search-form-select"
         aria-label="Departamento"
       >
         <option value="">Departamento</option>
@@ -119,7 +120,7 @@ export default function SearchForm({ onBuscar, onClear }) {
       <select
         value={ciudad}
         onChange={(e) => setCiudad(e.target.value)}
-        className="border p-2 rounded md:w-40"
+        className="search-form-select"
         aria-label="Ciudad"
         disabled={!departamento}
       >
@@ -129,10 +130,10 @@ export default function SearchForm({ onBuscar, onClear }) {
         ))}
       </select>
 
-      <div className="flex gap-2">
+      <div className="search-form-button-group">
         <button
           type="submit"
-          className="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800 "
+          className="search-form-button-primary"
           aria-label="Buscar"
         >
           Buscar
@@ -140,7 +141,7 @@ export default function SearchForm({ onBuscar, onClear }) {
         <button
           type="button"
           onClick={handleClear}
-          className="bg-gray-100 text-gray-800 px-4 py-2 rounded border hover:bg-gray-200 "
+          className="search-form-button-secondary"
           aria-label="Limpiar"
         >
           Limpiar

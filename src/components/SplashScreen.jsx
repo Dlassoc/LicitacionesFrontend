@@ -1,5 +1,5 @@
 import React from "react";
-import "../styles/splash.css";
+import "../styles/components/splash.css";
 import logo from "../assets/logo_emergente.png";
 
 export default function SplashScreen({ text = "Cargando proyectos…" }) {

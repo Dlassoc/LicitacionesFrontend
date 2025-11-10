@@ -1,0 +1,34 @@
+/* ============================= MODAL HEADER ============================= */
+
+.modal-header-container {
+  text-align: center;
+}
+
+.modal-header-title {
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+@media (min-width: 768px) {
+  .modal-header-title {
+    font-size: 2.125rem;
+  }
+}
+
+.modal-header-title-text {
+  background: linear-gradient(to right, #2563eb, #4f46e5, #d946ef);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.modal-header-divider {
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 1.25rem;
+  height: 1px;
+  width: 7rem;
+  background: linear-gradient(to right, transparent, #d1d5db, transparent);
+}

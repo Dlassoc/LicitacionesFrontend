@@ -1,0 +1,84 @@
+/* ============================= DESCRIPTION SECTION ============================= */
+
+.description-section-container {
+  margin-top: 2rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 42rem;
+  text-align: center;
+}
+
+.description-section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.description-section-content {
+  margin-top: 0.75rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 65ch;
+}
+
+.description-section-box {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid #f3f4f6;
+  background-color: rgba(249, 250, 251, 0.7);
+  padding: 1.25rem;
+  text-align: left;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.description-section-quote {
+  position: absolute;
+  top: -0.75rem;
+  left: 1.25rem;
+  pointer-events: none;
+  user-select: none;
+  font-size: 1.875rem;
+  color: #d1d5db;
+}
+
+.description-section-text {
+  position: relative;
+  z-index: 10;
+  font-size: 0.9375rem;
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.description-section-fade {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3rem;
+  border-radius: 0 0 1rem 1rem;
+  background: linear-gradient(to bottom, rgba(249, 250, 251, 0), rgba(249, 250, 251, 0.9));
+}
+
+.description-section-toggle {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #1d4ed8;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.description-section-toggle:hover {
+  color: #1e40af;
+}

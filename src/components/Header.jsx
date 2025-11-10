@@ -5,7 +5,7 @@ import SearchForm from "../features/SearchForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import logo from "../assets/logo_emergente.png";
-import "../styles/header.css";
+import "../styles/global/header.css";
 
 export default function Header({ chips, onBuscar, onLimpiar }) {
   const { user, logout } = useAuth();

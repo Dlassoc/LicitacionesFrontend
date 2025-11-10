@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import ExtractIAResults from "./ExtractIAResults.jsx";
 import { API_ENDPOINTS } from "../config/api.js";
+import "../styles/components/extract-ia-dropzone.css";
 
 export default function ExtractIADropzone() {
   const [results, setResults] = useState(null);
@@ -12,19 +13,19 @@ export default function ExtractIADropzone() {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropzoneRef.current?.classList.add("border-blue-500", "bg-blue-50");
+    dropzoneRef.current?.classList.add("drag-active");
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropzoneRef.current?.classList.remove("border-blue-500", "bg-blue-50");
+    dropzoneRef.current?.classList.remove("drag-active");
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropzoneRef.current?.classList.remove("border-blue-500", "bg-blue-50");
+    dropzoneRef.current?.classList.remove("drag-active");
 
     const files = e.dataTransfer.files;
     processFiles(files);
@@ -78,14 +79,14 @@ export default function ExtractIADropzone() {
 
   if (results) {
     return (
-      <div className="scrollbar-thin">
+      <div className="extract-ia-dropzone-scrollbar-thin">
         <ExtractIAResults data={results} onReset={handleReset} />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="extract-ia-dropzone-container">
       {/* Dropzone */}
       <div
         ref={dropzoneRef}
@@ -93,7 +94,7 @@ export default function ExtractIADropzone() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer transition hover:border-gray-400 hover:bg-gray-50"
+        className="extract-ia-dropzone-zone"
       >
         <input
           ref={inputRef}
@@ -102,16 +103,16 @@ export default function ExtractIADropzone() {
           accept=".pdf"
           onChange={handleInputChange}
           disabled={loading}
-          className="hidden"
+          className="extract-ia-dropzone-input"
         />
 
-        <div className="flex flex-col items-center justify-center gap-3">
-          <div className="text-4xl">📄</div>
-          <div>
-            <p className="text-sm font-medium text-gray-700">
+        <div className="extract-ia-dropzone-content">
+          <div className="extract-ia-dropzone-icon">📄</div>
+          <div className="extract-ia-dropzone-text-wrapper">
+            <p className="extract-ia-dropzone-title">
               {loading ? "Procesando documentos…" : "Arrastra archivos PDF aquí"}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="extract-ia-dropzone-subtitle">
               o haz clic para seleccionar
             </p>
           </div>
@@ -120,15 +121,15 @@ export default function ExtractIADropzone() {
 
       {/* Error */}
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">❌ {error}</p>
+        <div className="extract-ia-dropzone-error">
+          <p className="extract-ia-dropzone-error-text">❌ {error}</p>
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="mt-4 flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="extract-ia-dropzone-loading">
+          <div className="extract-ia-dropzone-loading-spinner"></div>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import "../styles/components/preferences.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
@@ -242,44 +243,44 @@ export default function Preferences({ unlocked = true }) {
   };
 
   return (
-    <div className="mt-6 p-4 border rounded-lg bg-white max-w-3xl relative">
+    <div className="preferences-wrapper">
       {!isActive && (
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] rounded-lg flex items-center justify-center z-10">
-          <div className="text-center px-6">
-            <p className="font-medium text-gray-800">
+        <div className="preferences-overlay">
+          <div className="preferences-overlay-content">
+            <p className="preferences-overlay-title">
               Para configurar tus preferencias, realiza primero una búsqueda.
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="preferences-overlay-subtitle">
               Si ya tienes suscripciones guardadas, esta sección se activará automáticamente.
             </p>
           </div>
         </div>
       )}
 
-      <h3 className="text-lg font-semibold mb-2">Preferencias y suscripciones</h3>
+      <h3 className="preferences-title">Preferencias y suscripciones</h3>
 
       {loadingSession ? (
-        <p className="text-sm text-gray-500 mb-2">Cargando sesión…</p>
+        <p className="preferences-loading-text">Cargando sesión…</p>
       ) : msg && !email ? (
-        <p className="text-sm text-red-600 mb-2">{msg}</p>
+        <p className="preferences-error-text">{msg}</p>
       ) : null}
 
       {/* Identidad */}
-      <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1">Nombre</label>
+      <div className="preferences-grid">
+        <div className="preferences-field-group">
+          <label className="preferences-field-label">Nombre</label>
           <input
-            className="border p-2 rounded"
+            className="preferences-input"
             placeholder="Nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={!isActive}
           />
         </div>
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1">Correo</label>
+        <div className="preferences-field-group">
+          <label className="preferences-field-label">Correo</label>
           <div
-            className="border p-2 rounded bg-gray-50 text-gray-700"
+            className="preferences-display"
             title="Este correo proviene de tu sesión"
           >
             {email || "—"}
@@ -288,23 +289,23 @@ export default function Preferences({ unlocked = true }) {
       </div>
 
       {/* Preferencias */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="preferences-grid">
         <input
-          className="border p-2 rounded md:col-span-2"
+          className="preferences-input preferences-grid-full"
           placeholder="Palabras clave (ej. acueducto, energía)"
           value={palabras}
           onChange={(e) => setPalabras(e.target.value)}
           disabled={!isActive}
         />
         <input
-          className="border p-2 rounded"
+          className="preferences-input"
           placeholder="Departamento (opcional)"
           value={departamento}
           onChange={(e) => setDepartamento(e.target.value)}
           disabled={!isActive}
         />
         <input
-          className="border p-2 rounded"
+          className="preferences-input"
           placeholder="Ciudad (opcional)"
           value={ciudad}
           onChange={(e) => setCiudad(e.target.value)}
@@ -312,16 +313,16 @@ export default function Preferences({ unlocked = true }) {
         />
 
         {/* Indicadores financieros (debajo de Departamento/Ciudad) */}
-        <div className="md:col-span-2 mt-2">
-          <h4 className="font-semibold mb-2">Indicadores financieros (opcional)</h4>
-          <p className="text-xs text-gray-500 mb-3">
+        <div className="preferences-grid-full" style={{ marginTop: '0.5rem' }}>
+          <h4 className="preferences-section-title">Indicadores financieros (opcional)</h4>
+          <p className="preferences-section-description">
             Ingresa solo valores numéricos. Se guardarán únicamente los campos que tengan valor.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="preferences-financial-grid">
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Indicador de liquidez (ej. 5.13)"
               value={indicadorLiquidez}
               onChange={(e) => setIndicadorLiquidez(e.target.value)}
@@ -329,7 +330,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Nivel de endeudamiento (ej. 0.42)"
               value={nivelEndeudamiento}
               onChange={(e) => setNivelEndeudamiento(e.target.value)}
@@ -337,7 +338,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Razón de cobertura de intereses (ej. 16.26)"
               value={razonCoberturaIntereses}
               onChange={(e) => setRazonCoberturaIntereses(e.target.value)}
@@ -345,7 +346,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="ROE - Rent. patrimonio (ej. 0.14)"
               value={rentabilidadPatrimonio}
               onChange={(e) => setRentabilidadPatrimonio(e.target.value)}
@@ -353,7 +354,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="ROA - Rent. activo (ej. 0.08)"
               value={rentabilidadActivo}
               onChange={(e) => setRentabilidadActivo(e.target.value)}
@@ -361,7 +362,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Cap. de deudas corto plazo (límite, ej. 1.50)"
               value={capacidadDeudasCortoPlazo}
               onChange={(e) => setCapacidadDeudasCortoPlazo(e.target.value)}
@@ -369,7 +370,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Porcentaje de acreedores (límite, ej. 0.60)"
               value={porcentajeAcreedores}
               onChange={(e) => setPorcentajeAcreedores(e.target.value)}
@@ -377,7 +378,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded"
+              className="preferences-input"
               placeholder="Retribución riesgo propiedad (límite ROE, ej. 0.10)"
               value={retribucionRiesgoPropiedad}
               onChange={(e) => setRetribucionRiesgoPropiedad(e.target.value)}
@@ -385,7 +386,7 @@ export default function Preferences({ unlocked = true }) {
             />
             <input
               type="number" step="any"
-              className="border p-2 rounded md:col-span-2"
+              className="preferences-input preferences-grid-full"
               placeholder="Capacidad de generar ganancias (límite ROA, ej. 0.05)"
               value={capacidadGenerarGanancias}
               onChange={(e) => setCapacidadGenerarGanancias(e.target.value)}
@@ -393,70 +394,70 @@ export default function Preferences({ unlocked = true }) {
             />
           </div>
 
-          <div className="mt-3">
+          <div className="preferences-button-group">
             <button
               onClick={saveFin}
-              className="bg-emerald-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="preferences-button preferences-button-primary"
               disabled={!isActive || savingFin}
             >
               {savingFin ? "Guardando…" : "Guardar indicadores"}
             </button>
-            {msgFin && <p className="text-sm mt-2 text-gray-600">{msgFin}</p>}
+            {msgFin && <p className="preferences-status-message preferences-status-success">{msgFin}</p>}
           </div>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="preferences-button-group">
         <button
           onClick={save}
-          className="bg-blue-900 text-white px-4 py-2 rounded disabled:opacity-50"
+          className="preferences-button preferences-button-primary"
           disabled={!isActive || !email || saving}
         >
           {saving ? "Guardando…" : "Guardar intereses"}
         </button>
         <button
           onClick={runNow}
-          className="border px-4 py-2 rounded disabled:opacity-50"
+          className="preferences-button"
           disabled={!isActive || !email || running}
         >
           {running ? "Ejecutando…" : "Probar envío ahora"}
         </button>
       </div>
 
-      {msg && email && <p className="text-sm mt-2 text-gray-600">{msg}</p>}
+      {msg && email && <p className="preferences-status-message preferences-status-success">{msg}</p>}
 
       {/* Suscripciones */}
-      <div className="mt-6">
-        <h4 className="font-semibold mb-2">Tus suscripciones</h4>
+      <div className="preferences-sub-list">
+        <h4 className="preferences-sub-title">Tus suscripciones</h4>
 
         {loadingSubs ? (
-          <p className="text-sm text-gray-500">Cargando suscripciones…</p>
+          <p className="preferences-loading-text">Cargando suscripciones…</p>
         ) : subs.length === 0 ? (
-          <p className="text-sm text-gray-500">No tienes suscripciones activas.</p>
+          <p className="preferences-loading-text">No tienes suscripciones activas.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul>
             {subs.map((s) => (
-              <li key={s.id} className="text-sm border rounded p-3 flex justify-between items-center">
+              <li key={s.id} className="preferences-sub-item">
                 <div>
-                  <div>
-                    <b>{s.palabras_clave}</b>{" "}
+                  <div className="preferences-sub-item-name">
+                    {s.palabras_clave}{" "}
                     {s.departamento ? `• ${s.departamento}` : ""}{" "}
                     {s.ciudad ? `• ${s.ciudad}` : ""}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="preferences-sub-item-meta">
                     Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
                   </div>
                 </div>
                 {s.is_active ? (
                   <button
                     onClick={() => deactivate(s.id)}
-                    className="text-red-600 text-xs underline disabled:opacity-50"
+                    className="preferences-sub-item-button"
                     disabled={!isActive}
                   >
                     Desactivar
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400">Inactiva</span>
+                  <span className="preferences-sub-item-meta">Inactiva</span>
                 )}
               </li>
             ))}

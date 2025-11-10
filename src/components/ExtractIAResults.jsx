@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ExtractIAResultCard from "./ExtractIAResultCard.jsx";
+import "../styles/components/extract-ia-results.css";
 
 export default function ExtractIAResults({ data, onReset }) {
   const [expandedIndex, setExpandedIndex] = useState(null);
@@ -9,27 +10,27 @@ export default function ExtractIAResults({ data, onReset }) {
   const errorCount = items.filter((i) => !i.ok).length;
 
   return (
-    <div className="space-y-6">
+    <div className="extract-ia-results-container">
       {/* Resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <p className="text-xs text-green-600">Exitosos</p>
-          <p className="text-2xl font-bold text-green-700">{successCount}</p>
+      <div className="extract-ia-results-grid">
+        <div className="extract-ia-results-stat-success">
+          <p className="extract-ia-results-stat-label">Exitosos</p>
+          <p className="extract-ia-results-stat-value">{successCount}</p>
         </div>
         {errorCount > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-xs text-red-600">Errores</p>
-            <p className="text-2xl font-bold text-red-700">{errorCount}</p>
+          <div className="extract-ia-results-stat-error">
+            <p className="extract-ia-results-stat-label">Errores</p>
+            <p className="extract-ia-results-stat-value">{errorCount}</p>
           </div>
         )}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs text-blue-600">Total</p>
-          <p className="text-2xl font-bold text-blue-700">{items.length}</p>
+        <div className="extract-ia-results-stat-info">
+          <p className="extract-ia-results-stat-label">Total</p>
+          <p className="extract-ia-results-stat-value">{items.length}</p>
         </div>
       </div>
 
       {/* Lista de resultados con scrollbar */}
-      <div className="max-h-[500px] overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-3 scrollbar-thin">
+      <div className="extract-ia-results-list-wrapper">
         {items.map((item, idx) => (
           <ExtractIAResultCard
             key={idx}
@@ -45,7 +46,7 @@ export default function ExtractIAResults({ data, onReset }) {
       {/* Botón para procesar más */}
       <button
         onClick={onReset}
-        className="w-full mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+        className="extract-ia-results-reset-button"
       >
         ↻ Procesar más archivos
       </button>

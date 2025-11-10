@@ -1,0 +1,115 @@
+/* ============================= EXTRACT IA DROPZONE ============================= */
+
+.extract-ia-dropzone-container {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: auto;
+}
+
+.extract-ia-dropzone-scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.extract-ia-dropzone-scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.extract-ia-dropzone-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.extract-ia-dropzone-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.extract-ia-dropzone-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.extract-ia-dropzone-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.extract-ia-dropzone-zone:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
+}
+
+.extract-ia-dropzone-zone.drag-active {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+.extract-ia-dropzone-input {
+  display: none;
+}
+
+.extract-ia-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.extract-ia-dropzone-icon {
+  font-size: 2rem;
+}
+
+.extract-ia-dropzone-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.extract-ia-dropzone-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.extract-ia-dropzone-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.extract-ia-dropzone-error {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+}
+
+.extract-ia-dropzone-error-text {
+  font-size: 0.875rem;
+  color: #b91c1c;
+}
+
+.extract-ia-dropzone-loading {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.extract-ia-dropzone-loading-spinner {
+  border-radius: 9999px;
+  height: 2rem;
+  width: 2rem;
+  border: 2px solid #2563eb;
+  border-bottom-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

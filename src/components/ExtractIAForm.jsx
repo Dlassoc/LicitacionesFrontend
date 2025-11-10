@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ExtractIADropzone from "./ExtractIADropzone.jsx";
 import ExtractIAResults from "./ExtractIAResults.jsx";
 import { API_ENDPOINTS } from "../config/api.js";
+import "../styles/components/extract-ia-form.css";
 
 export default function ExtractIAForm() {
   const [results, setResults] = useState(null);
@@ -50,7 +51,7 @@ export default function ExtractIAForm() {
 
   if (results) {
     return (
-      <div className="scrollbar-thin">
+      <div className="extract-ia-form-scrollbar-thin">
         <ExtractIAResults data={results} onReset={handleReset} />
       </div>
     );

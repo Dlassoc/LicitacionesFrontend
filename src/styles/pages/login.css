@@ -1,0 +1,34 @@
+/* Fondo y estructura */
+.bg-custom {
+  @apply min-h-screen grid place-items-center bg-gray-50;
+}
+
+/* Formulario con efecto "alzar" */
+.form-container {
+  @apply w-full max-w-sm bg-white border rounded-2xl p-6 shadow-sm transform transition-all duration-300 hover:scale-105 text-center;
+}
+
+/* Título (solo utilities nativas aquí) */
+.text-title {
+  @apply text-xl font-semibold mb-4 text-[#27C5CE];
+}
+
+/* Inputs */
+.input-field {
+  @apply border-2 border-gray-300 focus:ring-2 focus:ring-[#27C5CE] focus:border-[#27C5CE] p-2.5 rounded w-full mb-3 text-left;
+}
+
+/* Botón */
+.button-login {
+  @apply w-full bg-[#27C5CE] text-white py-2 rounded-lg hover:bg-[#1aa0b1] transition-colors duration-300;
+}
+
+/* Error */
+.text-error { @apply text-sm text-[#E74F20] mt-2; }
+
+/* Enlace registro */
+.text-register { @apply text-sm text-gray-600 mt-3; }
+.link-register { @apply text-[#27C5CE] underline font-bold hover:text-[#1aa0b1] transition-colors duration-300; }
+
+/* Si usas icono de ojo aquí también */
+.eye-icon { @apply absolute right-3 top-3 cursor-pointer text-[#27C5CE]; }

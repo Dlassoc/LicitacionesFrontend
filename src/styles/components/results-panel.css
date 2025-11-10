@@ -1,0 +1,58 @@
+/* ResultsPanel – estilos del componente (sin @layer) */
+
+.rp { @apply max-w-6xl mx-auto px-4 py-4; }
+
+.rp-box {
+  @apply relative rounded-lg border;
+  border-color: var(--panel-border);
+  background-color: transparent;
+}
+
+/* Header NEUTRO (no cambia de color) */
+.rp-header {
+  @apply sticky top-0 z-10 px-3 py-2 flex items-center justify-between rounded-t-lg border-b backdrop-blur;
+  background: rgba(255,255,255,0.85);
+  border-color: var(--panel-border);
+}
+.dark .rp-header { background: rgba(2,6,23,0.6); }
+
+.rp-header-text {
+  font-size: 0.875rem; /* text-sm */
+  color: var(--panel-text-muted);
+}
+
+/* CUERPO con el color/gradiente del panel */
+.rp-body {
+  @apply max-h-[70vh] overflow-y-auto overscroll-contain p-3 rounded-b-lg border shadow-sm;
+  background: var(--panel-inner-bg);
+  border-color: var(--panel-border);
+}
+
+.rp-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4; }
+
+.rp-empty {
+  @apply p-8 text-center;
+  color: var(--panel-text-muted);
+}
+
+.rp-error {
+  @apply text-center mt-4 font-medium;
+  color: var(--panel-error);
+}
+
+/* Footer igual que el body */
+.rp-footer {
+  @apply sticky bottom-0 mt-4 -mx-3 px-3 py-2 flex justify-between items-center border-t;
+  background: var(--panel-inner-bg);
+  border-color: var(--panel-border);
+}
+.rp-footer-text { @apply text-xs; color: var(--panel-text-muted); }
+
+.rp-btn {
+  @apply px-3 py-1 rounded border disabled:opacity-50 transition;
+  color: var(--panel-button-text);
+  border-color: var(--panel-button);
+}
+.rp-btn:hover {
+  background: color-mix(in srgb, var(--panel-button) 10%, transparent);
+}
