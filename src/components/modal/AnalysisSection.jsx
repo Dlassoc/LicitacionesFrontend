@@ -35,7 +35,7 @@ export default function AnalysisSection({
       {analyzing && (
         <div className="analysis-section-analyzing">
           <div className="analysis-section-analyzing-spinner" />
-          <span className="analysis-section-analyzing-text">Descargando y analizando documento...</span>
+          <span className="analysis-section-analyzing-text">Descargando y analizando documento(s)...</span>
         </div>
       )}
 
@@ -46,16 +46,27 @@ export default function AnalysisSection({
       )}
 
       {!analyzing && analyzed && (
-        <div className="analysis-section-success">
-          <div className="analysis-section-success-header">
-            <h5 className="analysis-section-success-title">
-              ✓ Documento analizado: {analyzed.nombre}
-            </h5>
-            <p className="analysis-section-success-pages">
-              Páginas encontradas: <strong>{analyzed.paginasIndicadores.join(", ") || "—"}</strong> de{" "}
-              <strong>{analyzed.paginasTotales}</strong>
-            </p>
-          </div>
+        <div className={`analysis-section-success ${analyzed.noIndicatorsFound ? 'analysis-section-success-no-indicators' : ''}`}>
+          {analyzed.noIndicatorsFound ? (
+            <div className="analysis-section-success-header">
+              <h5 className="analysis-section-success-title">
+                ✓ Análisis completado
+              </h5>
+              <p className="analysis-section-success-pages">
+                Se analizaron todos los documentos disponibles
+              </p>
+            </div>
+          ) : (
+            <div className="analysis-section-success-header">
+              <h5 className="analysis-section-success-title">
+                ✓ Documento analizado: {analyzed.nombre}
+              </h5>
+              <p className="analysis-section-success-pages">
+                Páginas encontradas: <strong>{analyzed.paginasIndicadores.join(", ") || "—"}</strong> de{" "}
+                <strong>{analyzed.paginasTotales}</strong>
+              </p>
+            </div>
+          )}
 
           {/* Indicadores encontrados */}
           {analyzed.indicadores && Object.keys(analyzed.indicadores).length > 0 ? (
@@ -75,10 +86,20 @@ export default function AnalysisSection({
                   <strong>Notas:</strong> {analyzed.notas}
                 </p>
               )}
+              {analyzed.confianza !== undefined && (
+                <p className="analysis-section-confidence">
+                  Confianza del análisis: <strong>{(analyzed.confianza * 100).toFixed(0)}%</strong>
+                </p>
+              )}
             </div>
           ) : (
             <div className="analysis-section-no-indicators">
-              <p>ℹ️ No se encontraron indicadores financieros en este documento.</p>
+              <p className="analysis-section-no-indicators-title">
+                ⓘ No se encontraron indicadores financieros relevantes
+              </p>
+              <p className="analysis-section-no-indicators-description">
+                {analyzed.notas || "Este documento no contiene información sobre indicadores financieros que sean relevantes para esta postulación."}
+              </p>
             </div>
           )}
         </div>

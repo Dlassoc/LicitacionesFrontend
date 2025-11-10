@@ -1,5 +1,5 @@
 // src/components/ResultModal.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useDocumentDownload } from "../hooks/useDocumentDownload.js";
 import API_BASE_URL from "../config/api.js";
 import ModalHeader from "./modal/ModalHeader.jsx";
@@ -327,17 +327,35 @@ export default function ResultModal({ open, item, onClose }) {
     return docs.find((d) => d.es_documento_indicadores === true) || null;
   }, [docs]);
 
-  const { analyzing, analyzed, error: analysisError, analyze } = useDocumentDownload(
+  const { analyzing, analyzed, error: analysisError, analyze, analyzeMultipleDocs } = useDocumentDownload(
     docWithIndicators, // Solo el documento con indicadores detectados
     idPortafolio
   );
 
-  // NO auto-trigger: el usuario decide cuándo analizar profundamente con el botón "Escanear"
-  // useEffect(() => {
-  //   if (docs.length > 0 && !docsLoading && !docsErr && !analyzing) {
-  //     analyze();
-  //   }
-  // }, [docs, docsLoading, docsErr, analyzing, analyze]);
+  // Función wrapper para manejar ambos casos
+  const handleAnalyze = useCallback(() => {
+    if (docWithIndicators) {
+      // Caso 1: Hay un documento explícito con indicadores
+      analyze();
+    } else if (docs.length > 0) {
+      // Caso 2: No hay documento explícito, analizar todos
+      analyzeMultipleDocs(docs);
+    }
+  }, [docWithIndicators, docs, analyze, analyzeMultipleDocs]);
+
+  // Auto-trigger análisis automático cuando los documentos estén listos
+  useEffect(() => {
+    if (
+      docs.length > 0 &&
+      !docsLoading &&
+      !docsErr &&
+      !analyzing &&
+      !analyzed
+    ) {
+      // Ejecutar automáticamente el análisis
+      handleAnalyze();
+    }
+  }, [docs, docsLoading, docsErr, analyzing, analyzed, handleAnalyze]);
 
   useEffect(() => {
     let abort = false;
@@ -412,19 +430,6 @@ export default function ResultModal({ open, item, onClose }) {
         className="result-modal-dialog"
         onClick={(e) => e.stopPropagation()}
       >
-          {/* Overlay de carga: SOLO mostrar cuando se está ANALIZANDO un documento */}
-          {analyzing && (
-            <div className="result-modal-analyzing-overlay">
-              <div className="result-modal-analyzing-content">
-                <div className="result-modal-analyzing-spinner" />
-                <div className="result-modal-analyzing-text">
-                  <p>Analizando indicadores financieros...</p>
-                  <p>Por favor espera</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <button
             onClick={onClose}
             className="result-modal-close-btn"
@@ -470,15 +475,17 @@ export default function ResultModal({ open, item, onClose }) {
             docsErr={docsErr} 
             idPortafolio={idPortafolio}
             debugQuery={debugQuery}
+            analyzing={analyzing}
+            analyzed={analyzed}
           />
 
           {/* ====== Análisis de indicadores financieros ====== */}
           <AnalysisSection 
-            docWithIndicators={docWithIndicators}
+            docWithIndicators={docWithIndicators || docs.length > 0}
             analyzing={analyzing}
             analyzed={analyzed}
             analysisError={analysisError}
-            analyze={analyze}
+            analyze={handleAnalyze}
           />
 
           {/* Footer */}

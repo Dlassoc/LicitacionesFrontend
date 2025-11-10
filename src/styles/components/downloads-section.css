@@ -190,3 +190,18 @@
   border: 1px solid #d1d5db;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
+.downloads-section-container {
+  margin-top: 1rem;
+}
+
+.downloads-section-fallback-message {
+  font-size: 0.875rem;
+  color: #7c3aed;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+  padding: 0.75rem;
+  background-color: #f3e8ff;
+  border-left: 3px solid #7c3aed;
+  border-radius: 0.25rem;
+}

@@ -16,7 +16,7 @@ export default function CategoriesSection({ codigoPrincipal, categoriasAdicional
         {codigoPrincipal && (
           <div className="categories-section-group">
             <h5 className="categories-section-label">
-              📁 Categoría Principal
+              📁 Código UNSPSC Principal
             </h5>
             <div className="categories-section-primary">
               {codigoPrincipal}
@@ -28,7 +28,7 @@ export default function CategoriesSection({ codigoPrincipal, categoriasAdicional
         {categoriasAdicionales && (
           <div className="categories-section-group">
             <h5 className="categories-section-label">
-              🏷️ Categorías Adicionales
+              🏷️ Códigos UNSPSC Adicionales
             </h5>
             <div className="categories-section-additional-list">
               {typeof categoriasAdicionales === "string" 
