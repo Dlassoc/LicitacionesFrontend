@@ -39,6 +39,14 @@
   font-family: Arial, Helvetica, ui-sans-serif, system-ui;
 }
 
+:root[data-theme="dark"] .result-modal-dialog {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6),
+              0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  color: #e8f6f7;
+}
+
 /* Botón cerrar */
 .result-modal-close-btn {
   position: absolute;
@@ -57,6 +65,14 @@
 
 .result-modal-close-btn:hover {
   color: #374151;
+}
+
+:root[data-theme="dark"] .result-modal-close-btn {
+  color: #94b9bd;
+}
+
+:root[data-theme="dark"] .result-modal-close-btn:hover {
+  color: #cdeff2;
 }
 
 /* Overlay de análisis (spinner fullscreen) */
@@ -136,6 +152,16 @@
   background-color: #eff6ff;
 }
 
+:root[data-theme="dark"] .result-modal-process-link a {
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: #0f1e21;
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .result-modal-process-link a:hover {
+  background-color: #1a2a2e;
+}
+
 /* Footer divisor */
 .result-modal-footer {
   margin-top: 2.25rem;
@@ -149,3 +175,8 @@
   border-radius: 9999px;
   background-color: #e5e7eb;
 }
+
+:root[data-theme="dark"] .result-modal-divider {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+

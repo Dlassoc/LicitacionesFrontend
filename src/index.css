@@ -19,15 +19,27 @@
     --panel-button: #27C5CE;
     --panel-button-text: #0F172A;
   }
+  
   .dark {
     --main-gradient: linear-gradient(180deg, #0B1220 0%, #0A0F1A 100%);
-    --panel-inner-bg: #0f172a; /* ajusta si quieres otro */
+    --panel-inner-bg: #0f172a;
     --panel-border: #1F2937;
     --panel-text-muted: #9AA4B2;
     --panel-error: #F87171;
     --panel-button: #27C5CE;
     --panel-button-text: #E5E7EB;
   }
+  
+  :root[data-theme="dark"] {
+    --main-gradient: linear-gradient(180deg, #0B1220 0%, #0A0F1A 100%);
+    --panel-inner-bg: #0f1e21;
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --panel-text-muted: #b7e7ea;
+    --panel-error: #ff8080;
+    --panel-button: #27C5CE;
+    --panel-button-text: #e8f6f7;
+  }
+  
  :root {
     /* splash exclusivo */
     --splash-gradient: linear-gradient(90deg, rgba(246,254,255,0.6) 0%, rgba(6,53,58,0.25) 100%);
@@ -35,6 +47,11 @@
   .dark {
     --splash-gradient: linear-gradient(90deg, rgba(11,18,32,0.85) 0%, rgba(6,53,58,0.40) 100%);
   }
+  
+  :root[data-theme="dark"] {
+    --splash-gradient: linear-gradient(90deg, rgba(11,18,32,0.85) 0%, rgba(6,53,58,0.40) 100%);
+  }
+  
   body {
     @apply bg-gray-50 text-gray-900 font-brand-body dark:bg-slate-950 dark:text-slate-100;
   }

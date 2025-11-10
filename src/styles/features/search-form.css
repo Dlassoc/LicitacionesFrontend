@@ -134,3 +134,58 @@
 .search-form-button-secondary:active {
   transform: scale(0.98);
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .search-form-wrapper {
+  background-color: #0f1e21;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .search-form-input,
+:root[data-theme="dark"] .search-form-date-input,
+:root[data-theme="dark"] .search-form-select {
+  background-color: #1a2a2e;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .search-form-input::placeholder {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .search-form-input:focus,
+:root[data-theme="dark"] .search-form-date-input:focus,
+:root[data-theme="dark"] .search-form-select:focus {
+  border-color: #27C5CE;
+  box-shadow: 0 0 0 2px rgba(39, 197, 206, 0.2);
+}
+
+:root[data-theme="dark"] .search-form-select:disabled {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #7a9a9f;
+  cursor: not-allowed;
+}
+
+:root[data-theme="dark"] .search-form-button-primary {
+  background-color: #27C5CE;
+  color: #0f1e21;
+  border-color: #27C5CE;
+}
+
+:root[data-theme="dark"] .search-form-button-primary:hover {
+  background-color: #1aa0a8;
+  border-color: #1aa0a8;
+}
+
+:root[data-theme="dark"] .search-form-button-secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e8f6f7;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+:root[data-theme="dark"] .search-form-button-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+

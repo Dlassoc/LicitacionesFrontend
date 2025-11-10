@@ -24,8 +24,8 @@
 
 /* Wrapper e iconos */
 .input-wrapper { @apply relative; }
-.input-icon-left { @apply absolute left-3 top-2.5 text-gray-400 pointer-events-none; }
-.input-icon-right-error { @apply absolute right-9 top-2.5 text-[#E74F20]; }
+.input-icon-left { @apply absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none; }
+.input-icon-right-error { @apply absolute right-9 top-1/2 -translate-y-1/2 text-[#E74F20]; }
 
 /* Inputs base */
 .input-field {
@@ -44,7 +44,7 @@
 .input-with-bothicons { padding-left: 2.25rem; padding-right: 2.25rem; }
 
 /* Icono ojo (mismo para ambos campos) */
-.eye-icon { @apply absolute right-3 top-2.5 cursor-pointer text-[#27C5CE]; }
+.eye-icon { @apply absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-[#27C5CE]; }
 
 /* Hints y errores */
 .hint-muted { @apply text-xs text-gray-500 mt-1; }

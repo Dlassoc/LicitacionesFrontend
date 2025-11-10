@@ -1,0 +1,46 @@
+/* 
+  darkmode-colors.css - Variables y mapeos de colores para darkmode
+  Este archivo define el mapeo de colores claros a oscuros para todos los componentes
+*/
+
+/* Mapeo de colores light -> dark */
+:root[data-theme="dark"] {
+  /* Blancos/grises claros → Grises oscuros */
+  --color-white: #0f1e21;           /* white → dark surface */
+  --color-gray-50: #0d1416;          /* #f9fafb → dark bg */
+  --color-gray-100: #151d20;         /* #f3f4f6 → dark gray */
+  --color-gray-200: #224248;         /* #e5e7eb → dark border */
+  
+  /* Colores de estado */
+  --color-error-light: #3f1a1a;      /* #fef2f2 → dark error bg */
+  --color-success-light: #1a3a1f;    /* #f0fdf4 → dark success bg */
+  --color-warning-light: #3f3a1a;    /* #fffbeb → dark warning bg */
+  --color-purple-light: #2f1e3f;     /* #f3e8ff → dark purple bg */
+  
+  /* Texto */
+  --text-primary: #e8f6f7;
+  --text-secondary: #b7e7ea;
+  --text-muted: #94b9bd;
+  
+  /* Bordes */
+  --border-color: rgba(255,255,255,.08);
+}
+
+/* Light mode (valores por defecto) */
+:root[data-theme="light"] {
+  --color-white: #ffffff;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  
+  --color-error-light: #fef2f2;
+  --color-success-light: #f0fdf4;
+  --color-warning-light: #fffbeb;
+  --color-purple-light: #f3e8ff;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  
+  --border-color: rgba(0,0,0,.08);
+}

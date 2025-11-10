@@ -64,7 +64,7 @@
   letter-spacing: .2px;
 }
 
-/* ====== DARK ====== */
+/* ====== DARK (prefers-color-scheme) ====== */
 .dark .splash { background: var(--splash-gradient); }
 
 .dark .splash::before {
@@ -80,3 +80,28 @@
 
 .dark .splash-text { color: #cbd5e1; }
 .dark .splash-spinner { border-color: rgba(255,255,255,0.15); }
+
+/* ====== DARK (data-theme) ====== */
+:root[data-theme="dark"] .splash {
+  background: linear-gradient(90deg, #000a25 0%, #00ddff 100%);
+}
+
+:root[data-theme="dark"] .splash::before {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(2px);
+}
+
+:root[data-theme="dark"] .splash-box {
+  background: rgba(15, 22, 36, 0.95);
+  border-color: rgba(39, 197, 206, 0.15);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme="dark"] .splash-text { 
+  color: #b7e7ea; 
+}
+
+:root[data-theme="dark"] .splash-spinner { 
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #27C5CE;
+}

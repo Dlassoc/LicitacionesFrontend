@@ -56,3 +56,33 @@
 .rp-btn:hover {
   background: color-mix(in srgb, var(--panel-button) 10%, transparent);
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .rp-header {
+  background: rgba(15, 30, 33, 0.85);
+}
+
+:root[data-theme="dark"] .rp-header-text {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .rp-empty {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .rp-error {
+  color: #ff8080;
+}
+
+:root[data-theme="dark"] .rp-footer-text {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .rp-btn {
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .rp-btn:hover {
+  background: rgba(39, 197, 206, 0.15);
+}

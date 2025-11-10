@@ -32,3 +32,16 @@
   width: 7rem;
   background: linear-gradient(to right, transparent, #d1d5db, transparent);
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .modal-header-title-text {
+  background: linear-gradient(to right, #8de4ea, #a78bfa, #5fe3a1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root[data-theme="dark"] .modal-header-divider {
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+}

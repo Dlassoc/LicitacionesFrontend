@@ -240,3 +240,105 @@
   font-weight: 600;
   color: #ea580c;
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .analysis-section-preview-box {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .analysis-section-indicators-label,
+:root[data-theme="dark"] .analysis-section-preview-label {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-indicators-box {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .analysis-section-indicators-item strong {
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .analysis-section-notes {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-notes strong {
+  color: #cdeff2;
+}
+
+:root[data-theme="dark"] .analysis-section-no-indicators {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-no-indicators-title {
+  color: #cdeff2;
+}
+
+:root[data-theme="dark"] .analysis-section-no-indicators-description {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-confidence {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-confidence strong {
+  color: #5fe3a1;
+}
+
+:root[data-theme="dark"] .analysis-section-confidence-low strong {
+  color: #ffa726;
+}
+
+:root[data-theme="dark"] .analysis-section-success {
+  border-color: rgba(95, 227, 161, 0.2);
+  background-color: rgba(95, 227, 161, 0.05);
+}
+
+:root[data-theme="dark"] .analysis-section-success-title {
+  color: #5fe3a1;
+}
+
+:root[data-theme="dark"] .analysis-section-success-pages {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-success-no-indicators {
+  border-color: rgba(255, 167, 38, 0.2);
+  background-color: rgba(255, 167, 38, 0.05);
+}
+
+:root[data-theme="dark"] .analysis-section-success-no-indicators .analysis-section-success-title {
+  color: #ffa726;
+}
+
+:root[data-theme="dark"] .analysis-section-success-no-indicators .analysis-section-success-pages {
+  color: #ffa726;
+}
+
+:root[data-theme="dark"] .analysis-section-analyzing {
+  border-color: rgba(39, 197, 206, 0.2);
+  background-color: rgba(39, 197, 206, 0.05);
+}
+
+:root[data-theme="dark"] .analysis-section-analyzing-text {
+  color: #cdeff2;
+}
+
+:root[data-theme="dark"] .analysis-section-error {
+  border-color: rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+:root[data-theme="dark"] .analysis-section-error-text {
+  color: #ff8080;
+}
+

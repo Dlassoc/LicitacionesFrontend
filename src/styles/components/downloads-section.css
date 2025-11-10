@@ -205,3 +205,82 @@
   border-left: 3px solid #7c3aed;
   border-radius: 0.25rem;
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .downloads-section-loading {
+  border-color: rgba(39, 197, 206, 0.2);
+  background-color: rgba(39, 197, 206, 0.05);
+}
+
+:root[data-theme="dark"] .downloads-section-loading-text {
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .downloads-section-error {
+  color: #ff8080;
+}
+
+:root[data-theme="dark"] .downloads-section-empty-text {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .downloads-section-debug {
+  color: #5a7a7e;
+}
+
+:root[data-theme="dark"] .downloads-section-empty-message {
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(15, 30, 33, 0.5);
+}
+
+:root[data-theme="dark"] .downloads-section-empty-message-text {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .downloads-section-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(15, 30, 33, 0.6);
+}
+
+:root[data-theme="dark"] .downloads-section-item-title {
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .downloads-section-item-header {
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .downloads-section-item-meta {
+  color: #94b9bd;
+}
+
+:root[data-theme="dark"] .downloads-section-item-badge {
+  color: #5fe3a1;
+}
+
+:root[data-theme="dark"] .downloads-section-item-reason {
+  color: #ffa726;
+}
+
+:root[data-theme="dark"] .downloads-section-item-link {
+  color: #8de4ea;
+  border-color: rgba(141, 228, 234, 0.2);
+  background-color: rgba(141, 228, 234, 0.1);
+}
+
+:root[data-theme="dark"] .downloads-section-item-link:hover {
+  color: #cdeff2;
+  background-color: rgba(141, 228, 234, 0.2);
+  border-color: rgba(141, 228, 234, 0.3);
+}
+
+:root[data-theme="dark"] .downloads-section-item-no-url {
+  color: #5a7a7e;
+}
+
+:root[data-theme="dark"] .downloads-section-fallback-message {
+  color: #c084fc;
+  background-color: rgba(192, 132, 252, 0.08);
+  border-left-color: rgba(192, 132, 252, 0.3);
+}

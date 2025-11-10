@@ -86,17 +86,6 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                         </Link>
                       </li>
 
-                      <li>
-                        <Link
-                          to="/app/extract-ia"
-                          className="menu-item"
-                          role="menuitem"
-                          onClick={() => setOpenMenu(false)}
-                        >
-                          Extractor IA
-                        </Link>
-                      </li>
-
                       {showMenuHome && (
                         <li>
                           <Link

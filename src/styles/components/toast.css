@@ -30,7 +30,14 @@
 @keyframes toastOut { to { opacity: 0; transform: translateY(-6px) } }
 
 /* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .toast { background: #0f1e21; color: #cdeff2; border-color: rgba(255,255,255,.08); }
-  .toast-dot { background: #27C5CE; box-shadow: 0 0 0 4px #27C5CE55; }
+:root[data-theme="dark"] .toast {
+  background: #0f1e21;
+  color: #cdeff2;
+  border-color: rgba(255,255,255,.08);
 }
+
+:root[data-theme="dark"] .toast-dot {
+  background: #27C5CE;
+  box-shadow: 0 0 0 4px #27C5CE55;
+}
+

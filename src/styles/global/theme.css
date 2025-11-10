@@ -50,7 +50,7 @@
 
 /* Toggle tema (icono) en claro */
 :root[data-theme="light"] .theme-toggle {
-  background: #fff; color: #0b5a61; border: 1px solid rgba(0,0,0,0.25);
+  background: #f3f4f6; color: #0b5a61; border: 1px solid rgba(0,0,0,0.15);
 }
 
 /* ---------- Formularios (login / register) ---------- */
@@ -144,6 +144,17 @@
 :root[data-theme="dark"] .menu-item { color: #e8f6f7; }
 :root[data-theme="dark"] .menu-item:hover { background: rgba(39, 197, 206, 0.18); }
 :root[data-theme="dark"] .menu-sep { background: rgba(255,255,255,.08); }
+
+/* Toggle tema (icono) en oscuro */
+:root[data-theme="dark"] .theme-toggle {
+  background: #1a2a2e; color: #8de4ea; border: 1px solid rgba(255,255,255,0.1);
+}
+:root[data-theme="dark"] .theme-toggle:hover {
+  background: #224248;
+}
+:root[data-theme="dark"] .theme-toggle:active {
+  transform: scale(0.98);
+}
 
 /* Formularios (register/login) */
 :root[data-theme="dark"] .bg-custom { background: #0d1416; }

@@ -8,7 +8,6 @@ import App from "./app/App.jsx";
 
 // IMPORTA las páginas que ya incluyen el Header:
 import PreferencesPage from "./pages/PreferencesPage.jsx";
-import ExtractIAPage from "./pages/ExtractIAPage.jsx";
 
 export default function Root() {
   return (
@@ -32,16 +31,6 @@ export default function Root() {
         element={
           <ProtectedRoute>
             <PreferencesPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* /app/extract-ia para el extractor de IA */}
-      <Route
-        path="/app/extract-ia"
-        element={
-          <ProtectedRoute>
-            <ExtractIAPage />
           </ProtectedRoute>
         }
       />

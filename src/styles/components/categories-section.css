@@ -66,3 +66,29 @@
   font-size: 0.875rem;
   color: #4f46e5;
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .categories-section-box {
+  border-color: rgba(141, 228, 234, 0.2);
+  background-color: rgba(141, 228, 234, 0.05);
+}
+
+:root[data-theme="dark"] .categories-section-label {
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .categories-section-primary {
+  background-color: #4f46e5;
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .categories-section-additional-item {
+  border-color: rgba(79, 70, 229, 0.3);
+  background-color: rgba(79, 70, 229, 0.1);
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .categories-section-text {
+  color: #8de4ea;
+}
