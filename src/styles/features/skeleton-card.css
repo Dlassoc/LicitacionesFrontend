@@ -67,3 +67,28 @@
   border-radius: 0.25rem;
   width: 40%;
 }
+
+/* ============================= DARKMODE ============================= */
+
+:root[data-theme="dark"] .skeleton-card-container {
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: #0f1e21;
+}
+
+:root[data-theme="dark"] .skeleton-card-title {
+  background-color: #1a2a2e;
+}
+
+:root[data-theme="dark"] .skeleton-card-line-1,
+:root[data-theme="dark"] .skeleton-card-line-2,
+:root[data-theme="dark"] .skeleton-card-line-3 {
+  background-color: #1a2a2e;
+}
+
+:root[data-theme="dark"] .skeleton-card-footer {
+  background-color: #1a2a2e;
+}
+
+:root[data-theme="dark"] .skeleton-card-footer-meta {
+  background-color: #1a2a2e;
+}

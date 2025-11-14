@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaExclamationCircle } from "react-icons/fa";
 import logo from "../assets/logo_emergente.png";
 import SplashScreen from "../components/SplashScreen.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 import "../styles/register.css";
 
 export default function Register() {
@@ -79,6 +80,11 @@ export default function Register() {
       {loading && <SplashScreen text="Creando tu cuenta…" />}
 
       <div className="bg-custom">
+        {/* Theme Toggle */}
+        <div style={{ position: "absolute", top: "1rem", right: "1rem", zIndex: 50 }}>
+          <ThemeToggle />
+        </div>
+
         <form onSubmit={submit} className="form-container">
           {/* Logo */}
           <div className="mb-5">

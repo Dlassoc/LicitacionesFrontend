@@ -32,6 +32,7 @@ export default function AnalysisSection({
         </button>
       </div>
 
+      {/* ✅ NUEVO: Mostrar análisis en progreso */}
       {analyzing && (
         <div className="analysis-section-analyzing">
           <div className="analysis-section-analyzing-spinner" />
@@ -39,12 +40,14 @@ export default function AnalysisSection({
         </div>
       )}
 
+      {/* Mostrar errores */}
       {analysisError && (
         <div className="analysis-section-error">
           <p className="analysis-section-error-text">❌ {analysisError}</p>
         </div>
       )}
 
+      {/* ✅ MODIFICADO: Mostrar resultados SOLO si no está analizando */}
       {!analyzing && analyzed && (
         <div className={`analysis-section-success ${analyzed.noIndicatorsFound ? 'analysis-section-success-no-indicators' : ''}`}>
           {analyzed.noIndicatorsFound ? (
@@ -81,6 +84,21 @@ export default function AnalysisSection({
                   ))}
                 </ul>
               </div>
+              
+              {/* ✅ NUEVO: Mostrar códigos UNSPSC si existen */}
+              {analyzed.codigos_unspsc && analyzed.codigos_unspsc.length > 0 && (
+                <div className="analysis-section-unspsc-group">
+                  <p className="analysis-section-unspsc-label">📋 Códigos UNSPSC encontrados:</p>
+                  <div className="analysis-section-unspsc-codes">
+                    {analyzed.codigos_unspsc.map((code) => (
+                      <span key={code} className="analysis-section-unspsc-code">
+                        {code}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {analyzed.notas && (
                 <p className="analysis-section-notes">
                   <strong>Notas:</strong> {analyzed.notas}

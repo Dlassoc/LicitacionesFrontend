@@ -24,7 +24,6 @@
   height: 40px; 
   width: auto; 
   display: block;
-  border: 2px solid #27C5CE;
   border-radius: 0.5rem;
   padding: 4px;
   transition: all 0.2s;
@@ -78,7 +77,7 @@
   display: inline-grid; place-items: center;
   width: 36px; height: 36px; border-radius: 9999px;
   background: #53616a; color: #ffffff;
-  border: 2px solid #27C5CE;              /* aro de marca */
+  border: 2px solid #036a6f;              /* aro de marca */
   box-shadow: 0 0 0 2px #ffffff;          /* aro blanco exterior */
   transition: box-shadow .2s ease, transform .1s ease;
 }

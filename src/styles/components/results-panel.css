@@ -23,12 +23,14 @@
 
 /* CUERPO con el color/gradiente del panel */
 .rp-body {
-  @apply max-h-[70vh] overflow-y-auto overscroll-contain p-3 rounded-b-lg border shadow-sm;
+  @apply max-h-[70vh] overflow-y-auto overscroll-contain p-3 border rounded-b-lg shadow-sm;
   background: var(--panel-inner-bg);
   border-color: var(--panel-border);
+  display: flex;
+  flex-direction: column;
 }
 
-.rp-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4; }
+.rp-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
 
 .rp-empty {
   @apply p-8 text-center;
@@ -42,9 +44,12 @@
 
 /* Footer igual que el body */
 .rp-footer {
-  @apply sticky bottom-0 mt-4 -mx-3 px-3 py-2 flex justify-between items-center border-t;
+  @apply mt-auto -mx-3 px-3 py-2 flex justify-between items-center border-t;
   background: var(--panel-inner-bg);
   border-color: var(--panel-border);
+  margin-bottom: -0.75rem;
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
 }
 .rp-footer-text { @apply text-xs; color: var(--panel-text-muted); }
 

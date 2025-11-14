@@ -81,6 +81,7 @@ export default memo(function ResultCard({ item = {}, onClick }) {
   const precioVal = get(item, idx, ["Precio_base", "precio_base", "cuantia", "valor", "valor_contrato", "valor_estimado"], null);
   const precio = precioVal ? formatCOP(precioVal) : "Cuantía no especificada";
   const descripcion = get(item, idx, ["Descripcion", "descripcion"], "");
+  const codigoUnsp = get(item, idx, ["Codigo_categoria", "codigo_categoria", "codCategoria"], "");
 
   return (
     <article
@@ -104,6 +105,11 @@ export default memo(function ResultCard({ item = {}, onClick }) {
           <span className="result-card-badge-location">
             {dpto} • {ciudad}
           </span>
+          {codigoUnsp && (
+            <span className="result-card-badge-unsp">
+              {codigoUnsp}
+            </span>
+          )}
         </div>
       </header>
 
@@ -118,19 +124,7 @@ export default memo(function ResultCard({ item = {}, onClick }) {
       ) : null}
 
       <footer className="result-card-footer">
-        <div className="result-card-price">💰 {precio}</div>
-        <a
-          href={typeof urlResuelto === "string" ? urlResuelto : "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="result-card-link"
-        >
-          Ver detalles del proceso
-          <svg xmlns="http://www.w3.org/2000/svg" className="result-card-link-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-          </svg>
-        </a>
+        <div className="result-card-price">💰 {precio} Pesos</div>
       </footer>
     </article>
   );

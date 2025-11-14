@@ -1,5 +1,5 @@
 /* Fondo y estructura */
-.bg-custom { @apply min-h-screen flex items-center justify-center bg-gray-50; }
+.bg-custom { @apply min-h-screen flex items-center justify-center bg-gray-50 relative; }
 
 /* Tarjeta con animación sutil */
 .form-container {

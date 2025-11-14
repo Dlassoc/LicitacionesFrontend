@@ -91,11 +91,37 @@ export function useSearchResults(initialLimit = 21) {
    */
   const goPage = useCallback(
     async (newOffset) => {
-      if (!lastQuery) return;
-      const p = { ...lastQuery, offset: newOffset, limit };
-      await fetchBuscar(p);
+      if (!lastQuery) {
+        console.warn("No hay última búsqueda para paginar");
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const p = { ...lastQuery, offset: newOffset, limit };
+        const params = new URLSearchParams(p);
+        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`);
+
+        if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        setResultados(data.resultados || []);
+        setTotal(data.total || 0);
+        setOffset(newOffset);
+        setLimit(data.limit || limit);
+      } catch (err) {
+        console.error("Error en goPage:", err);
+        setError(err.message || "Error al cargar la página");
+        setResultados([]);
+      } finally {
+        setLoading(false);
+      }
     },
-    [lastQuery, limit, fetchBuscar]
+    [lastQuery, limit]
   );
 
   /**

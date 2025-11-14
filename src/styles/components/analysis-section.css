@@ -182,6 +182,40 @@
   font-weight: 600;
 }
 
+/* ✅ NUEVO: Estilos para códigos UNSPSC */
+.analysis-section-unspsc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.analysis-section-unspsc-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-unspsc-codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.analysis-section-unspsc-code {
+  display: inline-block;
+  background-color: #dbeafe;
+  color: #0c4a6e;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #93c5fd;
+  font-family: monospace;
+}
+
 .analysis-section-notes {
   font-size: 0.75rem;
   color: #4b5563;
@@ -196,24 +230,25 @@
 .analysis-section-no-indicators {
   background-color: white;
   border-radius: 0.25rem;
-  padding: 0.75rem;
-  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border: 2px solid #fbbf24;
   text-align: center;
   font-size: 0.875rem;
   color: #6b7280;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .analysis-section-no-indicators-title {
   font-weight: 600;
-  color: #4b5563;
+  color: #b45309;
   margin: 0;
+  font-size: 0.95rem;
 }
 
 .analysis-section-no-indicators-description {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #6b7280;
   margin: 0;
   line-height: 1.5;
@@ -272,14 +307,29 @@
   color: #cdeff2;
 }
 
+/* ✅ NUEVO: Dark mode para códigos UNSPSC */
+:root[data-theme="dark"] .analysis-section-unspsc-group {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .analysis-section-unspsc-label {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-unspsc-code {
+  background-color: rgba(39, 197, 206, 0.15);
+  color: #cdeff2;
+  border-color: rgba(39, 197, 206, 0.3);
+}
+
 :root[data-theme="dark"] .analysis-section-no-indicators {
   background-color: #0f1e21;
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(251, 191, 36, 0.3);
   color: #b7e7ea;
 }
 
 :root[data-theme="dark"] .analysis-section-no-indicators-title {
-  color: #cdeff2;
+  color: #fbbf24;
 }
 
 :root[data-theme="dark"] .analysis-section-no-indicators-description {

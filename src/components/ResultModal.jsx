@@ -1,5 +1,5 @@
 // src/components/ResultModal.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useDocumentDownload } from "../hooks/useDocumentDownload.js";
 import API_BASE_URL from "../config/api.js";
 import ModalHeader from "./modal/ModalHeader.jsx";
@@ -292,20 +292,8 @@ const OMIT_FIELDS = new Set(["Enlace_oficial", "Documentos", "URL_Proceso", "ID_
 /* =============================== Componente =============================== */
 
 export default function ResultModal({ open, item, onClose }) {
-  if (!open || !item) return null;
-
-  // Bloquear scroll y ESC
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e) => e.key === "Escape" && onClose?.();
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
+  // ✅ PRIORITARIO: Inicializar el hook ANTES del early return
+  // para que el cleanup siempre se ejecute
   const [descExpanded, setDescExpanded] = useState(false);
 
   // Descargas por 'proceso' (id_del_portafolio)
@@ -327,46 +315,109 @@ export default function ResultModal({ open, item, onClose }) {
     return docs.find((d) => d.es_documento_indicadores === true) || null;
   }, [docs]);
 
-  const { analyzing, analyzed, error: analysisError, analyze, analyzeMultipleDocs } = useDocumentDownload(
+  // ✅ CRÍTICO: Llamar al hook ANTES del early return
+  // Así el cleanup siempre se ejecuta incluso si el componente se desmonta
+  const { analyzing, analyzed, error: analysisError, analyze, analyzeMultipleDocs, cancel } = useDocumentDownload(
     docWithIndicators, // Solo el documento con indicadores detectados
     idPortafolio
   );
 
-  // Función wrapper para manejar ambos casos
+  // ✅ NUEVO: Rastrear si el modal fue abierto antes para detectar cierre
+  const wasOpenRef = useRef(false);
+
+  // ✅ NUEVO: Cancelar análisis SOLO cuando el modal se cierre (transición de true a false)
+  useEffect(() => {
+    if (open) {
+      // Modal se abrió
+      wasOpenRef.current = true;
+    } else if (wasOpenRef.current) {
+      // Modal se cerró después de estar abierto
+      console.log('🛑 [CLEANUP] Modal se está cerrando, cancelando análisis...');
+      cancel?.();
+      wasOpenRef.current = false;
+    }
+  }, [open, cancel]);
+
+  // Bloquear scroll y ESC cuando el modal está abierto
+  useEffect(() => {
+    if (!open) return; // Solo si el modal está abierto
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  // Función wrapper para manejar ambos casos - ✅ MOVIDO ANTES del early return
   const handleAnalyze = useCallback(() => {
-    if (docWithIndicators) {
-      // Caso 1: Hay un documento explícito con indicadores
-      analyze();
-    } else if (docs.length > 0) {
-      // Caso 2: No hay documento explícito, analizar todos
+    console.log('🎬 handleAnalyze llamado', {
+      docWithIndicators: !!docWithIndicators,
+      docsLength: docs.length,
+      analyzing,
+      analyzed: !!analyzed,
+    });
+    
+    // ✅ CAMBIO: Si hay múltiples documentos, usar analyzeMultipleDocs
+    // para que continúe escaneando hasta encontrar indicadores reales
+    if (docs.length > 1) {
+      // Múltiples documentos: analizar todos hasta encontrar indicadores
+      console.log(`� Caso 2: Analizando ${docs.length} documentos (múltiples)`);
       analyzeMultipleDocs(docs);
+    } else if (docs.length === 1) {
+      // Un solo documento: analizar directamente
+      console.log('� Caso 1: Un solo documento - analizando...');
+      analyze();
     }
-  }, [docWithIndicators, docs, analyze, analyzeMultipleDocs]);
+  }, [docs, analyze, analyzeMultipleDocs, analyzing, analyzed]);
 
-  // Auto-trigger análisis automático cuando los documentos estén listos
+  // ✅ NUEVO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
   useEffect(() => {
-    if (
-      docs.length > 0 &&
-      !docsLoading &&
-      !docsErr &&
-      !analyzing &&
-      !analyzed
-    ) {
-      // Ejecutar automáticamente el análisis
-      handleAnalyze();
+    // Cancelar análisis anterior si existe
+    if (analyzed) {
+      console.log('🔄 Limpiando análisis previo - nueva licitación detectada');
+      cancel?.();
     }
-  }, [docs, docsLoading, docsErr, analyzing, analyzed, handleAnalyze]);
+  }, [idPortafolio, cancel]);
 
+  // ✅ OPTIMIZADO: Iniciar análisis INMEDIATAMENTE si ya hay documentos
+  // (por ejemplo, si el modal se abre con docs en cache)
   useEffect(() => {
+    if (!open || docs.length === 0 || docsLoading || docsErr || analyzing || analyzed) {
+      return; // No ejecutar si no hay condiciones
+    }
+    
+    console.log('⏱️ Verificando si iniciar análisis...', {
+      docsLength: docs.length,
+      docsLoading,
+      docsErr: !!docsErr,
+      analyzing,
+      analyzed: !!analyzed,
+    });
+    
+    console.log('🚀 Iniciando análisis automático');
+    handleAnalyze();
+  }, [open, docs, docsLoading, docsErr, analyzing, analyzed, handleAnalyze]);
+
+  // ✅ OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
+  useEffect(() => {
+    if (!open || !idPortafolio) {
+      return; // No cargar si modal está cerrado o no hay idPortafolio
+    }
+    
     let abort = false;
     (async () => {
       setDocsErr("");
       setDocs([]);
       setDebugQuery(null);
 
-      if (!idPortafolio) return;
-
+      console.log(`📋 [${new Date().toLocaleTimeString()}] Iniciando búsqueda de documentos para: ${idPortafolio}`);
       setDocsLoading(true);
+      const startTime = performance.now();
+      
       try {
         const clean = idPortafolio.trim();
 
@@ -380,12 +431,17 @@ export default function ResultModal({ open, item, onClose }) {
         const url = `${DMGG_API}?${params.toString()}`;
         setDebugQuery({ DMGG_API, params: Object.fromEntries(params.entries()) });
 
+        console.log(`🔗 [${new Date().toLocaleTimeString()}] Consultando Socrata...`);
         const res = await fetch(url, { method: "GET" });
+        const elapsed = (performance.now() - startTime).toFixed(0);
+        
         if (!res.ok) {
           const txt = await res.text().catch(() => "");
           throw new Error(`Socrata respondió ${res.status}: ${txt || "error"}`);
         }
+        
         const raw = await res.json();
+        console.log(`✅ [${new Date().toLocaleTimeString()}] Socrata respondió en ${elapsed}ms con ${raw.length || 0} registros`);
 
         // 1) Mapeo
         const mapped = Array.isArray(raw) ? raw.map(mapDoc) : [];
@@ -396,15 +452,24 @@ export default function ResultModal({ open, item, onClose }) {
         // 4) Etiquetado y orden
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
-        if (!abort) setDocs(tagged);
+        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos después de filtrado`);
+        if (!abort) {
+          setDocs(tagged);
+          setDocsLoading(false);
+        }
       } catch (e) {
-        if (!abort) setDocsErr(e.message || "Error al cargar descargas");
-      } finally {
-        if (!abort) setDocsLoading(false);
+        console.error(`❌ [${new Date().toLocaleTimeString()}] Error cargando docs: ${e.message}`);
+        if (!abort) {
+          setDocsErr(e.message || "Error al cargar descargas");
+          setDocsLoading(false);
+        }
       }
     })();
     return () => { abort = true; };
-  }, [idPortafolio]);
+  }, [open, idPortafolio]);
+
+  // Early return DESPUÉS de declarar TODOS los hooks
+  if (!open || !item) return null;
 
   const title = item.Entidad || "Proyecto sin nombre";
   const urlProceso = item.URL_Proceso || item.Enlace_oficial || null;

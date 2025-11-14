@@ -34,8 +34,7 @@ export default function AuthProvider({ children }) {
       method: "POST",
       credentials: "include", // importante para usar cookies HttpOnly
       headers: { "Content-Type": "application/json" },
-      // el backend espera "nombre" (no "name")
-      body: JSON.stringify({ email, nombre: name, password }),
+      body: JSON.stringify({ email, name, password }),
     });
     if (!res.ok) throw new Error("No se pudo registrar");
 

@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import logo from "../assets/logo_emergente.png";
 import SplashScreen from "../components/SplashScreen.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 import "../styles/register.css"; // reutilizamos mismas clases visuales
 
 export default function Login() {
@@ -54,6 +55,11 @@ export default function Login() {
       {loading && <SplashScreen text="Ingresando…" />}
 
       <div className="bg-custom">
+        {/* Theme Toggle */}
+        <div style={{ position: "absolute", top: "1rem", right: "1rem", zIndex: 50 }}>
+          <ThemeToggle />
+        </div>
+
         <form onSubmit={submit} className="form-container">
           {/* Logo */}
           <div className="mb-5">
