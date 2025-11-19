@@ -322,6 +322,136 @@
   border-color: rgba(39, 197, 206, 0.3);
 }
 
+/* ✅ NUEVO: Estilos para experiencia requerida */
+.analysis-section-experience-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.analysis-section-experience-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-box {
+  background-color: white;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analysis-section-experience-text {
+  line-height: 1.5;
+  margin: 0;
+  color: #4b5563;
+}
+
+.analysis-section-experience-years {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analysis-section-experience-years strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-certs {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analysis-section-experience-certs strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-smmlv {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analysis-section-experience-smmlv strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-sector {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analysis-section-experience-sector strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-types {
+  font-size: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.analysis-section-experience-types strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+.analysis-section-experience-types-list {
+  margin: 0.25rem 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.analysis-section-experience-types-list li {
+  color: #6b7280;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-box {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-label {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-text {
+  color: #cdeff2;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-years,
+:root[data-theme="dark"] .analysis-section-experience-types {
+  color: #b7e7ea;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-years strong,
+:root[data-theme="dark"] .analysis-section-experience-types strong {
+  color: #8de4ea;
+}
+
+:root[data-theme="dark"] .analysis-section-experience-types-list li {
+  color: #b7e7ea;
+}
+
 :root[data-theme="dark"] .analysis-section-no-indicators {
   background-color: #0f1e21;
   border-color: rgba(251, 191, 36, 0.3);

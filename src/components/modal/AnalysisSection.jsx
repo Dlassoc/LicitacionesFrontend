@@ -99,6 +99,48 @@ export default function AnalysisSection({
                 </div>
               )}
 
+              {/* ✅ NUEVO: Mostrar experiencia requerida si existe */}
+              {analyzed.experiencia_encontrada && analyzed.experiencia_requerida && (
+                <div className="analysis-section-experience-group">
+                  <p className="analysis-section-experience-label">👨‍💼 Experiencia requerida:</p>
+                  <div className="analysis-section-experience-box">
+                    <p className="analysis-section-experience-text">
+                      {analyzed.experiencia_requerida}
+                    </p>
+                    {analyzed.experiencia_anos && (
+                      <p className="analysis-section-experience-years">
+                        <strong>Años de experiencia:</strong> {analyzed.experiencia_anos}
+                      </p>
+                    )}
+                    {analyzed.experiencia_certificaciones && (
+                      <p className="analysis-section-experience-certs">
+                        <strong>Certificaciones requeridas:</strong> {analyzed.experiencia_certificaciones}
+                      </p>
+                    )}
+                    {analyzed.experiencia_valor_smmlv && (
+                      <p className="analysis-section-experience-smmlv">
+                        <strong>Valor mínimo (SMMLV):</strong> {analyzed.experiencia_valor_smmlv}
+                      </p>
+                    )}
+                    {analyzed.experiencia_sector && (
+                      <p className="analysis-section-experience-sector">
+                        <strong>Sector/Industria:</strong> {analyzed.experiencia_sector}
+                      </p>
+                    )}
+                    {analyzed.experiencia_tipos && analyzed.experiencia_tipos.length > 0 && (
+                      <div className="analysis-section-experience-types">
+                        <strong>Tipos de proyectos/actividades:</strong>
+                        <ul className="analysis-section-experience-types-list">
+                          {analyzed.experiencia_tipos.map((tipo, idx) => (
+                            <li key={idx}>{tipo}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {analyzed.notas && (
                 <p className="analysis-section-notes">
                   <strong>Notas:</strong> {analyzed.notas}

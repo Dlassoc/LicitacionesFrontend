@@ -50,8 +50,72 @@
 }
 .btn-header:hover { background: rgba(0, 0, 0, 0.12); }
 
-/* Buscador */
-.search-wrap { @apply mt-4; }
+/* Buscador - sección contenedora */
+.search-section {
+  width: 100%;
+  min-height: 32px;
+}
+
+/* Contenedor del buscador con trigger y formulario */
+.search-wrap-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Trigger - zona clickeable visible */
+.search-trigger {
+  @apply cursor-pointer px-2 py-1 rounded text-xs;
+  color: #ffffff;
+  background: rgba(39, 197, 206, 0.1);
+  border: 1px dashed rgba(39, 197, 206, 0.3);
+  text-align: center;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  @apply mt-2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  position: relative;
+  z-index: 41;
+  font-weight: 600;
+}
+
+.search-trigger:hover {
+  background: rgba(39, 197, 206, 0.2);
+  color: #ffffff;
+  border-color: rgba(39, 197, 206, 0.5);
+}
+
+/* Flecha animada */
+.search-arrow {
+  display: inline-block;
+  transition: transform 300ms ease;
+}
+
+/* Cuando hay hover - flecha rota 90 grados */
+.search-wrap-container:hover .search-arrow {
+  transform: rotate(90deg);
+}
+
+/* Formulario - inicialmente oculto */
+.search-wrap { 
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  @apply transition-all duration-300;
+}
+
+/* Cuando se pasa mouse SOBRE el contenedor - se expande */
+.search-wrap-container:hover .search-wrap {
+  max-height: 500px;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  @apply mt-4;
+}
+
 .search-wrap > * { @apply bg-white rounded-lg p-3 shadow-sm border; }
 
 /* Chips con aire extra y sin superposición con el panel */
@@ -135,6 +199,16 @@
   }
   .header-inner { color: #e8f6f7; }
   .user-chip { color: rgba(232, 246, 247, 0.9); }
+  .search-trigger { 
+    color: #ffffff;
+    background: rgba(39, 197, 206, 0.15);
+    border-color: rgba(39, 197, 206, 0.4);
+  }
+  .search-trigger:hover { 
+    background: rgba(39, 197, 206, 0.25);
+    color: #ffffff;
+    border-color: rgba(39, 197, 206, 0.6);
+  }
   .search-wrap > * { background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7; }
   .chip { background: rgba(15,30,33,0.9); color: #b7e7ea; border-color: rgba(39, 197, 206, 0.35); }
   .chip-value { color: #c9fbff; }
@@ -154,6 +228,16 @@
 
 :root[data-theme="dark"] .header-inner { color: #e8f6f7; }
 :root[data-theme="dark"] .user-chip { color: rgba(232, 246, 247, 0.9); }
+:root[data-theme="dark"] .search-trigger { 
+  color: #ffffff;
+  background: rgba(39, 197, 206, 0.15);
+  border-color: rgba(39, 197, 206, 0.4);
+}
+:root[data-theme="dark"] .search-trigger:hover { 
+  background: rgba(39, 197, 206, 0.25);
+  color: #ffffff;
+  border-color: rgba(39, 197, 206, 0.6);
+}
 :root[data-theme="dark"] .search-wrap > * { background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7; }
 :root[data-theme="dark"] .chip { background: rgba(15,30,33,0.9); color: #b7e7ea; border-color: rgba(39, 197, 206, 0.35); }
 :root[data-theme="dark"] .chip-value { color: #c9fbff; }

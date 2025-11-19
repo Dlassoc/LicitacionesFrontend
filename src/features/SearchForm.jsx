@@ -49,8 +49,10 @@ const CIUDADES_COLOMBIA = {
 
 export default function SearchForm({ onBuscar, onClear }) {
   const [termino, setTermino] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
+  const [fechaPubDesde, setFechaPubDesde] = useState("");
+  const [fechaPubHasta, setFechaPubHasta] = useState("");
+  const [fechaRecDesde, setFechaRecDesde] = useState("");
+  const [fechaRecHasta, setFechaRecHasta] = useState("");
   const [departamento, setDepartamento] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [ciudadesFiltradas, setCiudadesFiltradas] = useState([]);
@@ -67,13 +69,19 @@ export default function SearchForm({ onBuscar, onClear }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onBuscar(termino, fechaInicio, fechaFin, ciudad, departamento);
+    if (!termino || !termino.trim()) {
+      console.warn("Por favor ingresa un término de búsqueda");
+      return;
+    }
+    onBuscar(termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento);
   };
 
   const handleClear = () => {
     setTermino("");
-    setFechaInicio("");
-    setFechaFin("");
+    setFechaPubDesde("");
+    setFechaPubHasta("");
+    setFechaRecDesde("");
+    setFechaRecHasta("");
     setDepartamento("");
     setCiudad("");
     setCiudadesFiltradas([]);
@@ -85,67 +93,99 @@ export default function SearchForm({ onBuscar, onClear }) {
       onSubmit={handleSubmit}
       className="search-form-wrapper"
     >
-      <input
-        type="text"
-        placeholder="Palabras clave"
-        value={termino}
-        onChange={(e) => setTermino(e.target.value)}
-        className="search-form-input"
-      />
-      <input
-        type="date"
-        value={fechaInicio}
-        onChange={(e) => setFechaInicio(e.target.value)}
-        className="search-form-date-input"
-        aria-label="Fecha inicio"
-      />
-      <input
-        type="date"
-        value={fechaFin}
-        onChange={(e) => setFechaFin(e.target.value)}
-        className="search-form-date-input"
-        aria-label="Fecha fin"
-      />
-      <select
-        value={departamento}
-        onChange={(e) => setDepartamento(e.target.value)}
-        className="search-form-select"
-        aria-label="Departamento"
-      >
-        <option value="">Departamento</option>
-        {DEPARTAMENTOS_COLOMBIA.map((d, i) => (
-          <option key={i} value={d}>{d}</option>
-        ))}
-      </select>
-      <select
-        value={ciudad}
-        onChange={(e) => setCiudad(e.target.value)}
-        className="search-form-select"
-        aria-label="Ciudad"
-        disabled={!departamento}
-      >
-        <option value="">Ciudad</option>
-        {ciudadesFiltradas.map((c, i) => (
-          <option key={i} value={c}>{c}</option>
-        ))}
-      </select>
+      <div className="search-form-compact">
+          
+        <div className="search-form-keyword-group">
+          <label className="search-form-label">Palabras clave</label>
+          <input
+            type="text"
+            placeholder="Ej: paneles solares, energía, colegio (separa con comas)"
+            value={termino}
+            onChange={(e) => setTermino(e.target.value)}
+            className="search-form-keyword-input"
+          />
+        </div>
 
-      <div className="search-form-button-group">
-        <button
-          type="submit"
-          className="search-form-button-primary"
-          aria-label="Buscar"
+        <div className="search-form-date-group">
+          <label className="search-form-label">Fecha Publicacion De</label>
+          <input
+            type="date"
+            value={fechaPubDesde}
+            onChange={(e) => setFechaPubDesde(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Fecha Publicacion Hasta</label>
+          <input
+            type="date"
+            value={fechaPubHasta}
+            onChange={(e) => setFechaPubHasta(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Presentacion de Ofertas (Opcional)</label>
+          <input
+            type="date"
+            value={fechaRecDesde}
+            onChange={(e) => setFechaRecDesde(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Presentacion de Ofertas Hasta</label>
+          <input
+            type="date"
+            value={fechaRecHasta}
+            onChange={(e) => setFechaRecHasta(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-button-group">
+          <button
+            type="submit"
+            className="search-form-button-primary"
+          >
+            Buscar
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="search-form-button-secondary"
+          >
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <div className="search-form-location-row">
+        <select
+          value={departamento}
+          onChange={(e) => setDepartamento(e.target.value)}
+          className="search-form-select"
         >
-          Buscar
-        </button>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="search-form-button-secondary"
-          aria-label="Limpiar"
+          <option value="">Ubicacion - Departamento</option>
+          {DEPARTAMENTOS_COLOMBIA.map((d, i) => (
+            <option key={i} value={d}>{d}</option>
+          ))}
+        </select>
+
+        <select
+          value={ciudad}
+          onChange={(e) => setCiudad(e.target.value)}
+          className="search-form-select"
+          disabled={!departamento}
         >
-          Limpiar
-        </button>
+          <option value="">Ciudad</option>
+          {ciudadesFiltradas.map((c, i) => (
+            <option key={i} value={c}>{c}</option>
+          ))}
+        </select>
       </div>
     </form>
   );

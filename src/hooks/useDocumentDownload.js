@@ -5,6 +5,7 @@
  * - Envía al backend para análisis de indicadores financieros
  * - Retorna el documento más probable con indicadores
  * - ✅ NUEVO: Soporta cancelación cuando el componente se desmonta o el usuario sale
+ * - ✅ NUEVO: Salta documentos administrativos (pólizas, cotizaciones, etc.)
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -12,6 +13,41 @@ import API_BASE from '../config/api.js';
 
 const DB_NAME = 'LicitacionesDB';
 const STORE_NAME = 'documentos';
+
+// ✅ NUEVO: Patrones de documentos a ignorar (mismo que en backend)
+const DOCUMENTS_TO_SKIP_PATTERNS = [
+  /aprobaci[óo]n/i,
+  /aprobado/i,
+  /p[óo]liza/i,
+  /p[óo]lizas/i,
+  /matriz.*riesgo/i,
+  /riesgo/i,
+  /cotizaci[óo]n/i,
+  /cotizaciones/i,
+  /cotizado/i,
+  /\bcdp\b/i,
+  /certificado.*disponibilidad.*presupuestal/i,
+  /registro.*presupuestal/i,
+  /presupuestal/i,
+  /aprobaci[óo]n.*garant[ií]/i,
+  /garant[ií]/i,
+  /t[ée]rminos.*referencia/i,
+  /tr\b/i,
+  /planeaci[óo]n/i,
+  /presupuesto.*interno/i,
+  /\bacta\b/i,
+  /resoluci[óo]n/i,
+  /acuerdo/i,
+  /decreto/i,
+  /orden/i,
+];
+
+// ✅ NUEVO: Función para verificar si un documento debe saltarse
+const shouldSkipDocument = (filename) => {
+  if (!filename) return false;
+  const filenameLower = filename.toLowerCase();
+  return DOCUMENTS_TO_SKIP_PATTERNS.some(pattern => pattern.test(filenameLower));
+};
 
 // Inicializar IndexedDB
 const initIndexedDB = () => {
@@ -142,6 +178,7 @@ export const useDocumentDownload = (documento, proceso) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzed, setAnalyzed] = useState(null); // Preview del documento
   const [error, setError] = useState(null);
+  const [skippedDocuments, setSkippedDocuments] = useState([]); // ✅ NUEVO: Documentos descartados
   
   // ✅ NUEVO: References para cancelación
   const abortControllerRef = useRef(null);
@@ -154,6 +191,7 @@ export const useDocumentDownload = (documento, proceso) => {
     setAnalyzed(null);
     setError(null);
     setAnalyzing(false);
+    setSkippedDocuments([]); // ✅ NUEVO: Limpiar documentos descartados
     analysisCancelledRef.current = false;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -265,10 +303,19 @@ export const useDocumentDownload = (documento, proceso) => {
           const indicators = analysisItem.resultado?.indicadores_financieros || {};
           const confidence = analysisItem.resultado?.indicadores_confianza || 0;
           const unspsc = analysisItem.resultado?.codigos_unspsc || [];  // ✅ NUEVO: Capturar UNSPSC
+          // ✅ NUEVO: Capturar experiencia con todos los campos
+          const experiencia_encontrada = analysisItem.resultado?.experiencia_encontrada || false;
+          const experiencia_requerida = analysisItem.resultado?.experiencia_requerida || null;
+          const experiencia_anos = analysisItem.resultado?.experiencia_anos || null;
+          const experiencia_certificaciones = analysisItem.resultado?.experiencia_certificaciones || null;
+          const experiencia_valor_smmlv = analysisItem.resultado?.experiencia_valor_smmlv || null;
+          const experiencia_tipos = analysisItem.resultado?.experiencia_tipos_proyectos || [];
+          const experiencia_sector = analysisItem.resultado?.experiencia_sector || null;
 
           console.log('💰 Indicadores extraídos:', indicators);
           console.log('📊 Confianza:', confidence);
           console.log('📋 Códigos UNSPSC encontrados:', unspsc);  // ✅ NUEVO: Log de UNSPSC
+          console.log('👨‍💼 Experiencia encontrada:', experiencia_encontrada);  // ✅ NUEVO: Log de experiencia
 
           setAnalyzed({
             nombre: documento.titulo,
@@ -279,6 +326,13 @@ export const useDocumentDownload = (documento, proceso) => {
             indicadores: indicators,
             confianza: confidence,
             codigos_unspsc: unspsc,  // ✅ NUEVO: Pasar UNSPSC
+            experiencia_encontrada,  // ✅ NUEVO: Pasar experiencia
+            experiencia_requerida,
+            experiencia_anos,
+            experiencia_certificaciones,
+            experiencia_valor_smmlv,
+            experiencia_tipos,
+            experiencia_sector,
             notas: analysisItem.resultado?.indicadores_notas || '',
             completo: analysisItem.resultado,
             ok: true,
@@ -315,6 +369,29 @@ export const useDocumentDownload = (documento, proceso) => {
         return;
       }
 
+      // ✅ NUEVO: Filtrar documentos que deben saltarse
+      const validDocs = [];
+      const skippedDocs = [];
+      
+      for (const doc of docs) {
+        if (shouldSkipDocument(doc.titulo)) {
+          skippedDocs.push(doc.titulo);
+        } else {
+          validDocs.push(doc);
+        }
+      }
+      
+      if (skippedDocs.length > 0) {
+        console.log(`⏭️  ${skippedDocs.length} documento(s) descartado(s) automáticamente:`);
+        skippedDocs.forEach(title => console.log(`   - ${title}`));
+        setSkippedDocuments(skippedDocs); // ✅ NUEVO: Guardar documentos descartados
+      }
+      
+      if (validDocs.length === 0) {
+        setError('Todos los documentos fueron descartados (pólizas, cotizaciones, etc.)');
+        return;
+      }
+
       // ✅ NUEVO: Crear nuevo AbortController para este análisis
       abortControllerRef.current = new AbortController();
       analysisCancelledRef.current = false; // ✅ NUEVO: Reset del flag de cancelación
@@ -338,7 +415,7 @@ export const useDocumentDownload = (documento, proceso) => {
           'estudio previo': 0, // Baja prioridad, no contiene indicadores financieros
         };
 
-        const sortedDocs = [...docs].sort((a, b) => {
+        const sortedDocs = [...validDocs].sort((a, b) => {
           // Calcular score por nombre/tipo
           const scoreA = Math.max(
             ...Object.entries(priorityKeywords).map(([keyword, score]) =>
@@ -358,7 +435,7 @@ export const useDocumentDownload = (documento, proceso) => {
           return sizeB - sizeA;
         });
 
-        console.log(`📋 Analizando ${sortedDocs.length} documentos (priorizando Estados Financieros)...`);
+        console.log(`📋 Analizando ${sortedDocs.length} documentos${skippedDocs.length > 0 ? ` (${skippedDocs.length} descartados automáticamente)` : ''} (priorizando Estados Financieros)...`);
         console.log(`📄 Orden: ${sortedDocs.map(d => `${d.titulo} (score: ${Math.max(...Object.entries(priorityKeywords).map(([keyword, score]) => (d.titulo?.toLowerCase().includes(keyword) || d.tipo?.toLowerCase().includes(keyword)) ? score : 0))})`).join(' → ')}`);
 
         // Analizar UNO POR UNO todos los documentos
@@ -406,12 +483,18 @@ export const useDocumentDownload = (documento, proceso) => {
                 const indicators = analysisItem.resultado?.indicadores_financieros || {};
                 const confidence = analysisItem.resultado?.indicadores_confianza || 0;
                 const unspsc = analysisItem.resultado?.codigos_unspsc || [];  // ✅ NUEVO: Capturar UNSPSC
+                // ✅ NUEVO: Capturar experiencia
+                const experiencia_encontrada = analysisItem.resultado?.experiencia_encontrada || false;
+                const experiencia_requerida = analysisItem.resultado?.experiencia_requerida || null;
+                const experiencia_anos = analysisItem.resultado?.experiencia_anos_minimos || null;
+                const experiencia_tipos = analysisItem.resultado?.experiencia_tipos || [];
                 const hasIndicators = Object.keys(indicators).length > 0 && confidence > 0.5;
 
                 console.log(`   💰 Indicadores encontrados: ${Object.keys(indicators).length}`);
                 console.log(`   📊 Confianza: ${confidence.toFixed(2)}`);
                 console.log(`   📋 Códigos UNSPSC encontrados: ${unspsc.length}`);  // ✅ NUEVO: Log de UNSPSC
-                console.log(`   🔍 Contiene indicadores reales: ${hasIndicators}`);
+                console.log(`   �‍💼 Experiencia encontrada: ${experiencia_encontrada}`);  // ✅ NUEVO: Log de experiencia
+                console.log(`   �🔍 Contiene indicadores reales: ${hasIndicators}`);
 
                 // Si encontró indicadores con confianza > 50%, usar este y PARAR
                 if (hasIndicators) {
@@ -427,6 +510,10 @@ export const useDocumentDownload = (documento, proceso) => {
                     indicadores: indicators,
                     confianza: confidence,
                     codigos_unspsc: unspsc,  // ✅ NUEVO: Pasar UNSPSC
+                    experiencia_encontrada,  // ✅ NUEVO: Pasar experiencia
+                    experiencia_requerida,
+                    experiencia_anos,
+                    experiencia_tipos,
                     notas: analysisItem.resultado?.indicadores_notas || '',
                     completo: analysisItem.resultado,
                     ok: true,
@@ -499,6 +586,7 @@ export const useDocumentDownload = (documento, proceso) => {
     analyzing,
     analyzed,
     error,
+    skippedDocuments, // ✅ NUEVO: Retornar documentos descartados
     analyze,
     analyzeMultipleDocs,
     cancel: cancelAnalysis, // ✅ NUEVO: Exponer función para cancelar análisis

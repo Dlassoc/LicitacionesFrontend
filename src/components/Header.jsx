@@ -15,7 +15,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const hideSearch = pathname.startsWith("/app/preferences") || isAuthPage;
 
-  // mostrar “Inicio” en el menú solo si NO estamos en /app
+  // mostrar "Inicio" en el menú solo si NO estamos en /app
   const showMenuHome = pathname !== "/app";
 
   const [openMenu, setOpenMenu] = useState(false);
@@ -122,8 +122,15 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
         {/* Buscador y chips (ocultos en preferencias y auth) */}
         {!hideSearch && (
           <>
-            <div className="search-wrap">
-              <SearchForm onBuscar={onBuscar} onClear={onLimpiar} />
+            <div className="search-section">
+              <div className="search-wrap-container collapsed">
+                <div className="search-trigger">
+                  <span className="search-arrow">▶</span> Mostrar búsqueda
+                </div>
+                <div className="search-wrap">
+                  <SearchForm onBuscar={onBuscar} onClear={onLimpiar} />
+                </div>
+              </div>
             </div>
 
             {chips?.length > 0 && (

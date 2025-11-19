@@ -50,29 +50,32 @@ export function useSearchResults(initialLimit = 21) {
 
   /**
    * Ejecuta una nueva búsqueda con los filtros dados
-   * termino → palabra clave obligatoria
-   * fechaDesde / fechaHasta → YYYY-MM-DD
-   * ciudad / departamento → opcionales
    */
   const buscar = useCallback(
-    async (termino, fechaDesde, fechaHasta, ciudad, departamento) => {
-      if (!termino || !termino.trim()) return;
+    async (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento) => {
+      // Validación del término
+      if (!termino || !termino.trim()) {
+        console.warn("El término de búsqueda es requerido");
+        return;
+      }
 
       const baseParams = {
         palabras_clave: termino.trim(),
-        limit,
-        offset: 0, // siempre reset de página
+        limit: initialLimit,
+        offset: 0,
       };
 
-      if (fechaDesde) baseParams.fecha_pub_desde = fechaDesde;
-      if (fechaHasta) baseParams.fecha_pub_hasta = fechaHasta;
+      if (fechaPubDesde) baseParams.fecha_pub_desde = fechaPubDesde;
+      if (fechaPubHasta) baseParams.fecha_pub_hasta = fechaPubHasta;
+      if (fechaRecDesde) baseParams.fecha_rec_desde = fechaRecDesde;
+      if (fechaRecHasta) baseParams.fecha_rec_hasta = fechaRecHasta;
       if (departamento) baseParams.departamento = departamento;
       if (ciudad) baseParams.ciudad = ciudad;
 
       setLastQuery(baseParams);
       await fetchBuscar(baseParams);
     },
-    [fetchBuscar, limit]
+    [fetchBuscar, initialLimit]
   );
 
   /**
@@ -129,11 +132,25 @@ export function useSearchResults(initialLimit = 21) {
    */
   const chips = useMemo(() => {
     if (!lastQuery) return [];
+    
+    // Procesar palabras clave: si hay múltiples separadas por comas, mostrar cada una
+    let palabrasClave = [];
+    if (lastQuery.palabras_clave) {
+      palabrasClave = lastQuery.palabras_clave
+        .split(",")
+        .map(p => p.trim())
+        .filter(p => p);
+    }
+    
     const map = {
-      palabras_clave: ["Término", lastQuery.palabras_clave],
-      fecha_pub_desde: ["Desde", lastQuery.fecha_pub_desde],
-      fecha_pub_hasta: ["Hasta", lastQuery.fecha_pub_hasta],
-      departamento: ["Departamento", lastQuery.departamento],
+      ...(palabrasClave.length > 0 && { 
+        palabras_clave: ["Busqueda", lastQuery.palabras_clave] 
+      }),
+      fecha_pub_desde: ["Pub. Desde", lastQuery.fecha_pub_desde],
+      fecha_pub_hasta: ["Pub. Hasta", lastQuery.fecha_pub_hasta],
+      fecha_rec_desde: ["Rec. Desde", lastQuery.fecha_rec_desde],
+      fecha_rec_hasta: ["Rec. Hasta", lastQuery.fecha_rec_hasta],
+      departamento: ["Depto", lastQuery.departamento],
       ciudad: ["Ciudad", lastQuery.ciudad],
     };
 
