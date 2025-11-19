@@ -125,7 +125,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
             <div className="search-section">
               <div className="search-wrap-container collapsed">
                 <div className="search-trigger">
-                  <span className="search-arrow">▶</span> Mostrar búsqueda
+                  <span className="search-arrow">∨</span> Mostrar búsqueda
                 </div>
                 <div className="search-wrap">
                   <SearchForm onBuscar={onBuscar} onClear={onLimpiar} />
