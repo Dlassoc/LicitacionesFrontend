@@ -145,7 +145,7 @@ const downloadFile = async (url, filename, signal = null) => {
 };
 
 // Enviar archivo al backend para análisis
-const analyzeDocument = async (file, signal = null) => {
+const analyzeDocument = async (file, signal = null, retries = 3) => {
   const formData = new FormData();
   formData.append('files', file);
 
@@ -160,17 +160,46 @@ const analyzeDocument = async (file, signal = null) => {
   }
 
   console.log(`🚀 [ANALYZE_DOC] Iniciando fetch a ${API_BASE}/extract_ia/analyze`);
-  const response = await fetch(`${API_BASE}/extract_ia/analyze`, fetchOptions);
-  console.log(`📥 [ANALYZE_DOC] Respuesta recibida con status: ${response.status}`);
+  
+  // ✅ NUEVO: Reintentos automáticos para errores 503
+  let lastError;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(`${API_BASE}/extract_ia/analyze`, fetchOptions);
+      console.log(`📥 [ANALYZE_DOC] Respuesta recibida con status: ${response.status}`);
 
-  if (!response.ok) {
-    throw new Error(`Backend error: ${response.statusText}`);
+      if (!response.ok) {
+        // Si es error 503 (sin recursos), reintentar
+        if (response.status === 503 && attempt < retries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Backoff exponencial (1s, 2s, 4s, max 5s)
+          console.warn(`⚠️ [ANALYZE_DOC] Error 503 (sin recursos). Reintentando en ${waitTime}ms... (intento ${attempt}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        throw new Error(`Backend error: ${response.statusText} (status ${response.status})`);
+      }
+
+      console.log(`📖 [ANALYZE_DOC] Parseando JSON...`);
+      const result = await response.json();
+      console.log(`✅ [ANALYZE_DOC] JSON parseado:`, result);
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (err.name === 'AbortError') {
+        console.log('✅ [ANALYZE_DOC] Análisis cancelado por el usuario');
+        throw err;
+      }
+      if (attempt < retries && err.message.includes('503')) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.warn(`⚠️ [ANALYZE_DOC] Error en intento ${attempt}. Esperando ${waitTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      } else {
+        throw err;
+      }
+    }
   }
-
-  console.log(`📖 [ANALYZE_DOC] Parseando JSON...`);
-  const result = await response.json();
-  console.log(`✅ [ANALYZE_DOC] JSON parseado:`, result);
-  return result;
+  
+  throw lastError || new Error('Error en análisis después de reintentos');
 };
 
 // Hook principal - Simplificado para un solo documento
@@ -482,13 +511,20 @@ export const useDocumentDownload = (documento, proceso) => {
               if (analysisItem.ok) {
                 const indicators = analysisItem.resultado?.indicadores_financieros || {};
                 const confidence = analysisItem.resultado?.indicadores_confianza || 0;
-                const unspsc = analysisItem.resultado?.codigos_unspsc || [];  // ✅ NUEVO: Capturar UNSPSC
+                const unspsc = analysisItem.resultado?.unspsc_validados || [];  // ✅ CORREGIDO: Usar "unspsc_validados"
                 // ✅ NUEVO: Capturar experiencia
                 const experiencia_encontrada = analysisItem.resultado?.experiencia_encontrada || false;
                 const experiencia_requerida = analysisItem.resultado?.experiencia_requerida || null;
                 const experiencia_anos = analysisItem.resultado?.experiencia_anos_minimos || null;
                 const experiencia_tipos = analysisItem.resultado?.experiencia_tipos || [];
-                const hasIndicators = Object.keys(indicators).length > 0 && confidence > 0.5;
+                
+                // ✅ CORREGIDO: Considerar datos válidos si hay:
+                // - Indicadores financieros con confianza > 50% O
+                // - Códigos UNSPSC encontrados O
+                // - Experiencia encontrada
+                const hasIndicators = (Object.keys(indicators).length > 0 && confidence > 0.5) || 
+                                     (unspsc && unspsc.length > 0) || 
+                                     experiencia_encontrada;
 
                 console.log(`   💰 Indicadores encontrados: ${Object.keys(indicators).length}`);
                 console.log(`   📊 Confianza: ${confidence.toFixed(2)}`);

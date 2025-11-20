@@ -65,7 +65,7 @@
 /* Trigger - zona clickeable visible */
 .search-trigger {
   @apply cursor-pointer px-3 py-2.5 rounded-lg text-xs;
-  color: #ffffff;
+  color: #000000;
   background: rgba(39, 197, 206, 0.1);
   border: 1px solid rgba(39, 197, 206, 0.3);
   text-align: center;
@@ -85,7 +85,7 @@
 
 .search-trigger:hover {
   background: rgba(39, 197, 206, 0.15);
-  color: #ffffff;
+  color: #000000;
   border-color: rgba(39, 197, 206, 0.5);
   transform: translateY(-1px);
 }
@@ -214,13 +214,13 @@
   .header-inner { color: #e8f6f7; }
   .user-chip { color: rgba(232, 246, 247, 0.9); }
   .search-trigger { 
-    color: #ffffff;
+    color: #000000;
     background: rgba(39, 197, 206, 0.12);
     border-color: rgba(39, 197, 206, 0.4);
   }
   .search-trigger:hover { 
     background: rgba(39, 197, 206, 0.2);
-    color: #ffffff;
+    color: #000000;
     border-color: rgba(39, 197, 206, 0.6);
   }
   .search-wrap > * { background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7; }
@@ -243,13 +243,13 @@
 :root[data-theme="dark"] .header-inner { color: #e8f6f7; }
 :root[data-theme="dark"] .user-chip { color: rgba(232, 246, 247, 0.9); }
 :root[data-theme="dark"] .search-trigger { 
-  color: #ffffff;
+  color: #000000;
   background: rgba(39, 197, 206, 0.12);
   border-color: rgba(39, 197, 206, 0.4);
 }
 :root[data-theme="dark"] .search-trigger:hover { 
   background: rgba(39, 197, 206, 0.2);
-  color: #ffffff;
+  color: #000000;
   border-color: rgba(39, 197, 206, 0.6);
 }
 :root[data-theme="dark"] .search-wrap > * { background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7; }
