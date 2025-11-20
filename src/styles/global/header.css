@@ -21,7 +21,7 @@
 /* Logo */
 .brand-wrap { @apply inline-flex items-center; }
 .brand-logo { 
-  height: 40px; 
+  height: 56px; 
   width: auto; 
   display: block;
   border-radius: 0.5rem;
@@ -35,7 +35,7 @@
 
 @media (min-width: 768px) { 
   .brand-logo { 
-    height: 44px; 
+    height: 64px; 
   } 
 }
 

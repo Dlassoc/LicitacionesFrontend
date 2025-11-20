@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "../styles/components/preferences.css";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 export default function Preferences({ unlocked = true }) {
+  const { updateUser } = useAuth();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
 
@@ -90,57 +92,65 @@ export default function Preferences({ unlocked = true }) {
     }
   }, []);
 
+  // ✅ NUEVO: Cargar indicadores financieros guardados
+  const loadIndicadores = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/finanzas/indicadores`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (!r.ok) return;
+      
+      const data = await safeJson(r);
+      if (data?.ok && data?.data) {
+        const ind = data.data;
+        // Cargar cada indicador en su estado
+        if (ind.indicador_liquidez !== null && ind.indicador_liquidez !== undefined) setIndicadorLiquidez(String(ind.indicador_liquidez));
+        if (ind.nivel_endeudamiento !== null && ind.nivel_endeudamiento !== undefined) setNivelEndeudamiento(String(ind.nivel_endeudamiento));
+        if (ind.razon_cobertura_intereses !== null && ind.razon_cobertura_intereses !== undefined) setRazonCoberturaIntereses(String(ind.razon_cobertura_intereses));
+        if (ind.rentabilidad_patrimonio !== null && ind.rentabilidad_patrimonio !== undefined) setRentabilidadPatrimonio(String(ind.rentabilidad_patrimonio));
+        if (ind.rentabilidad_activo !== null && ind.rentabilidad_activo !== undefined) setRentabilidadActivo(String(ind.rentabilidad_activo));
+        if (ind.capacidad_deudas_corto_plazo !== null && ind.capacidad_deudas_corto_plazo !== undefined) setCapacidadDeudasCortoPlazo(String(ind.capacidad_deudas_corto_plazo));
+        if (ind.porcentaje_acreedores !== null && ind.porcentaje_acreedores !== undefined) setPorcentajeAcreedores(String(ind.porcentaje_acreedores));
+        if (ind.retribucion_riesgo_propiedad !== null && ind.retribucion_riesgo_propiedad !== undefined) setRetribucionRiesgoPropiedad(String(ind.retribucion_riesgo_propiedad));
+        if (ind.capacidad_generar_ganancias !== null && ind.capacidad_generar_ganancias !== undefined) setCapacidadGenerarGanancias(String(ind.capacidad_generar_ganancias));
+      }
+    } catch {
+      // Ignorar errores de carga de indicadores
+    }
+  }, []);
+
   useEffect(() => {
     loadSession();
   }, [loadSession]);
 
   useEffect(() => {
-    if (email) loadSubs(email);
-  }, [email, loadSubs]);
-
-  const save = async () => {
-    setMsg("");
-    if (!email) {
-      setMsg("No hay correo de sesión. Inicia sesión para guardar tus preferencias.");
-      return;
+    if (email) {
+      loadSubs(email);
+      loadIndicadores();  // ✅ NUEVO: Cargar indicadores cuando hay email
     }
-    setSaving(true);
+  }, [email, loadSubs, loadIndicadores]);
+
+  // Guardar nombre cuando pierde el foco
+  const saveName = async () => {
+    if (!name || !name.trim()) return;
+    if (!email) return;
     try {
-      // upsert usuario
-      const rUser = await fetch(`${API_BASE}/users`, {
+      const r = await fetch(`${API_BASE}/auth/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email, name: name.trim() }),
       });
-      if (!rUser.ok) {
-        const je = await safeJson(rUser);
-        throw new Error(je?.error || "No se pudo guardar el usuario");
+      if (!r.ok) {
+        const data = await safeJson(r);
+        console.error("Error al guardar nombre:", data);
+      } else {
+        // Actualizar el contexto de autenticación
+        updateUser({ name: name.trim() });
       }
-
-      // crear/actualizar suscripción
-      const rSub = await fetch(`${API_BASE}/subscriptions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email,
-          palabras_clave: palabras,
-          departamento,
-          ciudad,
-        }),
-      });
-      const data = await safeJson(rSub);
-      if (!rSub.ok || data?.ok === false) {
-        throw new Error(data?.error || "Error al guardar suscripción");
-      }
-
-      await loadSubs(email);
-      setMsg("Intereses guardados. Te enviaremos novedades automáticamente.");
     } catch (e) {
-      setMsg("Error: " + (e.message || "No se pudo guardar"));
-    } finally {
-      setSaving(false);
+      console.error("Error al guardar nombre:", e);
     }
   };
 
@@ -219,7 +229,7 @@ export default function Preferences({ unlocked = true }) {
         if (pv !== null) payload[k] = pv;
       }
       if (Object.keys(payload).length === 0) {
-        setMsgFin("No hay valores para guardar.");
+        setMsgFin("No hay valores para guardar. Completa al menos un campo.");
         return;
       }
 
@@ -234,16 +244,79 @@ export default function Preferences({ unlocked = true }) {
         throw new Error(data?.detail || data?.error || "Error al guardar indicadores");
       }
 
-      setMsgFin(`Indicadores guardados (id=${data.id}).`);
+      setMsgFin(`Indicadores guardados correctamente (id=${data.id}). Email: ${data.email}`);
+      
+      // ✅ NUEVO: Recargar los indicadores después de guardar
+      await loadIndicadores();
     } catch (e) {
-      setMsgFin("No se pudieron guardar los indicadores: " + (e.message || ""));
+      setMsgFin("Error al guardar los indicadores: " + (e.message || ""));
     } finally {
       setSavingFin(false);
     }
   };
 
+  // Guardar todo (indicadores + intereses)
+  const saveAll = async () => {
+    setMsgFin("");
+    setMsg("");
+    setSavingFin(true);
+    setSaving(true);
+
+    try {
+      // Guardar indicadores primero (si hay valores)
+      const payload = {};
+      const map = [
+        ["indicador_liquidez", indicadorLiquidez],
+        ["nivel_endeudamiento", nivelEndeudamiento],
+        ["razon_cobertura_intereses", razonCoberturaIntereses],
+        ["rentabilidad_patrimonio", rentabilidadPatrimonio],
+        ["rentabilidad_activo", rentabilidadActivo],
+        ["capacidad_deudas_corto_plazo", capacidadDeudasCortoPlazo],
+        ["porcentaje_acreedores", porcentajeAcreedores],
+        ["retribucion_riesgo_propiedad", retribucionRiesgoPropiedad],
+        ["capacidad_generar_ganancias", capacidadGenerarGanancias],
+      ];
+      for (const [k, v] of map) {
+        const pv = parseOrNull(v);
+        if (pv !== null) payload[k] = pv;
+      }
+
+      if (Object.keys(payload).length > 0) {
+        const r = await fetch(`${API_BASE}/finanzas/indicadores`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        const data = await safeJson(r);
+        if (!r.ok || data?.ok === false) {
+          throw new Error(data?.detail || data?.error || "Error al guardar indicadores");
+        }
+        await loadIndicadores();
+      }
+
+      // Guardar preferencias (palabras clave, departamento, ciudad)
+      const r2 = await fetch(`${API_BASE}/subscriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, palabras_clave: palabras, departamento, ciudad }),
+      });
+      const data2 = await safeJson(r2);
+      if (!r2.ok) throw new Error(data2?.detail || data2?.error || "Error al guardar preferencias");
+
+      setMsg("Cambios guardados correctamente ✓");
+      await loadSubs(email);
+    } catch (e) {
+      setMsg("Error al guardar cambios: " + (e.message || ""));
+    } finally {
+      setSavingFin(false);
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="preferences-wrapper">
+    <div className="preferences-container">
       {!isActive && (
         <div className="preferences-overlay">
           <div className="preferences-overlay-content">
@@ -257,16 +330,15 @@ export default function Preferences({ unlocked = true }) {
         </div>
       )}
 
-      <h3 className="preferences-title">Preferencias y suscripciones</h3>
-
       {loadingSession ? (
         <p className="preferences-loading-text">Cargando sesión…</p>
       ) : msg && !email ? (
         <p className="preferences-error-text">{msg}</p>
       ) : null}
 
-      {/* Identidad */}
+      {/* Formulario completo */}
       <div className="preferences-grid">
+        {/* Identidad */}
         <div className="preferences-field-group">
           <label className="preferences-field-label">Nombre</label>
           <input
@@ -274,22 +346,22 @@ export default function Preferences({ unlocked = true }) {
             placeholder="Nombre"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={saveName}
             disabled={!isActive}
           />
         </div>
         <div className="preferences-field-group">
           <label className="preferences-field-label">Correo</label>
-          <div
-            className="preferences-display"
+          <input
+            className="preferences-input"
+            placeholder="Correo"
+            value={email}
+            disabled={true}
             title="Este correo proviene de tu sesión"
-          >
-            {email || "—"}
-          </div>
+          />
         </div>
-      </div>
 
-      {/* Preferencias */}
-      <div className="preferences-grid">
+        {/* Preferencias */}
         <input
           className="preferences-input preferences-grid-full"
           placeholder="Palabras clave (ej. acueducto, energía)"
@@ -313,10 +385,10 @@ export default function Preferences({ unlocked = true }) {
         />
 
         {/* Indicadores financieros (debajo de Departamento/Ciudad) */}
-        <div className="preferences-grid-full" style={{ marginTop: '0.5rem' }}>
+        <div className="preferences-grid-full" style={{ marginTop: '1rem' }}>
           <h4 className="preferences-section-title">Indicadores financieros (opcional)</h4>
           <p className="preferences-section-description">
-            Ingresa solo valores numéricos. Se guardarán únicamente los campos que tengan valor.
+            Ingresa solo valores numéricos. Se guardarán únicamente los campos que tengan valor. Estos datos se usarán para personalizar tus búsquedas.
           </p>
 
           <div className="preferences-financial-grid">
@@ -327,6 +399,7 @@ export default function Preferences({ unlocked = true }) {
               value={indicadorLiquidez}
               onChange={(e) => setIndicadorLiquidez(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Capacidad de pagar obligaciones a corto plazo"
             />
             <input
               type="number" step="any"
@@ -335,6 +408,7 @@ export default function Preferences({ unlocked = true }) {
               value={nivelEndeudamiento}
               onChange={(e) => setNivelEndeudamiento(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Proporción de deuda respecto al patrimonio"
             />
             <input
               type="number" step="any"
@@ -343,88 +417,81 @@ export default function Preferences({ unlocked = true }) {
               value={razonCoberturaIntereses}
               onChange={(e) => setRazonCoberturaIntereses(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Capacidad de pagar intereses"
             />
             <input
               type="number" step="any"
               className="preferences-input"
-              placeholder="ROE - Rent. patrimonio (ej. 0.14)"
+              placeholder="ROE - Rentabilidad patrimonio (ej. 0.14)"
               value={rentabilidadPatrimonio}
               onChange={(e) => setRentabilidadPatrimonio(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Rentabilidad del capital invertido"
             />
             <input
               type="number" step="any"
               className="preferences-input"
-              placeholder="ROA - Rent. activo (ej. 0.08)"
+              placeholder="ROA - Rentabilidad activo (ej. 0.08)"
               value={rentabilidadActivo}
               onChange={(e) => setRentabilidadActivo(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Rentabilidad de los activos totales"
             />
             <input
               type="number" step="any"
               className="preferences-input"
-              placeholder="Cap. de deudas corto plazo (límite, ej. 1.50)"
+              placeholder="Cap. de deudas corto plazo (ej. 1.50)"
               value={capacidadDeudasCortoPlazo}
               onChange={(e) => setCapacidadDeudasCortoPlazo(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Límite de capacidad de deuda a corto plazo"
             />
             <input
               type="number" step="any"
               className="preferences-input"
-              placeholder="Porcentaje de acreedores (límite, ej. 0.60)"
+              placeholder="Porcentaje de acreedores (ej. 0.60)"
               value={porcentajeAcreedores}
               onChange={(e) => setPorcentajeAcreedores(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Proporción máxima de acreedores"
             />
             <input
               type="number" step="any"
               className="preferences-input"
-              placeholder="Retribución riesgo propiedad (límite ROE, ej. 0.10)"
+              placeholder="Retribución riesgo propiedad (ej. 0.10)"
               value={retribucionRiesgoPropiedad}
               onChange={(e) => setRetribucionRiesgoPropiedad(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Retorno mínimo esperado del riesgo"
             />
             <input
               type="number" step="any"
               className="preferences-input preferences-grid-full"
-              placeholder="Capacidad de generar ganancias (límite ROA, ej. 0.05)"
+              placeholder="Capacidad de generar ganancias (ej. 0.05)"
               value={capacidadGenerarGanancias}
               onChange={(e) => setCapacidadGenerarGanancias(e.target.value)}
               disabled={!isActive || savingFin}
+              title="Capacidad mínima de generar ganancias"
             />
           </div>
-
-          <div className="preferences-button-group">
-            <button
-              onClick={saveFin}
-              className="preferences-button preferences-button-primary"
-              disabled={!isActive || savingFin}
-            >
-              {savingFin ? "Guardando…" : "Guardar indicadores"}
-            </button>
-            {msgFin && <p className="preferences-status-message preferences-status-success">{msgFin}</p>}
-          </div>
         </div>
-      </div>
 
-      <div className="preferences-button-group">
-        <button
-          onClick={save}
-          className="preferences-button preferences-button-primary"
-          disabled={!isActive || !email || saving}
-        >
-          {saving ? "Guardando…" : "Guardar intereses"}
-        </button>
-        <button
-          onClick={runNow}
-          className="preferences-button"
-          disabled={!isActive || !email || running}
-        >
-          {running ? "Ejecutando…" : "Probar envío ahora"}
-        </button>
-      </div>
+        <div className="preferences-button-group">
+          <button
+            onClick={saveAll}
+            className="preferences-button preferences-button-primary"
+            disabled={!isActive || !email || savingFin || saving}
+          >
+            {savingFin || saving ? "Guardando…" : "Guardar cambios"}
+          </button>
+        </div>
 
-      {msg && email && <p className="preferences-status-message preferences-status-success">{msg}</p>}
+        {(msgFin || msg) && (
+          <p className={`preferences-status-message ${(msgFin || msg).includes("❌") || (msgFin || msg).includes("Error") ? "preferences-status-error" : "preferences-status-success"}`}>
+            {msgFin || msg}
+          </p>
+        )}
+      </div>
 
       {/* Suscripciones */}
       <div className="preferences-sub-list">

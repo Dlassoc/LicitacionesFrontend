@@ -14,6 +14,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const hideSearch = pathname.startsWith("/app/preferences") || isAuthPage;
+  const isPreferencesPage = pathname.startsWith("/app/preferences");
 
   // mostrar "Inicio" en el menú solo si NO estamos en /app
   const showMenuHome = pathname !== "/app";
@@ -75,16 +76,18 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                 {openMenu && (
                   <div className="user-menu" role="menu" aria-label="Menú de usuario">
                     <ul className="menu-list">
-                      <li>
-                        <Link
-                          to="/app/preferences"
-                          className="menu-item"
-                          role="menuitem"
-                          onClick={() => setOpenMenu(false)}
-                        >
-                          Preferencias
-                        </Link>
-                      </li>
+                      {!isPreferencesPage && (
+                        <li>
+                          <Link
+                            to="/app/preferences"
+                            className="menu-item"
+                            role="menuitem"
+                            onClick={() => setOpenMenu(false)}
+                          >
+                            Preferencias
+                          </Link>
+                        </li>
+                      )}
 
                       {showMenuHome && (
                         <li>

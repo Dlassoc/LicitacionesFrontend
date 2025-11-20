@@ -9,19 +9,7 @@ export default function PreferencesPage() {
       <Header chips={[]} />
 
       <main className="preferences-page-main">
-        <div className="preferences-page-content-wrapper">
-          <section className="preferences-page-section">
-            <header className="preferences-page-header">
-              <h1 className="preferences-page-title">Preferencias y suscripciones</h1>
-              <p className="preferences-page-description">
-                Configura palabras clave y filtros; y, si lo deseas, guarda los indicadores
-                financieros (solo valores) para tus análisis internos.
-              </p>
-            </header>
-
-            <Preferences unlocked={true} />
-          </section>
-        </div>
+        <Preferences unlocked={true} />
       </main>
 
       <footer className="preferences-page-footer">

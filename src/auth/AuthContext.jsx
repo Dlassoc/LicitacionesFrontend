@@ -68,6 +68,13 @@ export default function AuthProvider({ children }) {
   }
 
   // ============================
+  //   Actualizar usuario
+  // ============================
+  async function updateUser(updatedUser) {
+    setUser((prev) => ({ ...prev, ...updatedUser }));
+  }
+
+  // ============================
   //   Contexto global
   // ============================
   const value = useMemo(() => ({
@@ -76,6 +83,7 @@ export default function AuthProvider({ children }) {
     register,
     login,
     logout,
+    updateUser,
   }), [user, ready]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
