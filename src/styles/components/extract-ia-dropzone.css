@@ -98,7 +98,9 @@
 .extract-ia-dropzone-loading {
   margin-top: 1rem;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .extract-ia-dropzone-loading-spinner {
@@ -110,6 +112,148 @@
   animation: spin 0.8s linear infinite;
 }
 
+.extract-ia-dropzone-loading-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ============================= ANÁLISIS OPTIONS ============================= */
+
+.extract-ia-dropzone-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+.extract-ia-dropzone-options-header {
+  text-align: center;
+}
+
+.extract-ia-dropzone-options-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.extract-ia-dropzone-options-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.extract-ia-dropzone-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .extract-ia-dropzone-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.extract-ia-dropzone-option-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: inherit;
+  text-align: left;
+}
+
+.extract-ia-dropzone-option-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.extract-ia-dropzone-option-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Local Option */
+.extract-ia-dropzone-option-button.local {
+  border-color: #10b981;
+}
+
+.extract-ia-dropzone-option-button.local:hover:not(:disabled) {
+  background: #ecfdf5;
+  border-color: #059669;
+}
+
+/* IA Option */
+.extract-ia-dropzone-option-button.ia {
+  border-color: #f59e0b;
+}
+
+.extract-ia-dropzone-option-button.ia:hover:not(:disabled) {
+  background: #fffbeb;
+  border-color: #d97706;
+}
+
+.extract-ia-dropzone-option-icon {
+  font-size: 2.5rem;
+}
+
+.extract-ia-dropzone-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.extract-ia-dropzone-option-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.extract-ia-dropzone-option-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.extract-ia-dropzone-option-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.extract-ia-dropzone-cancel-button {
+  padding: 0.75rem 1.5rem;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  color: #4b5563;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.extract-ia-dropzone-cancel-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
 }

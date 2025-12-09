@@ -73,7 +73,19 @@ export default function SearchForm({ onBuscar, onClear }) {
       console.warn("Por favor ingresa un término de búsqueda");
       return;
     }
-    onBuscar(termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento);
+    
+    // 🔄 MEJORA: "Presentación de Ofertas (Opcional)" siempre se rellena con fecha actual si está vacío
+    // "Presentación de Ofertas Hasta" puede quedarse vacío
+    let finalFechaRecDesde = fechaRecDesde;
+    let finalFechaRecHasta = fechaRecHasta;
+    
+    // Si "Presentación de Ofertas (Desde)" está vacío, usar hoy
+    if (!finalFechaRecDesde) {
+      const today = new Date().toISOString().split('T')[0];
+      finalFechaRecDesde = today;
+    }
+    
+    onBuscar(termino, fechaPubDesde, fechaPubHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento);
   };
 
   const handleClear = () => {

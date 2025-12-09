@@ -89,22 +89,7 @@
   background: #f9fafb !important; /* gray-50 */
 }
 
-/* ======================  DESACTIVAR CUALQUIER MODO OSCURO  ====================== */
-/* Si por error quedó data-theme="dark" en el HTML, estos resets devuelven el look claro. */
-:root:not([data-theme]), 
-:root[data-theme="dark"] {
-  color-scheme: light;
-}
-:root[data-theme="dark"] .splash,
-:root:not([data-theme]) .splash { background: linear-gradient(180deg, #f7f7f7 0%, #e9fcfd 100%); }
-:root[data-theme="dark"] .splash-card,
-:root:not([data-theme]) .splash-card { background: #fff; border-color: rgba(0,0,0,.06); }
-:root[data-theme="dark"] .header-bar,
-:root:not([data-theme]) .header-bar { background: linear-gradient(90deg, #f7f7f7 0%, #27C5CE 200%); }
-:root[data-theme="dark"] .header-inner,
-:root:not([data-theme]) .header-inner { color: #000; }
-/* …Puedes dejar estos resets mínimos o eliminarlos cuando estés seguro de que siempre seteas data-theme="light". */
-
+/* ======================  TEMA OSCURO (DARK MODE)  ====================== */
 /* Activo cuando el usuario elige oscuro desde el botón */
 :root[data-theme="dark"] {
   color-scheme: dark; /* hint para inputs nativos */

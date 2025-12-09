@@ -6,9 +6,11 @@ import "../styles/components/extract-ia-dropzone.css";
 export default function ExtractIADropzone() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState(null); // 'ia' o 'local'
   const [error, setError] = useState(null);
   const dropzoneRef = useRef(null);
   const inputRef = useRef(null);
+  const [selectedFiles, setSelectedFiles] = useState(null);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -28,31 +30,47 @@ export default function ExtractIADropzone() {
     dropzoneRef.current?.classList.remove("drag-active");
 
     const files = e.dataTransfer.files;
-    processFiles(files);
+    showAnalysisOptions(files);
   };
 
   const handleInputChange = (e) => {
-    processFiles(e.target.files);
+    showAnalysisOptions(e.target.files);
   };
 
-  const processFiles = async (files) => {
-    const pdfFiles = Array.from(files).filter((f) => f.type === "application/pdf");
-    if (pdfFiles.length === 0) {
-      alert("Por favor, selecciona al menos un archivo PDF");
+  const showAnalysisOptions = (files) => {
+    const validFiles = Array.from(files).filter((f) => 
+      f.type === "application/pdf" || f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    
+    if (validFiles.length === 0) {
+      alert("Por favor, selecciona al menos un archivo PDF o DOCX");
       return;
     }
+
+    setSelectedFiles(validFiles);
+    setAnalysisMode(null); // Reset mode for selection
+  };
+
+  const processFiles = async (mode) => {
+    if (!selectedFiles) return;
 
     setLoading(true);
     setError(null);
     setResults(null);
+    setAnalysisMode(mode);
 
     try {
       const formData = new FormData();
-      for (const file of pdfFiles) {
+      for (const file of selectedFiles) {
         formData.append("files", file);
       }
 
-      const response = await fetch(API_ENDPOINTS.EXTRACT_ANALYZE, {
+      // Seleccionar endpoint basado en modo
+      const endpoint = mode === 'local' 
+        ? API_ENDPOINTS.EXTRACT_ANALYZE_LOCAL 
+        : API_ENDPOINTS.EXTRACT_ANALYZE;
+
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -75,12 +93,81 @@ export default function ExtractIADropzone() {
   const handleReset = () => {
     setResults(null);
     setError(null);
+    setSelectedFiles(null);
+    setAnalysisMode(null);
   };
 
   if (results) {
     return (
       <div className="extract-ia-dropzone-scrollbar-thin">
         <ExtractIAResults data={results} onReset={handleReset} />
+      </div>
+    );
+  }
+
+  // Mostrar opciones de análisis si hay archivos seleccionados
+  if (selectedFiles && !loading) {
+    return (
+      <div className="extract-ia-dropzone-container">
+        <div className="extract-ia-dropzone-options">
+          <div className="extract-ia-dropzone-options-header">
+            <p className="extract-ia-dropzone-options-title">
+              {selectedFiles.length} archivo{selectedFiles.length !== 1 ? "s" : ""} seleccionado{selectedFiles.length !== 1 ? "s" : ""}
+            </p>
+            <p className="extract-ia-dropzone-options-subtitle">
+              Elige el método de análisis:
+            </p>
+          </div>
+
+          <div className="extract-ia-dropzone-options-grid">
+            {/* Opción Local */}
+            <button
+              onClick={() => processFiles('local')}
+              className="extract-ia-dropzone-option-button local"
+              disabled={loading}
+            >
+              <div className="extract-ia-dropzone-option-icon">⚡</div>
+              <div className="extract-ia-dropzone-option-content">
+                <h3 className="extract-ia-dropzone-option-title">Análisis Local</h3>
+                <p className="extract-ia-dropzone-option-description">
+                  Rápido, privado, sin costo
+                </p>
+                <ul className="extract-ia-dropzone-option-features">
+                  <li>✓ Instantáneo</li>
+                  <li>✓ Privado</li>
+                  <li>✓ Gratis</li>
+                </ul>
+              </div>
+            </button>
+
+            {/* Opción IA */}
+            <button
+              onClick={() => processFiles('ia')}
+              className="extract-ia-dropzone-option-button ia"
+              disabled={loading}
+            >
+              <div className="extract-ia-dropzone-option-icon">🤖</div>
+              <div className="extract-ia-dropzone-option-content">
+                <h3 className="extract-ia-dropzone-option-title">Análisis con IA</h3>
+                <p className="extract-ia-dropzone-option-description">
+                  Más preciso, análisis profundo
+                </p>
+                <ul className="extract-ia-dropzone-option-features">
+                  <li>✓ Detallado</li>
+                  <li>✓ Preciso</li>
+                  <li>⏱ Lento</li>
+                </ul>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={handleReset}
+            className="extract-ia-dropzone-cancel-button"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
     );
   }
@@ -100,7 +187,7 @@ export default function ExtractIADropzone() {
           ref={inputRef}
           type="file"
           multiple
-          accept=".pdf"
+          accept=".pdf,.docx"
           onChange={handleInputChange}
           disabled={loading}
           className="extract-ia-dropzone-input"
@@ -110,7 +197,7 @@ export default function ExtractIADropzone() {
           <div className="extract-ia-dropzone-icon">📄</div>
           <div className="extract-ia-dropzone-text-wrapper">
             <p className="extract-ia-dropzone-title">
-              {loading ? "Procesando documentos…" : "Arrastra archivos PDF aquí"}
+              {loading ? "Procesando documentos…" : "Arrastra archivos PDF o DOCX aquí"}
             </p>
             <p className="extract-ia-dropzone-subtitle">
               o haz clic para seleccionar
@@ -130,6 +217,9 @@ export default function ExtractIADropzone() {
       {loading && (
         <div className="extract-ia-dropzone-loading">
           <div className="extract-ia-dropzone-loading-spinner"></div>
+          <p className="extract-ia-dropzone-loading-text">
+            {analysisMode === 'local' ? 'Análisis local en progreso...' : 'Análisis con IA en progreso...'}
+          </p>
         </div>
       )}
     </div>

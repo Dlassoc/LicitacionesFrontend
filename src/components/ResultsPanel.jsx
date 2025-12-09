@@ -25,60 +25,62 @@ export default function ResultsPanel({
           </div>
         </div>
 
-        <div className="rp-body">
-          {error && (
-            <p className="rp-error">{error}</p>
-          )}
+        {lastQuery && (
+          <div className="rp-body">
+            {error && (
+              <p className="rp-error">{error}</p>
+            )}
 
-          {loading && (
-            <div className="rp-grid">
-              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-            </div>
-          )}
-
-          {!loading && (!resultados || resultados.length === 0) && lastQuery && (
-            <div className="rp-empty">
-              No se encontraron resultados con los filtros actuales.
-              <div className="mt-3">Prueba cambiando el término o ampliando el rango de fechas.</div>
-            </div>
-          )}
-
-          {!loading && resultados && resultados.length > 0 && (
-            <div className="rp-grid">
-              {resultados.map((item, idx) => (
-                <ResultCard
-                  key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
-                  item={item}
-                  onClick={() => onItemClick(item)}
-                />
-              ))}
-            </div>
-          )}
-
-          {!loading && resultados && resultados.length > 0 && (
-            <div className="rp-footer">
-              <div className="rp-footer-text">
-                Página {Math.floor(offset / limit) + 1} de {Math.max(1, Math.ceil(total / limit))}
+            {loading && (
+              <div className="rp-grid">
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
-              <div className="space-x-2">
-                <button
-                  onClick={() => onPage(Math.max(offset - limit, 0))}
-                  className="rp-btn"
-                  disabled={offset === 0}
-                >
-                  ← Anterior
-                </button>
-                <button
-                  onClick={() => onPage(offset + limit)}
-                  className="rp-btn"
-                  disabled={offset + limit >= total}
-                >
-                  Siguiente →
-                </button>
+            )}
+
+            {!loading && (!resultados || resultados.length === 0) && lastQuery && (
+              <div className="rp-empty">
+                No se encontraron resultados con los filtros actuales.
+                <div className="mt-3">Prueba cambiando el término o ampliando el rango de fechas.</div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+
+            {!loading && resultados && resultados.length > 0 && (
+              <div className="rp-grid">
+                {resultados.map((item, idx) => (
+                  <ResultCard
+                    key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
+                    item={item}
+                    onClick={() => onItemClick(item)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!loading && resultados && resultados.length > 0 && (
+              <div className="rp-footer">
+                <div className="rp-footer-text">
+                  Página {Math.floor(offset / limit) + 1} de {Math.max(1, Math.ceil(total / limit))}
+                </div>
+                <div className="space-x-2">
+                  <button
+                    onClick={() => onPage(Math.max(offset - limit, 0))}
+                    className="rp-btn"
+                    disabled={offset === 0}
+                  >
+                    ← Anterior
+                  </button>
+                  <button
+                    onClick={() => onPage(offset + limit)}
+                    className="rp-btn"
+                    disabled={offset + limit >= total}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

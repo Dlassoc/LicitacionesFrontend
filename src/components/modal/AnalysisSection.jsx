@@ -11,20 +11,16 @@ export default function AnalysisSection({
   analyzing,
   analyzed,
   analysisError,
+  analysisResults,
   analyze,
 }) {
   if (!docWithIndicators) return null;
 
-  // ✅ NUEVO: Log para debugging
-  if (analyzed) {
-    console.log('🔍 [AnalysisSection] Datos recibidos:', {
-      nombre: analyzed.nombre,
-      indicadores: analyzed.indicadores,
-      codigos_unspsc: analyzed.codigos_unspsc,
-      experiencia_anos: analyzed.experiencia_anos,
-      completo_keys: Object.keys(analyzed.completo || {}),
-    });
-  }
+  // ✅ NUEVO: Usar analysisResults (nuevo formato) si existen, sino analyzed (formato antiguo)
+  const results = analysisResults || analyzed;
+  
+  // ✅ NUEVO: Si analyzed es solo boolean true (flag de completado), considerar que tenemos datos
+  const hasAnalyzed = typeof analyzed === 'boolean' ? analyzed : !!analyzed;
 
   const handleAnalyze = useCallback(() => {
     analyze();
@@ -59,124 +55,221 @@ export default function AnalysisSection({
       )}
 
       {/* ✅ MODIFICADO: Mostrar resultados si tenemos datos (sin importar si analyzing) */}
-      {analyzed && (
-        <div className={`analysis-section-success ${analyzed.noIndicatorsFound ? 'analysis-section-success-no-indicators' : ''}`}>
-          {analyzed.noIndicatorsFound ? (
-            <div className="analysis-section-success-header">
-              <h5 className="analysis-section-success-title">
-                ✓ Análisis completado
-              </h5>
-              <p className="analysis-section-success-pages">
-                Se analizaron todos los documentos disponibles
-              </p>
-            </div>
-          ) : (
-            <div className="analysis-section-success-header">
-              <h5 className="analysis-section-success-title">
-                ✓ Documento analizado: {analyzed.nombre}
-              </h5>
-              <p className="analysis-section-success-pages">
-                Páginas encontradas: <strong>{analyzed.paginasIndicadores.join(", ") || "—"}</strong> de{" "}
-                <strong>{analyzed.paginasTotales}</strong>
-              </p>
-            </div>
-          )}
+      {hasAnalyzed && results && (
+        <div className={`analysis-section-success ${!results.indicadores || Object.keys(results.indicadores).length === 0 ? 'analysis-section-success-no-indicators' : ''}`}>
+          <div className="analysis-section-success-header">
+            <h5 className="analysis-section-success-title">
+              ✓ Análisis completado ({results.documentos_analizados || 0} documentos)
+            </h5>
+            <p className="analysis-section-success-pages">
+              📊 Confianza: <strong>{((results.confianza || 0.99) * 100).toFixed(0)}%</strong>
+            </p>
+          </div>
 
           {/* Indicadores encontrados */}
-          {analyzed.indicadores && Object.keys(analyzed.indicadores).length > 0 ? (
+          {results.indicadores && Object.keys(results.indicadores).length > 0 ? (
             <div className="analysis-section-indicators-group">
               <p className="analysis-section-indicators-label">💰 Indicadores financieros requeridos:</p>
               <div className="analysis-section-indicators-box">
-                <ul className="analysis-section-indicators-list">
-                  {Object.entries(analyzed.indicadores).map(([key, val]) => (
-                    <li key={key} className="analysis-section-indicators-item">
-                      <span><strong>{key}:</strong> {val}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              {/* ✅ NUEVO: Mostrar códigos UNSPSC si existen */}
-              {analyzed.codigos_unspsc && analyzed.codigos_unspsc.length > 0 && (
-                <div className="analysis-section-unspsc-group">
-                  <p className="analysis-section-unspsc-label">📋 Códigos UNSPSC encontrados:</p>
-                  <div className="analysis-section-unspsc-codes">
-                    {analyzed.codigos_unspsc.map((item) => {
-                      // Manejar tanto strings como objetos {codigo, descripcion, ...}
-                      const codigo = typeof item === 'string' ? item : item?.codigo;
-                      const descripcion = typeof item === 'string' ? null : item?.descripcion;
+                {/* Verificar si tiene estructura NORMAL/MIPYME o plana */}
+                {results.indicadores.normal || results.indicadores.mipyme || results.indicadores.emprendimientos || results.indicadores.individuales ? (
+                  // Estructura categorizada (NORMAL/MIPYME/etc + individuales)
+                  <div className="analysis-section-categories">
+                    {Object.entries(results.indicadores).map(([categoryName, categoryData], idx) => {
+                      // Saltar si es un diccionario vacío
+                      if (typeof categoryData !== 'object' || Object.keys(categoryData).length === 0) {
+                        return null;
+                      }
+                      
+                      // Para 'individuales', mostrar un título especial
+                      const displayTitle = categoryName === 'individuales' 
+                        ? 'Indicadores Encontrados' 
+                        : categoryName.toUpperCase();
+                      
                       return (
-                        <span
-                          key={codigo}
-                          className="analysis-section-unspsc-code"
-                          title={descripcion || ''}
-                        >
-                          {codigo}
-                        </span>
+                        <div key={idx} className={`analysis-section-category ${categoryName === 'individuales' ? 'individual' : ''}`}>
+                          <h5 className="analysis-section-category-title">{displayTitle}</h5>
+                          <ul className="analysis-section-indicators-list">
+                            {Object.entries(categoryData).map(([key, val]) => (
+                              <li key={key} className="analysis-section-indicators-item">
+                                <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {/* ✅ NUEVO: Mostrar experiencia requerida si existe */}
-              {analyzed.experiencia_encontrada && (
-                <div className="analysis-section-experience-group">
-                  <p className="analysis-section-experience-label">👨‍💼 Requisitos de experiencia:</p>
-                  <div className="analysis-section-experience-box">
-                    {analyzed.experiencia_anos && (
-                      <p className="analysis-section-experience-years">
-                        <strong>Años requeridos:</strong> <span style={{fontSize: '0.9em', fontWeight: '600', color: '#059669'}}>{analyzed.experiencia_anos}</span>
-                      </p>
-                    )}
-                    {analyzed.experiencia_sector && (
-                      <p className="analysis-section-experience-sector">
-                        <strong>Sector:</strong> {analyzed.experiencia_sector}
-                      </p>
-                    )}
-                    {analyzed.experiencia_certificaciones && (
-                      <p className="analysis-section-experience-certs">
-                        <strong>Certificaciones:</strong> {analyzed.experiencia_certificaciones}
-                      </p>
-                    )}
-                    {analyzed.experiencia_valor_smmlv && (
-                      <p className="analysis-section-experience-smmlv">
-                        <strong>Valor mínimo:</strong> {analyzed.experiencia_valor_smmlv}
-                      </p>
-                    )}
-                    {analyzed.experiencia_tipos && analyzed.experiencia_tipos.length > 0 && (
-                      <div className="analysis-section-experience-types">
-                        <strong>Tipos de proyectos:</strong>
-                        <ul className="analysis-section-experience-types-list">
-                          {analyzed.experiencia_tipos.map((tipo, idx) => (
-                            <li key={idx}>{tipo}</li>
-                          ))}
-                        </ul>
+                ) : (
+                  // Estructura plana
+                  <ul className="analysis-section-indicators-list">
+                    {Object.entries(results.indicadores).map(([key, val]) => (
+                      <li key={key} className="analysis-section-indicators-item">
+                        <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              
+              {/* ✅ NUEVO: Mostrar indicadores organizacionales si existen */}
+              {results.indicadores_organizacionales && Object.keys(results.indicadores_organizacionales).length > 0 && (
+                <div className="analysis-section-indicators-org-group">
+                  <p className="analysis-section-indicators-org-label">🏢 Indicadores Organizacionales ({Object.keys(results.indicadores_organizacionales).length}):</p>
+                  <div className="analysis-section-indicators-org-box">
+                    {/* Verificar si tiene estructura NORMAL/MIPYME o plana */}
+                    {results.indicadores_organizacionales.normal || results.indicadores_organizacionales.mipyme ? (
+                      // Estructura categorizada
+                      <div className="analysis-section-org-categories">
+                        {Object.entries(results.indicadores_organizacionales).map(([categoryName, categoryData], idx) => {
+                          if (typeof categoryData !== 'object' || Object.keys(categoryData).length === 0) {
+                            return null;
+                          }
+                          
+                          return (
+                            <div key={idx} className="analysis-section-org-category">
+                              <h5 className="analysis-section-org-category-title">{categoryName.toUpperCase()}</h5>
+                              <ul className="analysis-section-indicators-org-list">
+                                {Object.entries(categoryData).map(([key, val]) => (
+                                  <li key={key} className="analysis-section-indicators-org-item">
+                                    <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })}
                       </div>
+                    ) : (
+                      // Estructura plana
+                      <ul className="analysis-section-indicators-org-list">
+                        {Object.entries(results.indicadores_organizacionales).map(([key, val]) => (
+                          <li key={key} className="analysis-section-indicators-org-item">
+                            <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
                 </div>
               )}
-
-              {analyzed.notas && (
-                <p className="analysis-section-notes">
-                  <strong>Notas:</strong> {analyzed.notas}
-                </p>
+              
+              {/* ✅ NUEVO: Mostrar códigos UNSPSC si existen */}
+              {results.codigos_unspsc && results.codigos_unspsc.length > 0 && (
+                <div className="analysis-section-unspsc-group">
+                  <p className="analysis-section-unspsc-label">� Códigos UNSPSC ({results.codigos_unspsc.length}):</p>
+                  <div className="analysis-section-unspsc-codes">
+                    {results.codigos_unspsc.map((codigo, idx) => (
+                      <span
+                        key={`${codigo}-${idx}`}
+                        className="analysis-section-unspsc-code"
+                      >
+                        {codigo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
-              {analyzed.confianza !== undefined && (
-                <p className="analysis-section-confidence">
-                  Confianza del análisis: <strong>{(analyzed.confianza * 100).toFixed(0)}%</strong>
-                </p>
+              
+              {/* ✅ NUEVO: Mostrar experiencia requerida si existe */}
+              {results.experiencia_requerida && Object.keys(results.experiencia_requerida).length > 0 && (
+                <div className="analysis-section-experience-group">
+                  <p className="analysis-section-experience-label">👨‍💼 Experiencia Requerida:</p>
+                  <div className="analysis-section-experience-box">
+                    {Object.entries(results.experiencia_requerida).map(([key, val]) => (
+                      <p key={key} className="analysis-section-experience-text">
+                        <strong>{key}:</strong> {val}
+                      </p>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           ) : (
             <div className="analysis-section-no-indicators">
               <p className="analysis-section-no-indicators-title">
-                ⓘ No se encontraron indicadores financieros relevantes
+                ⓘ {results.mensaje || "No se encontraron indicadores financieros"}
               </p>
-              <p className="analysis-section-no-indicators-description">
-                {analyzed.notas || "Este documento no contiene información sobre indicadores financieros que sean relevantes para esta postulación."}
-              </p>
+              
+              {/* Mostrar resumen del análisis */}
+              <div className="analysis-section-no-indicators-summary">
+                <p className="analysis-section-no-indicators-stat">
+                  📄 <strong>Documentos analizados:</strong> {results.documentos_analizados || 0}
+                </p>
+                {results.documentos_descartados > 0 && (
+                  <p className="analysis-section-no-indicators-stat">
+                    ⏭️ <strong>Documentos descartados:</strong> {results.documentos_descartados} (administrativos)
+                  </p>
+                )}
+                
+                {/* ✅ NUEVO: Mostrar conteo de qué se encontró */}
+                {results.indicadores_organizacionales && Object.keys(results.indicadores_organizacionales).length > 0 && (
+                  <p className="analysis-section-no-indicators-stat">
+                    📈 <strong>Indicadores organizacionales encontrados:</strong> {Object.keys(results.indicadores_organizacionales).length}
+                  </p>
+                )}
+                {results.codigos_unspsc && results.codigos_unspsc.length > 0 && (
+                  <p className="analysis-section-no-indicators-stat">
+                    📋 <strong>Códigos UNSPSC encontrados:</strong> {results.codigos_unspsc.length}
+                  </p>
+                )}
+                {results.experiencia_requerida && Object.keys(results.experiencia_requerida).length > 0 && (
+                  <p className="analysis-section-no-indicators-stat">
+                    👨‍💼 <strong>Requisitos de experiencia encontrados:</strong> {Object.keys(results.experiencia_requerida).length}
+                  </p>
+                )}
+                
+                <p className="analysis-section-no-indicators-description">
+                  Los documentos analizados no contienen indicadores financieros relevantes. Esto puede significar que son documentos técnicos, administrativos o no relacionados con la evaluación financiera.
+                </p>
+              </div>
+              
+              {/* ✅ NUEVO: Mostrar indicadores organizacionales si existen (incluso sin indicadores financieros) */}
+              {results.indicadores_organizacionales && Object.keys(results.indicadores_organizacionales).length > 0 && (
+                <div className="analysis-section-indicators-org-group">
+                  <p className="analysis-section-indicators-org-label">📈 Indicadores Organizacionales ({Object.keys(results.indicadores_organizacionales).length}):</p>
+                  <div className="analysis-section-indicators-org-box">
+                    <ul className="analysis-section-indicators-org-list">
+                      {Object.entries(results.indicadores_organizacionales).map(([key, val]) => (
+                        <li key={key} className="analysis-section-indicators-org-item">
+                          <span><strong>{key}:</strong> {val}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              
+              {/* ✅ NUEVO: Mostrar códigos UNSPSC si existen (incluso sin indicadores) */}
+              {results.codigos_unspsc && results.codigos_unspsc.length > 0 && (
+                <div className="analysis-section-unspsc-group">
+                  <p className="analysis-section-unspsc-label">📋 Códigos UNSPSC ({results.codigos_unspsc.length}):</p>
+                  <div className="analysis-section-unspsc-codes">
+                    {results.codigos_unspsc.map((codigo, idx) => (
+                      <span
+                        key={`${codigo}-${idx}`}
+                        className="analysis-section-unspsc-code"
+                      >
+                        {codigo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* ✅ NUEVO: Mostrar experiencia requerida si existe (incluso sin indicadores) */}
+              {results.experiencia_requerida && Object.keys(results.experiencia_requerida).length > 0 && (
+                <div className="analysis-section-experience-group">
+                  <p className="analysis-section-experience-label">👨‍💼 Experiencia Requerida:</p>
+                  <div className="analysis-section-experience-box">
+                    {Object.entries(results.experiencia_requerida).map(([key, val]) => (
+                      <p key={key} className="analysis-section-experience-text">
+                        <strong>{key}:</strong> {val}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

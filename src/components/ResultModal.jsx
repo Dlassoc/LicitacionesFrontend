@@ -1,6 +1,6 @@
 // src/components/ResultModal.jsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useDocumentDownload } from "../hooks/useDocumentDownload.js";
+import { useLocalDocumentAnalysis } from "../hooks/useLocalDocumentAnalysis.js";
 import API_BASE_URL from "../config/api.js";
 import ModalHeader from "./modal/ModalHeader.jsx";
 import DocumentMetadata from "./modal/DocumentMetadata.jsx";
@@ -146,9 +146,14 @@ function secopFingerprint(u) {
 }
 
 const docKey = (d) => {
+  // ✅ PRIORIDAD: El TITULO es el identificador más confiable
+  // Si dos registros tienen el mismo título normalizador, son el MISMO documento
+  const t = normWs(d?.titulo);
+  if (t) return `titulo:${t}`;
+  
   const fp = secopFingerprint(d?.url);
   if (fp) return `fp:${fp}`;
-  const t = normWs(d?.titulo);
+  
   const f = normWs(d?.fecha);
   const z = normWs(d?.tamanio);
   return `tf:${t}|${f}|${z}`;
@@ -309,18 +314,25 @@ export default function ResultModal({ open, item, onClose }) {
     [idx]
   );
 
-  // Análisis automático de indicadores financieros
-  // Buscar el documento con indicadores detectados
-  const docWithIndicators = useMemo(() => {
-    return docs.find((d) => d.es_documento_indicadores === true) || null;
-  }, [docs]);
+  // ✅ DEBUG: Loguear cuando cambia idPortafolio
+  useEffect(() => {
+    console.log('📍 [MODAL] idPortafolio actualizado en ResultModal:', idPortafolio);
+  }, [idPortafolio]);
 
-  // ✅ CRÍTICO: Llamar al hook ANTES del early return
-  // Así el cleanup siempre se ejecuta incluso si el componente se desmonta
-  const { analyzing, analyzed, error: analysisError, analyze, analyzeMultipleDocs, cancel } = useDocumentDownload(
-    docWithIndicators, // Solo el documento con indicadores detectados
+  // ✅ Análisis automático LOCAL de indicadores financieros
+  // Se analizarán TODOS los documentos sin necesidad de IA
+  const { analyzing, analyzed, results, error: analysisError, analyze, cancel, progress } = useLocalDocumentAnalysis(
+    docs, // Todos los documentos descargados
     idPortafolio
   );
+
+  // ✅ NUEVO: Cancelar y resetear cuando cambia el idPortafolio (IMPORTANTE para evitar mezcla de datos)
+  useEffect(() => {
+    if (open && idPortafolio) {
+      console.log('🔄 [MODAL] Detectado cambio de idPortafolio, cancelando análisis anterior...');
+      cancel?.();
+    }
+  }, [idPortafolio, open, cancel]);
 
   // ✅ NUEVO: Rastrear si el modal fue abierto antes para detectar cierre
   const wasOpenRef = useRef(false);
@@ -352,55 +364,77 @@ export default function ResultModal({ open, item, onClose }) {
     };
   }, [open, onClose]);
 
-  // Función wrapper para manejar ambos casos - ✅ MOVIDO ANTES del early return
+  // Función wrapper para iniciar análisis - ✅ SIMPLIFICADO para usar análisis local
   const handleAnalyze = useCallback(() => {
     console.log('🎬 handleAnalyze llamado', {
-      docWithIndicators: !!docWithIndicators,
       docsLength: docs.length,
+      docsLoading,
       analyzing,
       analyzed: !!analyzed,
     });
     
-    // ✅ CAMBIO: Si hay múltiples documentos, usar analyzeMultipleDocs
-    // para que continúe escaneando hasta encontrar indicadores reales
-    if (docs.length > 1) {
-      // Múltiples documentos: analizar todos hasta encontrar indicadores
-      console.log(`� Caso 2: Analizando ${docs.length} documentos (múltiples)`);
-      analyzeMultipleDocs(docs);
-    } else if (docs.length === 1) {
-      // Un solo documento: analizar directamente
-      console.log('� Caso 1: Un solo documento - analizando...');
-      analyze();
+    // Si no hay documentos, no hacer nada
+    if (docs.length === 0) {
+      console.warn('⚠️ No hay documentos para analizar');
+      return;
     }
-  }, [docs, analyze, analyzeMultipleDocs, analyzing, analyzed]);
+    
+    console.log(`📊 Iniciando análisis local de ${docs.length} documentos...`);
+    // REMOVIDO: analyze() se dispara desde el effect principal abajo para evitar duplicados
+  }, [docs.length, analyzing, analyzed, docsLoading]);
 
-  // ✅ NUEVO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
+  // ✅ CORREGIDO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
+  // Este effect SOLO se ejecuta cuando cambia idPortafolio
   useEffect(() => {
-    // Cancelar análisis anterior si existe
+    console.log('🔄 Portafolio cambió a:', idPortafolio);
+    // Cancelar análisis anterior si existe y resetear para forzar uno nuevo
     if (analyzed) {
       console.log('🔄 Limpiando análisis previo - nueva licitación detectada');
       cancel?.();
     }
   }, [idPortafolio, cancel]);
 
-  // ✅ OPTIMIZADO: Iniciar análisis INMEDIATAMENTE si ya hay documentos
-  // (por ejemplo, si el modal se abre con docs en cache)
+  // ✅ PRINCIPAL: Iniciar análisis INMEDIATAMENTE si ya hay documentos descargados
+  // Este effect se ejecuta cuando los documentos están listos - ES EL ÚNICO QUE LLAMA A analyze()
   useEffect(() => {
-    if (!open || docs.length === 0 || docsLoading || docsErr || analyzing || analyzed) {
-      return; // No ejecutar si no hay condiciones
+    if (!open) {
+      console.log('⏱️ Modal cerrado, no analizando');
+      return;
     }
     
-    console.log('⏱️ Verificando si iniciar análisis...', {
+    if (docs.length === 0) {
+      console.log('⏱️ [WAIT] No hay documentos aún, esperando a que se carguen...');
+      return;
+    }
+    
+    if (docsLoading) {
+      console.log('⏱️ [WAIT] Documentos aún cargándose desde Socrata...');
+      return;
+    }
+    
+    if (analyzing) {
+      console.log('⏱️ [WAIT] Análisis en progreso...');
+      return;
+    }
+    
+    if (analyzed) {
+      console.log('⏱️ [WAIT] Análisis ya completado para idPortafolio:', idPortafolio);
+      return;
+    }
+    
+    console.log('✅ [READY] Documentos listos, iniciando análisis automático...', {
       docsLength: docs.length,
       docsLoading,
-      docsErr: !!docsErr,
       analyzing,
       analyzed: !!analyzed,
+      idPortafolio,
     });
     
-    console.log('🚀 Iniciando análisis automático');
-    handleAnalyze();
-  }, [open, docs, docsLoading, docsErr, analyzing, analyzed, handleAnalyze]);
+    console.log('🚀 Iniciando análisis automático local');
+    
+    // Llamar directamente analyze() en lugar de handleAnalyze para evitar ciclo
+    analyze();
+  }, [open, docs.length, docsLoading, analyzing, analyzed, analyze]); // ⭐ REMOVIDO: idPortafolio
 
   // ✅ OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
   useEffect(() => {
@@ -409,7 +443,10 @@ export default function ResultModal({ open, item, onClose }) {
     }
     
     let abort = false;
-    (async () => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const loadDocs = async () => {
       setDocsErr("");
       setDocs([]);
       setDebugQuery(null);
@@ -431,12 +468,25 @@ export default function ResultModal({ open, item, onClose }) {
         const url = `${DMGG_API}?${params.toString()}`;
         setDebugQuery({ DMGG_API, params: Object.fromEntries(params.entries()) });
 
-        console.log(`🔗 [${new Date().toLocaleTimeString()}] Consultando Socrata...`);
+        console.log(`🔗 [${new Date().toLocaleTimeString()}] Consultando Socrata (intento ${retryCount + 1}/${maxRetries + 1})...`);
         const res = await fetch(url, { method: "GET" });
         const elapsed = (performance.now() - startTime).toFixed(0);
         
         if (!res.ok) {
           const txt = await res.text().catch(() => "");
+          
+          // Si es 503, reintentar después de un tiempo
+          if (res.status === 503 && retryCount < maxRetries) {
+            console.warn(`⚠️ Socrata retornó 503, reintentando en 2 segundos... (${retryCount + 1}/${maxRetries})`);
+            retryCount++;
+            if (!abort) {
+              setTimeout(() => {
+                if (!abort) loadDocs();
+              }, 2000);
+            }
+            return;
+          }
+          
           throw new Error(`Socrata respondió ${res.status}: ${txt || "error"}`);
         }
         
@@ -445,14 +495,21 @@ export default function ResultModal({ open, item, onClose }) {
 
         // 1) Mapeo
         const mapped = Array.isArray(raw) ? raw.map(mapDoc) : [];
+        console.log(`🔍 [DEDUP] ${mapped.length} documentos antes de deduplicación`);
+        mapped.slice(0, 5).forEach((d, i) => console.log(`   [${i}] ${d.titulo} | URL: ${d.url?.substring(0, 80)}`));
+        
         // 2) Deduplicación (huella por DocumentId/DocUniqueIdentifier)
         const deduped = dedupeDocs(mapped);
+        console.log(`🔍 [DEDUP] ${deduped.length} documentos después de deduplicación`);
+        deduped.slice(0, 5).forEach((d, i) => console.log(`   [${i}] ${d.titulo} | URL: ${d.url?.substring(0, 80)}`));
+        
         // 3) Mostrar sólo los que tienen URL descargable
         const withUrl = deduped.filter((d) => !!d.url);
         // 4) Etiquetado y orden
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
-        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos después de filtrado`);
+        // ✅ CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
+        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
         if (!abort) {
           setDocs(tagged);
           setDocsLoading(false);
@@ -464,7 +521,9 @@ export default function ResultModal({ open, item, onClose }) {
           setDocsLoading(false);
         }
       }
-    })();
+    };
+    
+    loadDocs();
     return () => { abort = true; };
   }, [open, idPortafolio]);
 
@@ -534,8 +593,9 @@ export default function ResultModal({ open, item, onClose }) {
           />
 
           {/* ====== Descargas asociadas (dmgg-8hin) ====== */}
+          {/* ✅ CAMBIO: Usar docs (ahora serán analizados localmente) */}
           <DownloadsSection 
-            docs={docs} 
+            docs={docs}
             docsLoading={docsLoading} 
             docsErr={docsErr} 
             idPortafolio={idPortafolio}
@@ -544,12 +604,14 @@ export default function ResultModal({ open, item, onClose }) {
             analyzed={analyzed}
           />
 
-          {/* ====== Análisis de indicadores financieros ====== */}
+          {/* ====== Análisis de indicadores financieros (LOCAL) ====== */}
+          {/* ✅ CAMBIO: Usar análisis local sin IA */}
           <AnalysisSection 
-            docWithIndicators={docWithIndicators || docs.length > 0}
+            docWithIndicators={docs.length > 0}
             analyzing={analyzing}
             analyzed={analyzed}
             analysisError={analysisError}
+            analysisResults={results}
             analyze={handleAnalyze}
           />
 

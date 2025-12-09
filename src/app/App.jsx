@@ -31,6 +31,7 @@ export default function App() {
   };
 
   const abrirModal = useCallback((item) => { 
+    console.log('🔓 [APP] Abriendo modal para item:', item?.ID_Portafolio || item?.id_del_portafolio || 'UNKNOWN');
     setSelectedItem(item); 
     setModalOpen(true); 
   }, []);
@@ -69,7 +70,12 @@ export default function App() {
         onItemClick={abrirModal}
       />
 
-      <ResultModal open={modalOpen} item={selectedItem} onClose={cerrarModal} />
+      <ResultModal 
+        key={selectedItem?.ID_Portafolio || selectedItem?.id_del_portafolio || 'no-item'} 
+        open={modalOpen} 
+        item={selectedItem} 
+        onClose={cerrarModal} 
+      />
     </div>
   );
 }

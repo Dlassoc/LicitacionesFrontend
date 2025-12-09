@@ -39,3 +39,52 @@
   border-top: 1px solid #e5e7eb;
   background-color: #f9fafb;
 }
+
+/* ============================= DARK MODE ============================= */
+
+@media (prefers-color-scheme: dark) {
+  .preferences-page-container {
+    background-color: #0d1416;
+    color: #e8f6f7;
+  }
+
+  .preferences-page-footer {
+    color: #b0b9c1;
+    border-top-color: rgba(255, 255, 255, 0.1);
+    background-color: #0d1416;
+  }
+}
+
+/* Light theme explicit */
+:root[data-theme="light"] .preferences-page-container {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+:root[data-theme="light"] .preferences-page-main {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+:root[data-theme="light"] .preferences-page-footer {
+  color: #6b7280;
+  border-top-color: #e5e7eb;
+  background-color: #f9fafb;
+}
+
+/* Dark theme explicit */
+:root[data-theme="dark"] .preferences-page-container {
+  background-color: #0d1416;
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .preferences-page-main {
+  background-color: #0d1416;
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .preferences-page-footer {
+  color: #b0b9c1;
+  border-top-color: rgba(255, 255, 255, 0.1);
+  background-color: #0d1416;
+}

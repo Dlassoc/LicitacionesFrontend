@@ -87,10 +87,19 @@ const buildDownloadUrl = (url) => {
     const u = new URL(url);
     const isSecop = /secop|colombiacompra\.gov\.co/i.test(u.host);
     if (isSecop) {
-      const q = u.searchParams.toString();
+      // ✅ MEJORA: Filtrar parámetros vacíos (no añadir parámetros sin valor)
+      const params = new URLSearchParams();
+      for (const [key, value] of u.searchParams) {
+        if (value && value.trim() !== '') {  // Solo incluir parámetros con valor
+          params.append(key, value);
+        }
+      }
+      const q = params.toString();
+      console.log(`🔗 [BUILD_URL] Parámetros limpios: ${q || '(ninguno)'}`);
       return `${API_BASE}/secop/download${q ? `?${q}` : ""}`;
     }
   } catch (e) {
+    console.error(`❌ [BUILD_URL] Error parseando URL: ${e.message}`);
     // no-op, usar url tal cual si no es URL válida
   }
   return url;
@@ -108,37 +117,70 @@ const downloadFile = async (url, filename, signal = null) => {
     
     console.log(`📥 Descargando desde: ${downloadUrl}`);
 
-    const fetchOptions = {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/pdf',
-      },
-      credentials: 'include',
-    };
+    // ✅ MEJORA: Reintentos automáticos para 502, 503, etc.
+    const maxRetries = 3;
+    let lastError;
     
-    // ✅ NUEVO: Agregar signal para poder cancelar
-    if (signal) {
-      fetchOptions.signal = signal;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const fetchOptions = {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          },
+          credentials: 'include',
+        };
+        
+        // ✅ NUEVO: Agregar signal para poder cancelar
+        if (signal) {
+          fetchOptions.signal = signal;
+        }
+
+        const response = await fetch(downloadUrl, fetchOptions);
+
+        if (!response.ok) {
+          const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+          
+          // ✅ MEJORA: Reintentar en 502, 503, 504
+          if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
+            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Backoff exponencial
+            console.warn(`⚠️ [DOWNLOAD] Error ${response.status}. Reintentando en ${waitTime}ms... (intento ${attempt}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          
+          throw new Error(errorMsg);
+        }
+
+        const blob = await response.blob();
+        
+        if (blob.size === 0) {
+          throw new Error('Archivo descargado está vacío');
+        }
+
+        console.log(`✅ Descargado exitosamente: ${blob.size} bytes (tipo: ${blob.type})`);
+        
+        return {
+          filename,
+          blob,
+          size: blob.size,
+          type: blob.type,
+        };
+      } catch (error) {
+        lastError = error;
+        if (error.name === 'AbortError') {
+          throw error; // Propagar AbortError sin reintentar
+        }
+        
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          console.warn(`⚠️ [DOWNLOAD] Intento ${attempt} falló: ${error.message}. Esperando ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
     }
-
-    const response = await fetch(downloadUrl, fetchOptions);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const blob = await response.blob();
     
-    if (blob.size === 0) {
-      throw new Error('Archivo descargado está vacío');
-    }
-
-    return {
-      filename,
-      blob,
-      size: blob.size,
-      type: blob.type,
-    };
+    throw lastError || new Error(`Error descargando ${filename} después de ${maxRetries} intentos`);
   } catch (error) {
     throw new Error(`Error descargando ${filename}: ${error.message}`);
   }
@@ -330,6 +372,7 @@ export const useDocumentDownload = (documento, proceso) => {
           console.log('🎯 Resultado completo:', analysisItem.resultado);
 
           const indicators = analysisItem.resultado?.indicadores_financieros || {};
+          const indicatorsOrg = analysisItem.resultado?.indicadores_organizacionales || {};  // ✅ NUEVO
           const confidence = analysisItem.resultado?.indicadores_confianza || 0;
           const unspsc = analysisItem.resultado?.codigos_unspsc || [];  // ✅ NUEVO: Capturar UNSPSC
           // ✅ NUEVO: Capturar experiencia con todos los campos
@@ -341,7 +384,8 @@ export const useDocumentDownload = (documento, proceso) => {
           const experiencia_tipos = analysisItem.resultado?.experiencia_tipos_proyectos || [];
           const experiencia_sector = analysisItem.resultado?.experiencia_sector || null;
 
-          console.log('💰 Indicadores extraídos:', indicators);
+          console.log('💰 Indicadores financieros extraídos:', indicators);
+          console.log('📊 Indicadores organizacionales extraídos:', indicatorsOrg);  // ✅ NUEVO
           console.log('📊 Confianza:', confidence);
           console.log('📋 Códigos UNSPSC encontrados:', unspsc);  // ✅ NUEVO: Log de UNSPSC
           console.log('👨‍💼 Experiencia encontrada:', experiencia_encontrada);  // ✅ NUEVO: Log de experiencia
@@ -353,6 +397,7 @@ export const useDocumentDownload = (documento, proceso) => {
             paginasTotales: analysisItem.paginas_totales || 0,
             textPreview: analysisItem.context_snippet || '',
             indicadores: indicators,
+            indicadoresOrganizacionales: indicatorsOrg,  // ✅ NUEVO: Pasar indicadores org
             confianza: confidence,
             codigos_unspsc: unspsc,  // ✅ NUEVO: Pasar UNSPSC
             experiencia_encontrada,  // ✅ NUEVO: Pasar experiencia
@@ -398,40 +443,24 @@ export const useDocumentDownload = (documento, proceso) => {
         return;
       }
 
-      // ✅ NUEVO: Filtrar documentos que deben saltarse
-      const validDocs = [];
-      const skippedDocs = [];
-      
-      for (const doc of docs) {
-        if (shouldSkipDocument(doc.titulo)) {
-          skippedDocs.push(doc.titulo);
-        } else {
-          validDocs.push(doc);
-        }
-      }
-      
-      if (skippedDocs.length > 0) {
-        console.log(`⏭️  ${skippedDocs.length} documento(s) descartado(s) automáticamente:`);
-        skippedDocs.forEach(title => console.log(`   - ${title}`));
-        setSkippedDocuments(skippedDocs); // ✅ NUEVO: Guardar documentos descartados
-      }
-      
-      if (validDocs.length === 0) {
-        setError('Todos los documentos fueron descartados (pólizas, cotizaciones, etc.)');
-        return;
-      }
+      // ✅ CAMBIO: Los documentos ya vienen filtrados por el selector IA en ResultModal
+      // No hacer selección aquí, solo procesarlos
+      console.log(`\n� [MULTI-ANALYZE] Procesando ${docs.length} documentos (ya filtrados por IA)`);
+      console.log(`   Documentos a procesar:`);
+      docs.forEach((d, i) => {
+        console.log(`   [${i + 1}/${docs.length}] ${d.titulo}`);
+      });
 
       // ✅ NUEVO: Crear nuevo AbortController para este análisis
       abortControllerRef.current = new AbortController();
-      analysisCancelledRef.current = false; // ✅ NUEVO: Reset del flag de cancelación
+      analysisCancelledRef.current = false;
 
       setAnalyzing(true);
       setError(null);
       setAnalyzed(null);
 
       try {
-        // Ordenar documentos por probabilidad de contener indicadores
-        // Prioridad: Estados Financieros > Balance > Indicadores > Otros
+        // ✅ CAMBIO: Ordenar documentos ya filtrados por probabilidad de contener indicadores
         const priorityKeywords = {
           'estados financieros': 3,
           'balance general': 3,
@@ -441,11 +470,10 @@ export const useDocumentDownload = (documento, proceso) => {
           'capacidad financiera': 2,
           'formato': 1,
           'anexo': 1,
-          'estudio previo': 0, // Baja prioridad, no contiene indicadores financieros
+          'estudio previo': 0,
         };
 
-        const sortedDocs = [...validDocs].sort((a, b) => {
-          // Calcular score por nombre/tipo
+        const sortedDocs = [...docs].sort((a, b) => {
           const scoreA = Math.max(
             ...Object.entries(priorityKeywords).map(([keyword, score]) =>
               (a.titulo?.toLowerCase().includes(keyword) || a.tipo?.toLowerCase().includes(keyword)) ? score : 0
@@ -457,15 +485,14 @@ export const useDocumentDownload = (documento, proceso) => {
             )
           );
           
-          // Si mismo score, ordenar por tamaño (documentos más grandes primero)
           if (scoreB !== scoreA) return scoreB - scoreA;
           const sizeA = parseInt(a.tamanio) || 0;
           const sizeB = parseInt(b.tamanio) || 0;
           return sizeB - sizeA;
         });
 
-        console.log(`📋 Analizando ${sortedDocs.length} documentos${skippedDocs.length > 0 ? ` (${skippedDocs.length} descartados automáticamente)` : ''} (priorizando Estados Financieros)...`);
-        console.log(`📄 Orden: ${sortedDocs.map(d => `${d.titulo} (score: ${Math.max(...Object.entries(priorityKeywords).map(([keyword, score]) => (d.titulo?.toLowerCase().includes(keyword) || d.tipo?.toLowerCase().includes(keyword)) ? score : 0))})`).join(' → ')}`);
+        console.log(`\n📋 Analizando ${sortedDocs.length} documentos (priorizando Estados Financieros)...`);
+        console.log(`📄 Orden: ${sortedDocs.map(d => `${d.titulo}`).join(' → ')}`);
 
         // Analizar UNO POR UNO todos los documentos
         let anyWithIndicators = false;

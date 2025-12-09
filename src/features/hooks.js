@@ -59,6 +59,18 @@ export function useSearchResults(initialLimit = 21) {
         return;
       }
 
+      // 🔄 MEJORA: "Presentación de Ofertas (Opcional)" siempre se rellena con fecha actual si está vacío
+      // "Presentación de Ofertas Hasta" puede quedarse vacío
+      let finalFechaRecDesde = fechaRecDesde;
+      let finalFechaRecHasta = fechaRecHasta;
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Si "Presentación de Ofertas (Desde)" está vacío, usar hoy
+      if (!finalFechaRecDesde) {
+        finalFechaRecDesde = today;
+      }
+
       const baseParams = {
         palabras_clave: termino.trim(),
         limit: initialLimit,
@@ -67,8 +79,8 @@ export function useSearchResults(initialLimit = 21) {
 
       if (fechaPubDesde) baseParams.fecha_pub_desde = fechaPubDesde;
       if (fechaPubHasta) baseParams.fecha_pub_hasta = fechaPubHasta;
-      if (fechaRecDesde) baseParams.fecha_rec_desde = fechaRecDesde;
-      if (fechaRecHasta) baseParams.fecha_rec_hasta = fechaRecHasta;
+      if (finalFechaRecDesde) baseParams.fecha_rec_desde = finalFechaRecDesde;
+      if (finalFechaRecHasta) baseParams.fecha_rec_hasta = finalFechaRecHasta;
       if (departamento) baseParams.departamento = departamento;
       if (ciudad) baseParams.ciudad = ciudad;
 
@@ -148,8 +160,8 @@ export function useSearchResults(initialLimit = 21) {
       }),
       fecha_pub_desde: ["Pub. Desde", lastQuery.fecha_pub_desde],
       fecha_pub_hasta: ["Pub. Hasta", lastQuery.fecha_pub_hasta],
-      fecha_rec_desde: ["Rec. Desde", lastQuery.fecha_rec_desde],
-      fecha_rec_hasta: ["Rec. Hasta", lastQuery.fecha_rec_hasta],
+      fecha_rec_desde: ["Presentación Desde", lastQuery.fecha_rec_desde],
+      fecha_rec_hasta: ["Presentación Hasta", lastQuery.fecha_rec_hasta],
       departamento: ["Depto", lastQuery.departamento],
       ciudad: ["Ciudad", lastQuery.ciudad],
     };

@@ -494,43 +494,45 @@ export default function Preferences({ unlocked = true }) {
       </div>
 
       {/* Suscripciones */}
-      <div className="preferences-sub-list">
-        <h4 className="preferences-sub-title">Tus suscripciones</h4>
+      {(loadingSubs || subs.length > 0) && (
+        <div className="preferences-sub-list">
+          <h4 className="preferences-sub-title">Tus suscripciones</h4>
 
-        {loadingSubs ? (
-          <p className="preferences-loading-text">Cargando suscripciones…</p>
-        ) : subs.length === 0 ? (
-          <p className="preferences-loading-text">No tienes suscripciones activas.</p>
-        ) : (
-          <ul>
-            {subs.map((s) => (
-              <li key={s.id} className="preferences-sub-item">
-                <div>
-                  <div className="preferences-sub-item-name">
-                    {s.palabras_clave}{" "}
-                    {s.departamento ? `• ${s.departamento}` : ""}{" "}
-                    {s.ciudad ? `• ${s.ciudad}` : ""}
+          {loadingSubs ? (
+            <p className="preferences-loading-text">Cargando suscripciones…</p>
+          ) : subs.length === 0 ? (
+            <p className="preferences-loading-text">No tienes suscripciones activas.</p>
+          ) : (
+            <ul>
+              {subs.map((s) => (
+                <li key={s.id} className="preferences-sub-item">
+                  <div>
+                    <div className="preferences-sub-item-name">
+                      {s.palabras_clave}{" "}
+                      {s.departamento ? `• ${s.departamento}` : ""}{" "}
+                      {s.ciudad ? `• ${s.ciudad}` : ""}
+                    </div>
+                    <div className="preferences-sub-item-meta">
+                      Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
+                    </div>
                   </div>
-                  <div className="preferences-sub-item-meta">
-                    Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
-                  </div>
-                </div>
-                {s.is_active ? (
-                  <button
-                    onClick={() => deactivate(s.id)}
-                    className="preferences-sub-item-button"
-                    disabled={!isActive}
-                  >
-                    Desactivar
-                  </button>
-                ) : (
-                  <span className="preferences-sub-item-meta">Inactiva</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                  {s.is_active ? (
+                    <button
+                      onClick={() => deactivate(s.id)}
+                      className="preferences-sub-item-button"
+                      disabled={!isActive}
+                    >
+                      Desactivar
+                    </button>
+                  ) : (
+                    <span className="preferences-sub-item-meta">Inactiva</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
