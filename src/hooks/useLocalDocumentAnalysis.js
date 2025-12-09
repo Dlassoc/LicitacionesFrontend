@@ -293,11 +293,10 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       // 1) Separar documentos por prioridad
       const priorityDocs = [];
       const otherDocs = [];
+      let pliegoDoc = null;  // ✅ NUEVO: Trackear Pliego de Condiciones específicamente
       
       // ✅ GUARD: Detectar si hay documentos duplicados ANTES de procesarlos
       const titleMap = new Map();
-      const skippedDocs = [];  // ✅ NUEVO: Acumular documentos "descartados" para fallback
-      
       for (const doc of documentsToAnalyze) {
         const normalizedTitle = (doc.titulo || "").trim().toLowerCase();
         if (titleMap.has(normalizedTitle)) {
@@ -309,33 +308,74 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         const shouldSkip = shouldSkipDocument(doc.titulo);
         const isPriority = isPriorityDocument(doc.titulo);
         
+        // ✅ NUEVO: Detectar Pliego de Condiciones específicamente (para fallback)
+        if (/pliego\s+de\s+condiciones?/i.test(doc.titulo) && !shouldSkip) {
+          pliegoDoc = doc;
+          console.log(`🔲 Pliego de Condiciones detectado (para fallback): ${doc.titulo}`);
+        }
+        
         // ✅ CAMBIO: Verificar PRIORITARIO PRIMERO (para que no sea descartado por SKIP)
         if (isPriority) {
           priorityDocs.push(doc);
           console.log(`⭐ Prioridad: ${doc.titulo}`);
         } else if (shouldSkip) {
-          skippedDocs.push(doc);  // ✅ NUEVO: Guardar para fallback
-          console.log(`⏭️  Saltando (pero disponible para fallback): ${doc.titulo} (administrativo)`);
+          console.log(`⏭️  Saltando: ${doc.titulo} (administrativo)`);
         } else {
           otherDocs.push(doc);
         }
       }
 
       // 2) Priorizar: análisis solo con documentos prioritarios
-      // ✅ MEJORADO: Fallback a skipped docs si no hay prioritarios ni otros
-      let docsToProcess = priorityDocs.length > 0 ? priorityDocs : (otherDocs.length > 0 ? otherDocs : skippedDocs);
-      const totalProcessados = priorityDocs.length + otherDocs.length + skippedDocs.length;
-      const descartados = documentsToAnalyze.length - totalProcessados;
+      // ✅ NUEVO: Siempre incluir Pliego de Condiciones para fallback (si existe y no está ya en prioritarios)
+      let docsToProcess = priorityDocs.length > 0 ? priorityDocs : otherDocs;
       
-      console.log(`📄 [ANALYZE_LOCAL] ${docsToProcess.length} documentos a procesar (prioridad: ${priorityDocs.length}, otros: ${otherDocs.length}, fallback: ${skippedDocs.length}, descartados: ${descartados})`);
+      // Si tenemos Pliego de Condiciones y NO está ya en docsToProcess, agregarlo
+      if (pliegoDoc && !docsToProcess.some(d => d.titulo === pliegoDoc.titulo)) {
+        docsToProcess.push(pliegoDoc);
+        console.log(`✅ Pliego de Condiciones AGREGADO para fallback`);
+      }
+      
+      // ✅ NUEVO: Ordenar documentos por prioridad (Estudio Previo primero, luego Pliego)
+      const priorityOrder = [
+        'estudio previo',
+        'estudio financiero',
+        'pliego de condiciones',
+        'pliego',
+      ];
+      
+      const getPriority = (titulo) => {
+        const titleLower = (titulo || '').toLowerCase();
+        for (let i = 0; i < priorityOrder.length; i++) {
+          if (titleLower.includes(priorityOrder[i])) {
+            return i;
+          }
+        }
+        return priorityOrder.length; // Baja prioridad si no coincide
+      };
+      
+      docsToProcess.sort((a, b) => {
+        const priorityA = getPriority(a.titulo);
+        const priorityB = getPriority(b.titulo);
+        return priorityA - priorityB;
+      });
+      
+      // Log de orden
+      console.log(`📋 Documentos ordenados por prioridad:`);
+      docsToProcess.forEach((doc, i) => {
+        console.log(`   ${i + 1}. ${doc.titulo}`);
+      });
+      
+      const descartados = documentsToAnalyze.length - docsToProcess.length;
+      
+      console.log(`📄 [ANALYZE_LOCAL] ${docsToProcess.length} documentos a procesar (${descartados} descartados)`);
 
       if (docsToProcess.length === 0) {
-        console.log('⚠️ [ANALYZE_LOCAL] No hay documentos para procesar');
+        console.log('⚠️ [ANALYZE_LOCAL] Todos los documentos fueron descartados (administrativos)');
         setResults({
           documentos_analizados: 0,
           documentos_descartados: documentsToAnalyze.length,
           indicadores: [],
-          mensaje: 'No se encontraron documentos con información financiera.',
+          mensaje: 'Todos los documentos encontrados son administrativos (pólizas, cotizaciones, etc.) y no contienen indicadores financieros.',
         });
         setAnalyzed(true);
         setAnalyzing(false);
@@ -354,6 +394,14 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         }
 
         const doc = docsToProcess[i];
+        
+        // ✅ NUEVO: Saltar documentos sin URL (placehos)
+        if (!doc.url) {
+          console.log(`⏭️ [${i + 1}/${docsToProcess.length}] Saltando (sin URL): ${doc.titulo}`);
+          setProgress({ completed: i + 1, total: docsToProcess.length });
+          continue;
+        }
+        
         try {
           console.log(`📥 [${i + 1}/${docsToProcess.length}] Descargando: ${doc.titulo}`);
           const file = await downloadFile(doc.url, doc.titulo, abortControllerRef.current.signal);

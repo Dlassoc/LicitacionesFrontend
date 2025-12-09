@@ -508,10 +508,55 @@ export default function ResultModal({ open, item, onClose }) {
         // 4) Etiquetado y orden
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
+        // ✅ NUEVO: Asegurar que Pliego de Condiciones esté en la lista (aunque no tenga URL en Socrata)
+        // Buscar documentos que contengan "pliego" en el nombre
+        const pliegoFromSocrata = tagged.find(d => /pliego\s+de\s+condiciones?/i.test(d.titulo || ""));
+        
+        let finalDocs = [...tagged];
+        
+        // Si NO encontramos Pliego en los resultados de Socrata, pero SÍ tenemos documentos,
+        // crear un placeholder para que se intente obtener del SECOP
+        if (!pliegoFromSocrata && raw.length > 0) {
+          // Buscar en los documentos originales si hay referencia a "pliego"
+          const pliegoInOriginal = raw.find(d => {
+            const titulo = (d.titulo || d.Nombre_Documento || d.nombre || "").toLowerCase();
+            return /pliego\s+de\s+condiciones?/.test(titulo);
+          });
+          
+          if (pliegoInOriginal) {
+            console.log(`🔲 Pliego de Condiciones encontrado en resultados originales, agregando a lista...`);
+            const pliegoMapped = mapDoc(pliegoInOriginal);
+            // Marcar como documento financiero importante
+            pliegoMapped.es_documento_indicadores = false; // Secondary - es fallback
+            pliegoMapped.razon = "Pliego de Condiciones (fallback multi-documento)";
+            finalDocs.push(pliegoMapped);
+          }
+        }
+
+        // ✅ NUEVO: Si no hay Pliego en Socrata, crear documento con URL de SECOP fallback
+        if (!pliegoFromSocrata && !pliegoInOriginal) {
+          console.log(`⚠️ Pliego de Condiciones no encontrado en Socrata, creando placeholder...`);
+          
+          // Crear un documento "virtual" que apunte a SECOP
+          // El backend intentará procesarlo pero probablemente no encontrará nada
+          // Sin embargo, al menos lo intentará
+          const pliegoPlaceholder = {
+            titulo: "Pliego de Condiciones (No encontrado en SECOP)",
+            url: null,  // SIN URL - será un placeholder
+            tipo: "Pliego de Condiciones",
+            es_documento_indicadores: false,
+            razon: "Documento no disponible en SECOP (fallback)",
+            descripcion: "Pliego de Condiciones no encontrado para esta licitación en Socrata"
+          };
+          
+          finalDocs.push(pliegoPlaceholder);
+          console.log(`🔲 Placeholder Pliego de Condiciones agregado (sin URL descargable)`);
+        }
+
         // ✅ CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
-        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
+        console.log(`📄 [${new Date().toLocaleTimeString()}] ${finalDocs.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
         if (!abort) {
-          setDocs(tagged);
+          setDocs(finalDocs);
           setDocsLoading(false);
         }
       } catch (e) {
