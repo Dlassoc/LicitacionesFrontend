@@ -25,6 +25,8 @@ const DOCUMENTS_TO_PRIORITIZE_PATTERNS = [
   /balance\s+general/i,
   /estados?\s+de\s+resultados?/i,
   /estado\s+de\s+flujo\s+de\s+caja/i,
+  // ✅ NUEVO: Pliego de Condiciones TAMBIÉN contiene indicadores (fallback multi-documento)
+  /pliego\s+de\s+condiciones?/i,
   // ✅ NUEVO: Solo ZIP que sean explícitamente FINANCIEROS
   /(?=.*\.zip)(?=.*estudio\s+financiero)/i,  // ZIP + "Estudio Financiero"
   /(?=.*\.zip)(?=.*estados?\s+financieros?)/i, // ZIP + "Estados Financieros"
@@ -58,12 +60,12 @@ const DOCUMENTS_TO_SKIP_PATTERNS = [
   /acuerdo/i,
   /decreto/i,
   /orden/i,
-  /aviso\s+de\s+convocatoria/i,  // ⭐ NUEVO: Avisos no tienen indicadores
-  /anexo\s+tecnico/i,            // ⭐ NUEVO: Técnicos no tienen financiero
-  /ficha\s+condiciones\s+tecnicas/i, // ⭐ NUEVO: Técnicos no tienen financiero
-  /estudio\s+del\s+sector\s+economico/i, // ⭐ NUEVO: Económico ≠ Indicadores financieros
-  /estudio\s+de\s+mercado/i,     // ⭐ NUEVO: Mercado no tiene fin
-  /pliego\s+de\s+condiciones/i,  // ⭐ NUEVO: Técnico, no financiero
+  /aviso\s+de\s+convocatoria/i,  // ⭐ Avisos no tienen indicadores
+  /anexo\s+tecnico/i,            // ⭐ Técnicos no tienen financiero
+  /ficha\s+condiciones\s+tecnicas/i, // ⭐ Técnicos no tienen financiero
+  /estudio\s+del\s+sector\s+economico/i, // ⭐ Económico ≠ Indicadores financieros
+  /estudio\s+de\s+mercado/i,     // ⭐ Mercado no tiene fin
+  // ✅ REMOVIDO: /pliego\s+de\s+condiciones/i - Ahora se procesa como fallback del backend
 ];
 
 // ✅ Función para verificar si un documento es prioritario
