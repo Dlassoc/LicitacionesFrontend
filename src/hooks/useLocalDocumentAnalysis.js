@@ -307,11 +307,12 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         const shouldSkip = shouldSkipDocument(doc.titulo);
         const isPriority = isPriorityDocument(doc.titulo);
         
-        if (shouldSkip) {
-          console.log(`⏭️  Saltando: ${doc.titulo} (administrativo)`);
-        } else if (isPriority) {
+        // ✅ CAMBIO: Verificar PRIORITARIO PRIMERO (para que no sea descartado por SKIP)
+        if (isPriority) {
           priorityDocs.push(doc);
           console.log(`⭐ Prioridad: ${doc.titulo}`);
+        } else if (shouldSkip) {
+          console.log(`⏭️  Saltando: ${doc.titulo} (administrativo)`);
         } else {
           otherDocs.push(doc);
         }
