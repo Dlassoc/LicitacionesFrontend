@@ -296,6 +296,8 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       
       // ✅ GUARD: Detectar si hay documentos duplicados ANTES de procesarlos
       const titleMap = new Map();
+      const skippedDocs = [];  // ✅ NUEVO: Acumular documentos "descartados" para fallback
+      
       for (const doc of documentsToAnalyze) {
         const normalizedTitle = (doc.titulo || "").trim().toLowerCase();
         if (titleMap.has(normalizedTitle)) {
@@ -312,25 +314,28 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
           priorityDocs.push(doc);
           console.log(`⭐ Prioridad: ${doc.titulo}`);
         } else if (shouldSkip) {
-          console.log(`⏭️  Saltando: ${doc.titulo} (administrativo)`);
+          skippedDocs.push(doc);  // ✅ NUEVO: Guardar para fallback
+          console.log(`⏭️  Saltando (pero disponible para fallback): ${doc.titulo} (administrativo)`);
         } else {
           otherDocs.push(doc);
         }
       }
 
       // 2) Priorizar: análisis solo con documentos prioritarios
-      let docsToProcess = priorityDocs.length > 0 ? priorityDocs : otherDocs;
-      const descartados = documentsToAnalyze.length - docsToProcess.length;
+      // ✅ MEJORADO: Fallback a skipped docs si no hay prioritarios ni otros
+      let docsToProcess = priorityDocs.length > 0 ? priorityDocs : (otherDocs.length > 0 ? otherDocs : skippedDocs);
+      const totalProcessados = priorityDocs.length + otherDocs.length + skippedDocs.length;
+      const descartados = documentsToAnalyze.length - totalProcessados;
       
-      console.log(`📄 [ANALYZE_LOCAL] ${docsToProcess.length} documentos prioritarios a procesar (${descartados} descartados)`);
+      console.log(`📄 [ANALYZE_LOCAL] ${docsToProcess.length} documentos a procesar (prioridad: ${priorityDocs.length}, otros: ${otherDocs.length}, fallback: ${skippedDocs.length}, descartados: ${descartados})`);
 
       if (docsToProcess.length === 0) {
-        console.log('⚠️ [ANALYZE_LOCAL] Todos los documentos fueron descartados (administrativos)');
+        console.log('⚠️ [ANALYZE_LOCAL] No hay documentos para procesar');
         setResults({
           documentos_analizados: 0,
           documentos_descartados: documentsToAnalyze.length,
           indicadores: [],
-          mensaje: 'Todos los documentos encontrados son administrativos (pólizas, cotizaciones, etc.) y no contienen indicadores financieros.',
+          mensaje: 'No se encontraron documentos con información financiera.',
         });
         setAnalyzed(true);
         setAnalyzing(false);
