@@ -124,7 +124,7 @@ export default memo(function ResultCard({ item = {}, onClick }) {
       ) : null}
 
       <footer className="result-card-footer">
-        <div className="result-card-price">💰 {precio} Pesos</div>
+        <div className="result-card-price"> {precio} Pesos</div>
       </footer>
     </article>
   );

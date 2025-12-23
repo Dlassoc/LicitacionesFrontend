@@ -60,6 +60,15 @@
 .password-strength { @apply h-2 rounded-full transition-all duration-500 ease-in-out; }
 .password-strength-text { @apply text-sm; }
 
+/* MYPYME Toggle */
+.mypyme-toggle-wrapper { @apply flex cursor-pointer select-none items-center justify-between; }
+.mypyme-toggle-container { @apply relative; }
+.mypyme-toggle-bg { @apply block h-8 w-14 rounded-full transition-colors; }
+.mypyme-toggle-bg-active { background-color: #8de4ea; }
+.mypyme-toggle-bg-inactive { @apply bg-gray-400; }
+.mypyme-toggle-knob { @apply absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white transition-transform; }
+.mypyme-toggle-knob-active { @apply translate-x-full; }
+
 /* Error general */
 .text-error { @apply text-sm text-[#E74F20] mb-4; }
 
@@ -86,5 +95,6 @@
   .input-wrapper:focus-within .input-icon-left { color: #8de4ea; }
   .hint-muted { color: #94b9bd; }
   .password-strength-bar { background: #1a2a2e; }
+  .mypyme-toggle-bg-inactive { @apply bg-gray-600; }
   .text-register { color: #b7e7ea; }
 }

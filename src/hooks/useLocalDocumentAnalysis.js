@@ -4,119 +4,26 @@
  * - Guarda en IndexedDB (caché local)
  * - Envía al backend endpoint /analyze-local para análisis SIN IA
  * - Salta documentos administrativos (pólizas, cotizaciones, etc.)
- * - ✅ Soporta cancelación cuando el componente se desmonta o el usuario sale
- * - ⚡ MUCHO MÁS RÁPIDO que análisis con IA (resultado instantáneo)
+ * -  Soporta cancelación cuando el componente se desmonta o el usuario sale
+ * -  MUCHO MÁS RÁPIDO que análisis con IA (resultado instantáneo)
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import API_BASE from '../config/api.js';
+import {
+  isPriorityDocument,
+  shouldSkipDocument,
+  downloadFile,
+  analyzeDocument,
+  saveDocumentToDB,
+  initIndexedDB,
+  downloadMultipleDocuments,
+} from './utils/documentUtils.js';
 
-const DB_NAME = 'LicitacionesDB';
-const STORE_NAME = 'documentos';
-
-// ✅ PATRONES DE DOCUMENTOS A PRIORIZAR (los que SÍ queremos)
-const DOCUMENTS_TO_PRIORITIZE_PATTERNS = [
-  /estudio.*previo/i,
-  /estados?\s+financieros?/i,
-  /indicadores?\s+financieros?/i,
-  /indicadores?\s+organizacionales?/i,
-  /requisitos?\s+habilitantes?\s+financieros?/i,
-  /capacidad\s+financiera/i,
-  /balance\s+general/i,
-  /estados?\s+de\s+resultados?/i,
-  /estado\s+de\s+flujo\s+de\s+caja/i,
-  // ✅ NUEVO: Pliego de Condiciones TAMBIÉN contiene indicadores (fallback multi-documento)
-  /pliego\s+de\s+condiciones?/i,
-  // ✅ NUEVO: Solo ZIP que sean explícitamente FINANCIEROS
-  /(?=.*\.zip)(?=.*estudio\s+financiero)/i,  // ZIP + "Estudio Financiero"
-  /(?=.*\.zip)(?=.*estados?\s+financieros?)/i, // ZIP + "Estados Financieros"
-  /(?=.*\.zip)(?=.*balance\s+general)/i,      // ZIP + "Balance General"
-  /(?=.*\.zip)(?=.*indicadores?\s+financieros?)/i, // ZIP + "Indicadores Financieros"
-];
-
-// ⚠️ PATRONES DE DOCUMENTOS A DESCARTAR (no tienen indicadores)
-const DOCUMENTS_TO_SKIP_PATTERNS = [
-  /aprobaci[óo]n/i,
-  /aprobado/i,
-  /p[óo]liza/i,
-  /p[óo]lizas/i,
-  /matriz.*riesgo/i,
-  /riesgo/i,
-  /cotizaci[óo]n/i,
-  /cotizaciones/i,
-  /cotizado/i,
-  /\bcdp\b/i,
-  /certificado.*disponibilidad.*presupuestal/i,
-  /registro.*presupuestal/i,
-  /presupuestal/i,
-  /aprobaci[óo]n.*garant[ií]/i,
-  /garant[ií]/i,
-  /t[ée]rminos.*referencia/i,
-  /tr\b/i,
-  /planeaci[óo]n/i,
-  /presupuesto.*interno/i,
-  /\bacta\b/i,
-  /resoluci[óo]n/i,
-  /acuerdo/i,
-  /decreto/i,
-  /orden/i,
-  /aviso\s+de\s+convocatoria/i,  // ⭐ Avisos no tienen indicadores
-  /anexo\s+tecnico/i,            // ⭐ Técnicos no tienen financiero
-  /ficha\s+condiciones\s+tecnicas/i, // ⭐ Técnicos no tienen financiero
-  /estudio\s+del\s+sector\s+economico/i, // ⭐ Económico ≠ Indicadores financieros
-  /estudio\s+de\s+mercado/i,     // ⭐ Mercado no tiene fin
-  // ✅ REMOVIDO: /pliego\s+de\s+condiciones/i - Ahora se procesa como fallback del backend
-];
-
-// ✅ Función para verificar si un documento es prioritario
-const isPriorityDocument = (filename) => {
-  if (!filename) return false;
-  const filenameLower = filename.toLowerCase();
-  return DOCUMENTS_TO_PRIORITIZE_PATTERNS.some(pattern => pattern.test(filenameLower));
-};
-
-// ⚠️ Función para verificar si un documento debe saltarse
-const shouldSkipDocument = (filename) => {
-  if (!filename) return false;
-  const filenameLower = filename.toLowerCase();
-  return DOCUMENTS_TO_SKIP_PATTERNS.some(pattern => pattern.test(filenameLower));
-};
-
-// Inicializar IndexedDB
-const initIndexedDB = () => {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-  });
-};
-
-// Guardar documento en IndexedDB
-const saveDocumentToDB = async (doc) => {
-  const db = await initIndexedDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const docData = {
-      id: `${doc.proceso || 'default'}:${doc.titulo}`,
-      ...doc,
-      savedAt: new Date().toISOString(),
-    };
-    const req = store.put(docData);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(docData);
-  });
-};
-
-// ✅ NUEVO: Limpiar caché de una licitación específica
+//  Limpiar caché de una licitación específica
 const clearCacheForPortfolio = async (portfolioId) => {
   try {
+    const STORE_NAME = 'documentosAnalisis';
     const db = await initIndexedDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -125,95 +32,12 @@ const clearCacheForPortfolio = async (portfolioId) => {
       const req = store.delete(range);
       req.onerror = () => reject(req.error);
       req.onsuccess = () => {
-        console.log(`🗑️ [CACHE] Caché limpiado para portafolio: ${portfolioId}`);
+        console.log(` [CACHE] Caché limpiado para portafolio: ${portfolioId}`);
         resolve();
       };
     });
   } catch (e) {
-    console.warn(`⚠️ [CACHE] Error limpiando caché: ${e.message}`);
-  }
-};
-
-// Construir URL de descarga (usa proxy del backend para URLs de SECOP)
-const buildDownloadUrl = (url) => {
-  try {
-    const u = new URL(url);
-    const isSecop = /secop|colombiacompra\.gov\.co/i.test(u.host);
-    if (isSecop) {
-      const params = new URLSearchParams();
-      for (const [key, value] of u.searchParams) {
-        if (value && value.trim() !== '') {
-          params.append(key, value);
-        }
-      }
-      const q = params.toString();
-      return `${API_BASE}/secop/download${q ? `?${q}` : ""}`;
-    }
-  } catch (e) {
-    console.error(`❌ [BUILD_URL] Error parseando URL: ${e.message}`);
-  }
-  return url;
-};
-
-// Descargar archivo desde URL
-const downloadFile = async (url, filename, signal = null) => {
-  try {
-    if (!url) {
-      throw new Error('URL no disponible');
-    }
-
-    const downloadUrl = buildDownloadUrl(url);
-    
-    const maxRetries = 3;
-    let lastError;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const fetchOptions = {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/zip, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          },
-          credentials: 'include',
-        };
-        
-        if (signal) {
-          fetchOptions.signal = signal;
-        }
-
-        const response = await fetch(downloadUrl, fetchOptions);
-
-        if (!response.ok) {
-          const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
-          
-          if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
-            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-            console.warn(`⚠️ [DOWNLOAD] Error ${response.status}. Reintentando en ${waitTime}ms...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            continue;
-          }
-          
-          throw new Error(errorMsg);
-        }
-        
-        const blob = await response.blob();
-        const extension = response.headers.get('content-disposition')
-          ? /filename="(.+)"/.exec(response.headers.get('content-disposition'))?.[1] || filename
-          : filename;
-        
-        return new File([blob], extension, { type: blob.type });
-      } catch (e) {
-        lastError = e;
-        if (e.name === 'AbortError') {
-          throw new Error('Descarga cancelada');
-        }
-      }
-    }
-    
-    throw lastError || new Error('No se pudo descargar el archivo');
-  } catch (e) {
-    console.error(`❌ [DOWNLOAD] Error: ${e.message}`);
-    throw e;
+    console.warn(` [CACHE] Error limpiando caché: ${e.message}`);
   }
 };
 
@@ -228,18 +52,18 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
   const analyzeTimeoutRef = useRef(null);
   const previousPortfolioRef = useRef(idPortafolio);
 
-  // ✅ NUEVO: Resetear análisis cuando cambia idPortafolio (nueva licitación)
+  //  NUEVO: Resetear análisis cuando cambia idPortafolio (nueva licitación)
   useEffect(() => {
     // Si no hay idPortafolio, no hacer nada
     if (!idPortafolio) {
       return;
     }
 
-    console.log(`🔍 [HOOK] Verificando cambio de portafolio: "${previousPortfolioRef.current}" vs "${idPortafolio}"`);
+    console.log(` [HOOK] Verificando cambio de portafolio: "${previousPortfolioRef.current}" vs "${idPortafolio}"`);
     
     if (idPortafolio !== previousPortfolioRef.current) {
-      console.log(`🔄 [ANALYZE_LOCAL] Cambio de licitación detectado: "${previousPortfolioRef.current}" → "${idPortafolio}"`);
-      console.log('🛑 [ANALYZE_LOCAL] Reseteando estado del análisis anterior...');
+      console.log(` [ANALYZE_LOCAL] Cambio de licitación detectado: "${previousPortfolioRef.current}" → "${idPortafolio}"`);
+      console.log(' [ANALYZE_LOCAL] Reseteando estado del análisis anterior...');
       
       // Limpiar caché del portafolio anterior
       if (previousPortfolioRef.current) {
@@ -248,16 +72,16 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       
       // Cancelar análisis en progreso
       if (abortControllerRef.current) {
-        console.log('⏹️ [ANALYZE_LOCAL] Abortando AbortController');
+        console.log(' [ANALYZE_LOCAL] Abortando AbortController');
         abortControllerRef.current.abort();
       }
       if (analyzeTimeoutRef.current) {
-        console.log('⏹️ [ANALYZE_LOCAL] Limpiando timeout');
+        console.log(' [ANALYZE_LOCAL] Limpiando timeout');
         clearTimeout(analyzeTimeoutRef.current);
       }
       
       // Resetear todos los estados
-      console.log('🔄 [ANALYZE_LOCAL] Reseteando estados...');
+      console.log(' [ANALYZE_LOCAL] Reseteando estados...');
       setAnalyzing(false);
       setAnalyzed(false);
       setResults(null);
@@ -266,23 +90,17 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       
       // Actualizar referencia
       previousPortfolioRef.current = idPortafolio;
-      console.log(`✅ [ANALYZE_LOCAL] previousPortfolioRef actualizado a: "${idPortafolio}"`);
+      console.log(` [ANALYZE_LOCAL] previousPortfolioRef actualizado a: "${idPortafolio}"`);
     }
   }, [idPortafolio]);
 
   const analyzeDocuments = useCallback(async (documentsToAnalyze) => {
     if (!documentsToAnalyze || documentsToAnalyze.length === 0) {
-      console.log('⚠️ [ANALYZE_LOCAL] No hay documentos para analizar');
+      console.log(' [ANALYZE_LOCAL] No hay documentos para analizar');
       return;
     }
 
-    // Cancelar si ya hay un análisis en progreso
-    if (analyzing) {
-      console.log('⚠️ [ANALYZE_LOCAL] Análisis ya en progreso, ignorando nueva solicitud');
-      return;
-    }
-
-    console.log(`🔄 [ANALYZE_LOCAL] Iniciando análisis local de ${documentsToAnalyze.length} documentos...`);
+    console.log(` [ANALYZE_LOCAL] Iniciando análisis local de ${documentsToAnalyze.length} documentos...`);
     
     abortControllerRef.current = new AbortController();
     setAnalyzing(true);
@@ -293,14 +111,13 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       // 1) Separar documentos por prioridad
       const priorityDocs = [];
       const otherDocs = [];
-      let pliegoDoc = null;  // ✅ NUEVO: Trackear Pliego de Condiciones específicamente
       
-      // ✅ GUARD: Detectar si hay documentos duplicados ANTES de procesarlos
+      //  GUARD: Detectar si hay documentos duplicados ANTES de procesarlos
       const titleMap = new Map();
       for (const doc of documentsToAnalyze) {
         const normalizedTitle = (doc.titulo || "").trim().toLowerCase();
         if (titleMap.has(normalizedTitle)) {
-          console.warn(`⚠️ [DEDUP] Documento duplicado detectado: "${doc.titulo}" (se ignorará)`);
+          console.warn(` [DEDUP] Documento duplicado detectado: "${doc.titulo}" (se ignorará)`);
           continue; // Saltar duplicado
         }
         titleMap.set(normalizedTitle, true);
@@ -308,69 +125,27 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         const shouldSkip = shouldSkipDocument(doc.titulo);
         const isPriority = isPriorityDocument(doc.titulo);
         
-        // ✅ NUEVO: Detectar Pliego de Condiciones específicamente (para fallback)
-        if (/pliego\s+de\s+condiciones?/i.test(doc.titulo) && !shouldSkip) {
-          pliegoDoc = doc;
-          console.log(`🔲 Pliego de Condiciones detectado (para fallback): ${doc.titulo}`);
-        }
+        //  DEBUG: Mostrar evaluación de CADA documento
+        console.log(` [DEBUG] "${doc.titulo}" | Skip: ${shouldSkip} | Priority: ${isPriority}`);
         
-        // ✅ CAMBIO: Verificar PRIORITARIO PRIMERO (para que no sea descartado por SKIP)
-        if (isPriority) {
+        if (shouldSkip) {
+          console.log(`  Saltando: ${doc.titulo} (administrativo)`);
+        } else if (isPriority) {
           priorityDocs.push(doc);
-          console.log(`⭐ Prioridad: ${doc.titulo}`);
-        } else if (shouldSkip) {
-          console.log(`⏭️  Saltando: ${doc.titulo} (administrativo)`);
+          console.log(` Prioridad: ${doc.titulo}`);
         } else {
           otherDocs.push(doc);
         }
       }
 
       // 2) Priorizar: análisis solo con documentos prioritarios
-      // ✅ NUEVO: Siempre incluir Pliego de Condiciones para fallback (si existe y no está ya en prioritarios)
       let docsToProcess = priorityDocs.length > 0 ? priorityDocs : otherDocs;
-      
-      // Si tenemos Pliego de Condiciones y NO está ya en docsToProcess, agregarlo
-      if (pliegoDoc && !docsToProcess.some(d => d.titulo === pliegoDoc.titulo)) {
-        docsToProcess.push(pliegoDoc);
-        console.log(`✅ Pliego de Condiciones AGREGADO para fallback`);
-      }
-      
-      // ✅ NUEVO: Ordenar documentos por prioridad (Estudio Previo primero, luego Pliego)
-      const priorityOrder = [
-        'estudio previo',
-        'estudio financiero',
-        'pliego de condiciones',
-        'pliego',
-      ];
-      
-      const getPriority = (titulo) => {
-        const titleLower = (titulo || '').toLowerCase();
-        for (let i = 0; i < priorityOrder.length; i++) {
-          if (titleLower.includes(priorityOrder[i])) {
-            return i;
-          }
-        }
-        return priorityOrder.length; // Baja prioridad si no coincide
-      };
-      
-      docsToProcess.sort((a, b) => {
-        const priorityA = getPriority(a.titulo);
-        const priorityB = getPriority(b.titulo);
-        return priorityA - priorityB;
-      });
-      
-      // Log de orden
-      console.log(`📋 Documentos ordenados por prioridad:`);
-      docsToProcess.forEach((doc, i) => {
-        console.log(`   ${i + 1}. ${doc.titulo}`);
-      });
-      
       const descartados = documentsToAnalyze.length - docsToProcess.length;
       
-      console.log(`📄 [ANALYZE_LOCAL] ${docsToProcess.length} documentos a procesar (${descartados} descartados)`);
+      console.log(` [ANALYZE_LOCAL] ${docsToProcess.length} documentos prioritarios a procesar (${descartados} descartados)`);
 
       if (docsToProcess.length === 0) {
-        console.log('⚠️ [ANALYZE_LOCAL] Todos los documentos fueron descartados (administrativos)');
+        console.log(' [ANALYZE_LOCAL] Todos los documentos fueron descartados (administrativos)');
         setResults({
           documentos_analizados: 0,
           documentos_descartados: documentsToAnalyze.length,
@@ -386,52 +161,27 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
       const maxDocs = 5;
       docsToProcess = docsToProcess.slice(0, maxDocs);
       
-      const filesToAnalyze = [];
-      
-      for (let i = 0; i < docsToProcess.length; i++) {
-        if (abortControllerRef.current.signal.aborted) {
-          throw new Error('Análisis cancelado por el usuario');
-        }
-
-        const doc = docsToProcess[i];
-        
-        // ✅ NUEVO: Saltar documentos sin URL (placehos)
-        if (!doc.url) {
-          console.log(`⏭️ [${i + 1}/${docsToProcess.length}] Saltando (sin URL): ${doc.titulo}`);
-          setProgress({ completed: i + 1, total: docsToProcess.length });
-          continue;
-        }
-        
-        try {
-          console.log(`📥 [${i + 1}/${docsToProcess.length}] Descargando: ${doc.titulo}`);
-          const file = await downloadFile(doc.url, doc.titulo, abortControllerRef.current.signal);
-          
-          // Guardar en caché
-          await saveDocumentToDB({ ...doc, file });
-          
-          filesToAnalyze.push(file);
-          setProgress({ completed: i + 1, total: docsToProcess.length });
-        } catch (e) {
-          console.warn(`⚠️ Error descargando ${doc.titulo}: ${e.message}`);
-          // Continuar con el siguiente documento
-        }
-      }
+      const filesToAnalyze = await downloadMultipleDocuments(
+        docsToProcess,
+        abortControllerRef.current.signal,
+        (completed, total) => setProgress({ completed, total })
+      );
 
       if (filesToAnalyze.length === 0) {
         throw new Error('No se pudo descargar ningún documento');
       }
 
-      console.log(`✅ [ANALYZE_LOCAL] ${filesToAnalyze.length} documentos descargados (máximo optimizado)`);
+      console.log(` [ANALYZE_LOCAL] ${filesToAnalyze.length} documentos descargados (máximo optimizado)`);
 
       // 4) Enviar al backend para análisis local
-      console.log(`🚀 [ANALYZE_LOCAL] Enviando ${filesToAnalyze.length} documentos al backend para análisis...`);
+      console.log(` [ANALYZE_LOCAL] Enviando ${filesToAnalyze.length} documentos al backend para análisis...`);
       
       const formData = new FormData();
-      filesToAnalyze.forEach((file, idx) => {
+      filesToAnalyze.forEach((file) => {
         formData.append('files', file, file.name);
       });
 
-      const response = await fetch(`${API_BASE}/extract_ia/analyze-local`, {
+      const response = await fetch(`${API_BASE}/analysis/analyze-local`, {
         method: 'POST',
         body: formData,
         signal: abortControllerRef.current.signal,
@@ -445,7 +195,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
 
       const analysisResults = await response.json();
       
-      console.log(`✨ [ANALYZE_LOCAL] Análisis completado:`, analysisResults);
+      console.log(` [ANALYZE_LOCAL] Análisis completado:`, analysisResults);
       
       // 5) Procesar resultados: combinar todos los items en un resultado consolidado
       let consolidatedResults = {
@@ -454,6 +204,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         documentos_descartados: descartados,
         indicadores: {},
         indicadores_organizacionales: {},
+        matrices: {},
         codigos_unspsc: [],
         experiencia_requerida: {},
         confianza: 0,
@@ -463,7 +214,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
 
       // Si hay items, consolidar indicadores
       if (analysisResults.items && analysisResults.items.length > 0) {
-        console.log(`🔍 [DEBUG] analysisResults.items.length: ${analysisResults.items.length}`);
+        console.log(` [DEBUG] analysisResults.items.length: ${analysisResults.items.length}`);
         analysisResults.items.forEach((item, idx) => {
           console.log(`  [Item ${idx}]:`);
           console.log(`    - ok: ${item.ok} (type: ${typeof item.ok})`);
@@ -481,7 +232,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
           console.log(`    Filter check: item.ok=${item.ok}, item.resultado=${!!item.resultado}, passes=${passes}`);
           return passes;
         });
-        console.log(`✅ [DEBUG] successItems.length after filter: ${successItems.length}`);
+        console.log(` [DEBUG] successItems.length after filter: ${successItems.length}`);
         
         if (successItems.length > 0) {
           consolidatedResults.documentos_analizados = successItems.length;
@@ -489,12 +240,19 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
           // Combinar indicadores de todos los documentos
           const allFinancial = {};
           const allOrganizational = {};
+          const allMatrices = {};
           const allUnspsc = [];
           const allExperience = {};
           let totalConfidence = 0;
           
           successItems.forEach(item => {
             const res = item.resultado;
+            
+            //  NUEVO: Combinar matrices (si existen)
+            if (res.matrices && typeof res.matrices === 'object' && Object.keys(res.matrices).length > 0) {
+              Object.assign(allMatrices, res.matrices);
+              console.log(`   Matrices encontradas:`, res.matrices);
+            }
             
             // Combinar indicadores financieros
             if (res.indicadores_financieros && Object.keys(res.indicadores_financieros).length > 0) {
@@ -524,6 +282,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
             totalConfidence += res.confianza || 0;
           });
           
+          consolidatedResults.matrices = allMatrices;
           consolidatedResults.indicadores = allFinancial;
           consolidatedResults.indicadores_organizacionales = allOrganizational;
           consolidatedResults.codigos_unspsc = allUnspsc;
@@ -531,9 +290,9 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
           consolidatedResults.confianza = successItems.length > 0 ? totalConfidence / successItems.length : 0;
           
           // Si hay indicadores, mostrar mensaje de éxito
-          const totalIndicators = Object.keys(allFinancial).length + Object.keys(allOrganizational).length + allUnspsc.length + Object.keys(allExperience).length;
+          const totalIndicators = Object.keys(allFinancial).length + Object.keys(allOrganizational).length + allUnspsc.length + Object.keys(allExperience).length + Object.keys(allMatrices).length;
           if (totalIndicators > 0) {
-            consolidatedResults.mensaje = `✓ Se encontraron ${totalIndicators} indicadores y requisitos relevantes`;
+            consolidatedResults.mensaje = ` Se encontraron ${totalIndicators} indicadores y requisitos relevantes`;
           } else {
             consolidatedResults.mensaje = 'Los documentos analizados no contienen indicadores financieros o requisitos.';
           }
@@ -545,31 +304,31 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
         consolidatedResults.mensaje = 'No se pudieron analizar los documentos.';
       }
 
-      console.log(`📊 [ANALYZE_LOCAL] Resultados consolidados:`, consolidatedResults);
+      console.log(` [ANALYZE_LOCAL] Resultados consolidados:`, consolidatedResults);
       
-      // ✅ Si encontramos indicadores, paramos aquí (no continuamos analizando más)
-      if (Object.keys(consolidatedResults.indicadores).length > 0 || Object.keys(consolidatedResults.indicadores_organizacionales).length > 0) {
-        console.log(`🎯 [ANALYZE_LOCAL] ${Object.keys(consolidatedResults.indicadores).length + Object.keys(consolidatedResults.indicadores_organizacionales).length} indicadores encontrados, parando búsqueda`);
+      //  Si encontramos indicadores O matrices, paramos aquí (no continuamos analizando más)
+      if (Object.keys(consolidatedResults.indicadores).length > 0 || Object.keys(consolidatedResults.indicadores_organizacionales).length > 0 || Object.keys(consolidatedResults.matrices).length > 0) {
+        console.log(` [ANALYZE_LOCAL] Indicadores encontrados, parando búsqueda`);
       }
       
       setResults(consolidatedResults);
       setAnalyzed(true);
     } catch (e) {
       if (e.name === 'AbortError' || e.message === 'Análisis cancelado por el usuario') {
-        console.log('🛑 [ANALYZE_LOCAL] Análisis cancelado');
+        console.log(' [ANALYZE_LOCAL] Análisis cancelado');
         setError(null);
       } else {
-        console.error(`❌ [ANALYZE_LOCAL] Error: ${e.message}`);
+        console.error(` [ANALYZE_LOCAL] Error: ${e.message}`);
         setError(e.message || 'Error durante el análisis');
       }
     } finally {
       setAnalyzing(false);
     }
-  }, []);  // ✅ VACIO: No depende de ningún state porque useCallback maneja todo internamente
+  }, []);  //  VACIO: No depende de ningún state porque useCallback maneja todo internamente
 
   // Cancelar análisis
   const cancel = useCallback(() => {
-    console.log('🛑 Cancelando análisis local...');
+    console.log(' Cancelando análisis local...');
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -584,6 +343,11 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
     setProgress({ completed: 0, total: 0 });
   }, []);
 
+  //  NUEVO: Memoizar la función analyze para evitar ciclos infinitos
+  const analyze = useCallback(() => {
+    analyzeDocuments(docs);
+  }, [docs, analyzeDocuments]);
+
   // Cleanup al desmontar
   useEffect(() => {
     return () => {
@@ -597,7 +361,7 @@ export const useLocalDocumentAnalysis = (docs, idPortafolio) => {
     results,
     error,
     progress,
-    analyze: () => analyzeDocuments(docs),
+    analyze,
     cancel,
   };
 };

@@ -6,6 +6,23 @@
   gap: 1.5rem;
 }
 
+.extract-ia-results-ocr-warning {
+  padding: 1rem;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.extract-ia-results-ocr-warning-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
 .extract-ia-results-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

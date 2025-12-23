@@ -3,21 +3,21 @@
  */
 
 const INDICATOR_DISPLAY_NAMES = {
-  liquidez_corriente: 'Liquidez',
-  indice_liquidez: 'Liquidez',
-  indicador_liquidez: 'Liquidez',
+  liquidez_corriente: 'Índice de Liquidez',
+  indice_liquidez: 'Índice de Liquidez',
+  indicador_liquidez: 'Índice de Liquidez',
   
-  endeudamiento: 'Nivel de Endeudamiento',
-  nivel_endeudamiento: 'Nivel de Endeudamiento',
-  indice_endeudamiento: 'Nivel de Endeudamiento',
+  endeudamiento: 'Endeudamiento',
+  nivel_endeudamiento: 'Endeudamiento',
+  indice_endeudamiento: 'Endeudamiento',
   
-  cobertura_intereses: 'Razón de Cobertura de Intereses',
-  razon_cobertura_intereses: 'Razón de Cobertura de Intereses',
-  cobertura_de_intereses: 'Razón de Cobertura de Intereses',
+  cobertura_intereses: 'Cobertura de Intereses',
+  razon_cobertura_intereses: 'Cobertura de Intereses',
+  cobertura_de_intereses: 'Cobertura de Intereses',
   
-  rentabilidad_patrimonio: 'Rentabilidad sobre el Patrimonio (ROE)',
-  roe: 'Rentabilidad sobre el Patrimonio (ROE)',
-  rentabilidad_sobre_patrimonio: 'Rentabilidad sobre el Patrimonio (ROE)',
+  rentabilidad_patrimonio: 'Rentabilidad de Patrimonio (ROE)',
+  roe: 'Rentabilidad de Patrimonio (ROE)',
+  rentabilidad_sobre_patrimonio: 'Rentabilidad de Patrimonio (ROE)',
   
   rentabilidad_activo: 'Rentabilidad del Activo (ROA)',
   roa: 'Rentabilidad del Activo (ROA)',

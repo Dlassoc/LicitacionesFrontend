@@ -176,7 +176,7 @@
 }
 
 .search-form-button-primary {
-  background-color: #1e3a8a;
+  background-color: #207e79;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 0.375rem;
@@ -195,7 +195,7 @@
 }
 
 .search-form-button-primary:hover {
-  background-color: #1e40af;
+  background-color: #1eaaaf;
 }
 
 .search-form-button-primary:active {

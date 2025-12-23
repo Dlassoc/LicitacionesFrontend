@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaExclamationCircle } from "react-icons/fa";
@@ -22,9 +22,14 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);           // un solo ojo para ambos
   const [passwordStrength, setPasswordStrength] = useState(0); // 0–100
+  const [isMYPYME, setIsMYPYME] = useState(false);       // Estado para MYPYME
 
-  // no permitir ver la página si ya está logueado
-  if (ready && user) navigate("/", { replace: true });
+  //  NUEVO: Usar useEffect para redirigir, no durante render
+  useEffect(() => {
+    if (ready && user) {
+      navigate("/", { replace: true });
+    }
+  }, [ready, user, navigate]);
 
   const confirmMismatch =
     form.confirmPassword.length > 0 && form.confirmPassword !== form.password;
@@ -58,6 +63,7 @@ export default function Register() {
         email: form.email.trim().toLowerCase(),
         name: form.name.trim(),
         password: form.password,
+        is_mypyme: isMYPYME,
       });
       navigate("/", { replace: true });
     } catch (err) {
@@ -201,6 +207,23 @@ export default function Register() {
                 {strengthLabel}
               </p>
             </div>
+          </div>
+
+          {/* MYPYME Toggle */}
+          <div className="field-block mb-4">
+            <label className="mypyme-toggle-wrapper">
+              <span className="label-center">¿Eres MYPYME?</span>
+              <div className="mypyme-toggle-container">
+                <input
+                  type="checkbox"
+                  checked={isMYPYME}
+                  onChange={() => setIsMYPYME(!isMYPYME)}
+                  className="sr-only"
+                />
+                <div className={`mypyme-toggle-bg ${isMYPYME ? 'mypyme-toggle-bg-active' : 'mypyme-toggle-bg-inactive'}`}></div>
+                <div className={`mypyme-toggle-knob ${isMYPYME ? 'mypyme-toggle-knob-active' : ''}`}></div>
+              </div>
+            </label>
           </div>
 
           {/* Mensaje general */}

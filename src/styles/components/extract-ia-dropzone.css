@@ -118,6 +118,13 @@
   font-weight: 500;
 }
 
+.extract-ia-dropzone-loading-subtext {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: -0.5rem;
+  text-align: center;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

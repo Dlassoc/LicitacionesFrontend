@@ -220,6 +220,7 @@ const FIN_RULES = [
   { re: /\b_?est_?prev\b/i,                                                  score: 78,  label: "estudio previo (abreviado)" },
   { re: /\best\.?\s*prev\b/i,                                                score: 76,  label: "est. prev (forma corta)" },
   { re: /\bpliego(s)?\s+de\s+condiciones\s+definitivo\b/,                    score: 78,  label: "pliego de condiciones definitivo" },
+  { re: /\bpliego(s)?\s+definitivo(s)?\b/,                                   score: 78,  label: "pliegos definitivos" },
   { re: /\bpliego(s)?\s+de\s+condiciones\b/,                                 score: 72,  label: "pliego de condiciones" },
   { re: /\bcondiciones\s+generales\b/,                                       score: 60,  label: "condiciones generales" },
   { re: /\baviso\s+de\s+convocatoria\b/,                                     score: 30,  label: "aviso de convocatoria" },
@@ -395,8 +396,16 @@ export default function ResultModal({ open, item, onClose }) {
   }, [idPortafolio, cancel]);
 
   // ✅ PRINCIPAL: Iniciar análisis INMEDIATAMENTE si ya hay documentos descargados
-  // Este effect se ejecuta cuando los documentos están listos - ES EL ÚNICO QUE LLAMA A analyze()
+  // Este effect se ejecuta SOLO UNA VEZ cuando los documentos están listos
+  const analysisStartedRef = useRef(false);
+  
   useEffect(() => {
+    // Reset cuando cambia el portafolio o se abre un nuevo modal
+    if (idPortafolio !== analysisStartedRef.current) {
+      analysisStartedRef.current = false;
+    }
+
+    // Guards para no analizar
     if (!open) {
       console.log('⏱️ Modal cerrado, no analizando');
       return;
@@ -422,6 +431,12 @@ export default function ResultModal({ open, item, onClose }) {
       return;
     }
     
+    // Si ya iniciamos análisis para este portafolio, no iniciar nuevamente
+    if (analysisStartedRef.current === idPortafolio) {
+      console.log('⏱️ [SKIP] Análisis ya iniciado para este portafolio, omitiendo nueva ejecución');
+      return;
+    }
+    
     console.log('✅ [READY] Documentos listos, iniciando análisis automático...', {
       docsLength: docs.length,
       docsLoading,
@@ -432,9 +447,12 @@ export default function ResultModal({ open, item, onClose }) {
     
     console.log('🚀 Iniciando análisis automático local');
     
-    // Llamar directamente analyze() en lugar de handleAnalyze para evitar ciclo
+    // Marcar como iniciado para este portafolio
+    analysisStartedRef.current = idPortafolio;
+    
+    // Llamar analyze
     analyze();
-  }, [open, docs.length, docsLoading, analyzing, analyzed, analyze]); // ⭐ REMOVIDO: idPortafolio
+  }, [open, docs.length, docsLoading, analyzing, analyzed, idPortafolio, analyze]);
 
   // ✅ OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
   useEffect(() => {
@@ -505,58 +523,21 @@ export default function ResultModal({ open, item, onClose }) {
         
         // 3) Mostrar sólo los que tienen URL descargable
         const withUrl = deduped.filter((d) => !!d.url);
+        
+        // ✅ DEBUG: Mostrar qué documentos se perdieron por falta de URL
+        const sinUrl = deduped.filter((d) => !d.url);
+        if (sinUrl.length > 0) {
+          console.log(`⚠️ [SIN_URL] ${sinUrl.length} documentos sin URL (serán descartados):`);
+          sinUrl.forEach((d, i) => console.log(`   [${i}] ${d.titulo}`));
+        }
+        
         // 4) Etiquetado y orden
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
-        // ✅ NUEVO: Asegurar que Pliego de Condiciones esté en la lista (aunque no tenga URL en Socrata)
-        // Buscar documentos que contengan "pliego" en el nombre
-        const pliegoFromSocrata = tagged.find(d => /pliego\s+de\s+condiciones?/i.test(d.titulo || ""));
-        
-        let finalDocs = [...tagged];
-        
-        // Si NO encontramos Pliego en los resultados de Socrata, pero SÍ tenemos documentos,
-        // crear un placeholder para que se intente obtener del SECOP
-        if (!pliegoFromSocrata && raw.length > 0) {
-          // Buscar en los documentos originales si hay referencia a "pliego"
-          const pliegoInOriginal = raw.find(d => {
-            const titulo = (d.titulo || d.Nombre_Documento || d.nombre || "").toLowerCase();
-            return /pliego\s+de\s+condiciones?/.test(titulo);
-          });
-          
-          if (pliegoInOriginal) {
-            console.log(`🔲 Pliego de Condiciones encontrado en resultados originales, agregando a lista...`);
-            const pliegoMapped = mapDoc(pliegoInOriginal);
-            // Marcar como documento financiero importante
-            pliegoMapped.es_documento_indicadores = false; // Secondary - es fallback
-            pliegoMapped.razon = "Pliego de Condiciones (fallback multi-documento)";
-            finalDocs.push(pliegoMapped);
-          }
-        }
-
-        // ✅ NUEVO: Si no hay Pliego en Socrata, crear documento con URL de SECOP fallback
-        if (!pliegoFromSocrata && !pliegoInOriginal) {
-          console.log(`⚠️ Pliego de Condiciones no encontrado en Socrata, creando placeholder...`);
-          
-          // Crear un documento "virtual" que apunte a SECOP
-          // El backend intentará procesarlo pero probablemente no encontrará nada
-          // Sin embargo, al menos lo intentará
-          const pliegoPlaceholder = {
-            titulo: "Pliego de Condiciones (No encontrado en SECOP)",
-            url: null,  // SIN URL - será un placeholder
-            tipo: "Pliego de Condiciones",
-            es_documento_indicadores: false,
-            razon: "Documento no disponible en SECOP (fallback)",
-            descripcion: "Pliego de Condiciones no encontrado para esta licitación en Socrata"
-          };
-          
-          finalDocs.push(pliegoPlaceholder);
-          console.log(`🔲 Placeholder Pliego de Condiciones agregado (sin URL descargable)`);
-        }
-
         // ✅ CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
-        console.log(`📄 [${new Date().toLocaleTimeString()}] ${finalDocs.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
+        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
         if (!abort) {
-          setDocs(finalDocs);
+          setDocs(tagged);
           setDocsLoading(false);
         }
       } catch (e) {

@@ -29,12 +29,12 @@ export default function AuthProvider({ children }) {
   // ============================
   //   Registro de usuario
   // ============================
-  async function register({ email, name, password }) {
+  async function register({ email, name, password, is_mypyme }) {
     const res = await fetch(API_ENDPOINTS.REGISTER, {
       method: "POST",
       credentials: "include", // importante para usar cookies HttpOnly
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, name, password }),
+      body: JSON.stringify({ email, name, password, is_mypyme }),
     });
     if (!res.ok) throw new Error("No se pudo registrar");
 

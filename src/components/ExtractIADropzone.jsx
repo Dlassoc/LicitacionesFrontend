@@ -8,6 +8,7 @@ export default function ExtractIADropzone() {
   const [loading, setLoading] = useState(false);
   const [analysisMode, setAnalysisMode] = useState(null); // 'ia' o 'local'
   const [error, setError] = useState(null);
+  const [processingStatus, setProcessingStatus] = useState(""); // Mensaje detallado de estado
   const dropzoneRef = useRef(null);
   const inputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState(null);
@@ -58,6 +59,7 @@ export default function ExtractIADropzone() {
     setError(null);
     setResults(null);
     setAnalysisMode(mode);
+    setProcessingStatus("Iniciando análisis...");
 
     try {
       const formData = new FormData();
@@ -70,6 +72,13 @@ export default function ExtractIADropzone() {
         ? API_ENDPOINTS.EXTRACT_ANALYZE_LOCAL 
         : API_ENDPOINTS.EXTRACT_ANALYZE;
 
+      // Mostrar mensaje inicial
+      if (mode === 'local') {
+        setProcessingStatus(" Extrayendo texto del documento...");
+      } else {
+        setProcessingStatus(" Enviando a IA para análisis profundo...");
+      }
+
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -81,10 +90,22 @@ export default function ExtractIADropzone() {
       }
 
       const data = await response.json();
+      
+      // Verificar si se usó OCR en algún item
+      const usedOcr = data.items?.some(item => item.ocr_usado);
+      
+      if (usedOcr) {
+        // Agregar advertencia de ambigüedad a los resultados
+        data.ocr_warning = true;
+        data.ocr_message = " Este documento contiene imágenes y fue procesado con OCR. Los valores pueden ser ambiguos. Por favor, verifica los indicadores manualmente.";
+      }
+      
       setResults(data);
+      setProcessingStatus("");
     } catch (err) {
       setError(err.message || "Error al procesar archivos");
       console.error("Error:", err);
+      setProcessingStatus("");
     } finally {
       setLoading(false);
     }
@@ -126,16 +147,16 @@ export default function ExtractIADropzone() {
               className="extract-ia-dropzone-option-button local"
               disabled={loading}
             >
-              <div className="extract-ia-dropzone-option-icon">⚡</div>
+              <div className="extract-ia-dropzone-option-icon"></div>
               <div className="extract-ia-dropzone-option-content">
                 <h3 className="extract-ia-dropzone-option-title">Análisis Local</h3>
                 <p className="extract-ia-dropzone-option-description">
                   Rápido, privado, sin costo
                 </p>
                 <ul className="extract-ia-dropzone-option-features">
-                  <li>✓ Instantáneo</li>
-                  <li>✓ Privado</li>
-                  <li>✓ Gratis</li>
+                  <li> Instantáneo</li>
+                  <li> Privado</li>
+                  <li> Gratis</li>
                 </ul>
               </div>
             </button>
@@ -146,16 +167,16 @@ export default function ExtractIADropzone() {
               className="extract-ia-dropzone-option-button ia"
               disabled={loading}
             >
-              <div className="extract-ia-dropzone-option-icon">🤖</div>
+              <div className="extract-ia-dropzone-option-icon"></div>
               <div className="extract-ia-dropzone-option-content">
                 <h3 className="extract-ia-dropzone-option-title">Análisis con IA</h3>
                 <p className="extract-ia-dropzone-option-description">
                   Más preciso, análisis profundo
                 </p>
                 <ul className="extract-ia-dropzone-option-features">
-                  <li>✓ Detallado</li>
-                  <li>✓ Preciso</li>
-                  <li>⏱ Lento</li>
+                  <li> Detallado</li>
+                  <li> Preciso</li>
+                  <li> Lento</li>
                 </ul>
               </div>
             </button>
@@ -194,7 +215,7 @@ export default function ExtractIADropzone() {
         />
 
         <div className="extract-ia-dropzone-content">
-          <div className="extract-ia-dropzone-icon">📄</div>
+          <div className="extract-ia-dropzone-icon"></div>
           <div className="extract-ia-dropzone-text-wrapper">
             <p className="extract-ia-dropzone-title">
               {loading ? "Procesando documentos…" : "Arrastra archivos PDF o DOCX aquí"}
@@ -209,7 +230,7 @@ export default function ExtractIADropzone() {
       {/* Error */}
       {error && (
         <div className="extract-ia-dropzone-error">
-          <p className="extract-ia-dropzone-error-text">❌ {error}</p>
+          <p className="extract-ia-dropzone-error-text"> {error}</p>
         </div>
       )}
 
@@ -218,8 +239,13 @@ export default function ExtractIADropzone() {
         <div className="extract-ia-dropzone-loading">
           <div className="extract-ia-dropzone-loading-spinner"></div>
           <p className="extract-ia-dropzone-loading-text">
-            {analysisMode === 'local' ? 'Análisis local en progreso...' : 'Análisis con IA en progreso...'}
+            {processingStatus || (analysisMode === 'local' ? 'Análisis local en progreso...' : 'Análisis con IA en progreso...')}
           </p>
+          {analysisMode === 'local' && (
+            <p className="extract-ia-dropzone-loading-subtext">
+               Esto puede tomar unos momentos. Por favor, espera...
+            </p>
+          )}
         </div>
       )}
     </div>

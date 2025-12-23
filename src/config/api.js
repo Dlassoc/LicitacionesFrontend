@@ -17,7 +17,9 @@ export const API_ENDPOINTS = {
 
   // Extract IA
   EXTRACT_ANALYZE: `${API_BASE_URL}/extract_ia/analyze`,
-  EXTRACT_ANALYZE_LOCAL: `${API_BASE_URL}/extract_ia/analyze-local`,
+
+  // Analysis
+  ANALYZE_LOCAL: `${API_BASE_URL}/analysis/analyze-local`,
 
   // Subscriptions
   SUBS_CREATE: `${API_BASE_URL}/subs/crear`,

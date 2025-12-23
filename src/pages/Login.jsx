@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
@@ -16,8 +16,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
-  // si ya está autenticado y el contexto listo, redirige a inicio
-  if (ready && user) navigate("/app", { replace: true });
+  // ✅ NUEVO: Usar useEffect para redirigir, no durante render
+  useEffect(() => {
+    if (ready && user) {
+      navigate("/app", { replace: true });
+    }
+  }, [ready, user, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
