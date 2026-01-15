@@ -13,6 +13,7 @@ export default function AnalysisSection({
   analysisError,
   analysisResults,
   analyze,
+  isBatchAnalysis = false,
 }) {
   if (!docWithIndicators) return null;
 
@@ -26,15 +27,29 @@ export default function AnalysisSection({
   //  NUEVO: Usar analysisResults (nuevo formato) si existen, sino analyzed (formato antiguo)
   const results = analysisResults || analyzed;
   
+  // ✅ NUEVO: Adaptar formato de análisis batch al formato esperado
+  let adaptedResults = results;
+  if (isBatchAnalysis && results) {
+    adaptedResults = {
+      ...results,
+      matrices: results.requisitos_extraidos?.matrices || results.matrices,
+      indicadores: results.requisitos_extraidos?.indicadores_financieros || results.indicadores,
+      codigos_unspsc: results.requisitos_extraidos?.codigos_unspsc || results.codigos_unspsc,
+      experiencia_requerida: results.requisitos_extraidos?.experiencia_requerida || results.experiencia_requerida,
+      documentos_analizados: 'Análisis batch',
+    };
+  }
+  
   //  DEBUG: Log para verificar qué datos llegan al componente
   console.log("🔍 [AnalysisSection] Props recibidas:", {
+    isBatchAnalysis,
     analysisResults,
     analyzed,
-    results,
-    codigos_unspsc: results?.codigos_unspsc,
-    experiencia: results?.experiencia_requerida,
-    matrices: results?.matrices ? Object.keys(results.matrices) : null,
-    indicadores: results?.indicadores ? Object.keys(results.indicadores) : null
+    adaptedResults,
+    codigos_unspsc: adaptedResults?.codigos_unspsc,
+    experiencia: adaptedResults?.experiencia_requerida,
+    matrices: adaptedResults?.matrices ? Object.keys(adaptedResults.matrices) : null,
+    indicadores: adaptedResults?.indicadores ? Object.keys(adaptedResults.indicadores) : null
   });
   
   //  NUEVO: Si analyzed es solo boolean true (flag de completado), considerar que tenemos datos
@@ -54,28 +69,45 @@ export default function AnalysisSection({
         </div>
       )}
 
-      {/* Mostrar errores */}
-      {analysisError && (
+      {/* Mostrar errores SOLO si no hay resultados exitosos */}
+      {analysisError && !hasAnalyzed && !adaptedResults && (
         <div className="analysis-section-error">
           <p className="analysis-section-error-text"> {analysisError}</p>
         </div>
       )}
 
       {/*  MODIFICADO: Mostrar resultados si tenemos datos (sin importar si analyzing) */}
-      {hasAnalyzed && results && (
-        <div className={`analysis-section-success ${!results.indicadores && !results.indicadores_financieros && !results.matrices ? 'analysis-section-success-no-indicators' : ''}`}>
+      {hasAnalyzed && adaptedResults && (
+        <div className={`analysis-section-success ${!adaptedResults.indicadores && !adaptedResults.indicadores_financieros && !adaptedResults.matrices ? 'analysis-section-success-no-indicators' : ''}`}>
           <div className="analysis-section-success-header">
             <h5 className="analysis-section-success-title">
-               Análisis completado ({results.documentos_analizados || 0} documentos)
+               Análisis completado {isBatchAnalysis ? '(Batch)' : `(${adaptedResults.documentos_analizados || 0} documentos)`}
             </h5>
+            {isBatchAnalysis && adaptedResults.cumple !== undefined && (
+              <div className="analysis-section-batch-result">
+                {adaptedResults.cumple ? (
+                  <span className="analysis-section-batch-badge analysis-section-batch-badge-match">
+                    ✅ CUMPLE ({adaptedResults.porcentaje_cumplimiento?.toFixed(0)}%)
+                  </span>
+                ) : adaptedResults.cumple === false ? (
+                  <span className="analysis-section-batch-badge analysis-section-batch-badge-no-match">
+                    ❌ NO CUMPLE
+                  </span>
+                ) : (
+                  <span className="analysis-section-batch-badge analysis-section-batch-badge-neutral">
+                    ℹ️ Sin evaluación
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/*  NUEVO: Mostrar múltiples matrices (MIPYME y No-MIPYME) */}
-          {results.matrices && Object.keys(results.matrices).length > 0 && (
+          {adaptedResults.matrices && Object.keys(adaptedResults.matrices).length > 0 && (
             <div className="analysis-section-matrices-group">
               <p className="analysis-section-matrices-label"> Indicadores Financieros (Múltiples Matrices):</p>
               <div className="analysis-section-matrices-container">
-                {Object.entries(results.matrices).map(([matrizName, matrizData]) => (
+                {Object.entries(adaptedResults.matrices).map(([matrizName, matrizData]) => (
                   <div key={matrizName} className={`analysis-section-matriz-box ${matrizName === 'mipyme' ? 'mipyme' : 'no-mipyme'}`}>
                     <h5 className="analysis-section-matriz-title">
                       {matrizName === 'mipyme' ? ' MIPYME' : ' No-MIPYME'}
@@ -94,15 +126,15 @@ export default function AnalysisSection({
           )}
           
           {/*  NUEVO: Mostrar indicadores (formato antiguo o alternativo) */}
-          {results.indicadores && Object.keys(results.indicadores).length > 0 && (
+          {adaptedResults.indicadores && Object.keys(adaptedResults.indicadores).length > 0 && (
             <div className="analysis-section-indicators-group">
               <p className="analysis-section-indicators-label"> Indicadores financieros requeridos:</p>
               <div className="analysis-section-indicators-box">
                 {/* Verificar si tiene estructura NORMAL/MIPYME o plana */}
-                {results.indicadores.normal || results.indicadores.mipyme || results.indicadores.emprendimientos || results.indicadores.individuales ? (
+                {adaptedResults.indicadores.normal || adaptedResults.indicadores.mipyme || adaptedResults.indicadores.emprendimientos || adaptedResults.indicadores.individuales ? (
                   // Estructura categorizada (NORMAL/MIPYME/etc + individuales)
                   <div className="analysis-section-categories">
-                    {Object.entries(results.indicadores).map(([categoryName, categoryData], idx) => {
+                    {Object.entries(adaptedResults.indicadores).map(([categoryName, categoryData], idx) => {
                       // Saltar si es un diccionario vacío
                       if (typeof categoryData !== 'object' || Object.keys(categoryData).length === 0) {
                         return null;
@@ -130,7 +162,7 @@ export default function AnalysisSection({
                 ) : (
                   // Estructura plana
                   <ul className="analysis-section-indicators-list">
-                    {Object.entries(results.indicadores).map(([key, val]) => (
+                    {Object.entries(adaptedResults.indicadores).map(([key, val]) => (
                       <li key={key} className="analysis-section-indicators-item">
                         <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
                       </li>
@@ -140,15 +172,15 @@ export default function AnalysisSection({
               </div>
               
               {/*  NUEVO: Mostrar indicadores organizacionales si existen */}
-              {results.indicadores_organizacionales && Object.keys(results.indicadores_organizacionales).length > 0 && (
+              {adaptedResults.indicadores_organizacionales && Object.keys(adaptedResults.indicadores_organizacionales).length > 0 && (
                 <div className="analysis-section-indicators-org-group">
-                  <p className="analysis-section-indicators-org-label"> Indicadores Organizacionales ({Object.keys(results.indicadores_organizacionales).length}):</p>
+                  <p className="analysis-section-indicators-org-label"> Indicadores Organizacionales ({Object.keys(adaptedResults.indicadores_organizacionales).length}):</p>
                   <div className="analysis-section-indicators-org-box">
                     {/* Verificar si tiene estructura NORMAL/MIPYME o plana */}
-                    {results.indicadores_organizacionales.normal || results.indicadores_organizacionales.mipyme ? (
+                    {adaptedResults.indicadores_organizacionales.normal || adaptedResults.indicadores_organizacionales.mipyme ? (
                       // Estructura categorizada
                       <div className="analysis-section-org-categories">
-                        {Object.entries(results.indicadores_organizacionales).map(([categoryName, categoryData], idx) => {
+                        {Object.entries(adaptedResults.indicadores_organizacionales).map(([categoryName, categoryData], idx) => {
                           if (typeof categoryData !== 'object' || Object.keys(categoryData).length === 0) {
                             return null;
                           }
@@ -170,7 +202,7 @@ export default function AnalysisSection({
                     ) : (
                       // Estructura plana
                       <ul className="analysis-section-indicators-org-list">
-                        {Object.entries(results.indicadores_organizacionales).map(([key, val]) => (
+                        {Object.entries(adaptedResults.indicadores_organizacionales).map(([key, val]) => (
                           <li key={key} className="analysis-section-indicators-org-item">
                             <span><strong>{key}:</strong> {typeof val === 'object' ? JSON.stringify(val) : val}</span>
                           </li>
@@ -182,11 +214,11 @@ export default function AnalysisSection({
               )}
               
               {/*  NUEVO: Mostrar códigos UNSPSC si existen */}
-              {results.codigos_unspsc && results.codigos_unspsc.length > 0 && (
+              {adaptedResults.codigos_unspsc && adaptedResults.codigos_unspsc.length > 0 && (
                 <div className="analysis-section-unspsc-group">
-                  <p className="analysis-section-unspsc-label">� Códigos UNSPSC ({results.codigos_unspsc.length}):</p>
+                  <p className="analysis-section-unspsc-label">� Códigos UNSPSC ({adaptedResults.codigos_unspsc.length}):</p>
                   <div className="analysis-section-unspsc-codes">
-                    {results.codigos_unspsc.map((codigo, idx) => (
+                    {adaptedResults.codigos_unspsc.map((codigo, idx) => (
                       <span
                         key={`${codigo}-${idx}`}
                         className="analysis-section-unspsc-code"
@@ -199,11 +231,11 @@ export default function AnalysisSection({
               )}
               
               {/*  NUEVO: Mostrar experiencia requerida si existe */}
-              {results.experiencia_requerida && Object.keys(results.experiencia_requerida).length > 0 && (
+              {adaptedResults.experiencia_requerida && Object.keys(adaptedResults.experiencia_requerida).length > 0 && (
                 <div className="analysis-section-experience-group">
                   <p className="analysis-section-experience-label"> Experiencia Requerida:</p>
                   <div className="analysis-section-experience-box">
-                    {Object.entries(results.experiencia_requerida).map(([key, val]) => (
+                    {Object.entries(adaptedResults.experiencia_requerida).map(([key, val]) => (
                       <p key={key} className="analysis-section-experience-text">
                         <strong>{key}:</strong> {val}
                       </p>
@@ -215,11 +247,11 @@ export default function AnalysisSection({
           )}
           
           {/*  NUEVO: Mostrar códigos UNSPSC si existen (SIEMPRE, independiente de indicadores/matrices) */}
-          {results.codigos_unspsc && Array.isArray(results.codigos_unspsc) && results.codigos_unspsc.length > 0 && (
+          {adaptedResults.codigos_unspsc && Array.isArray(adaptedResults.codigos_unspsc) && adaptedResults.codigos_unspsc.length > 0 && (
             <div className="analysis-section-unspsc-group">
-              <p className="analysis-section-unspsc-label"> Códigos UNSPSC ({results.codigos_unspsc.length}):</p>
+              <p className="analysis-section-unspsc-label"> Códigos UNSPSC ({adaptedResults.codigos_unspsc.length}):</p>
               <div className="analysis-section-unspsc-codes">
-                {results.codigos_unspsc.map((codigo, idx) => (
+                {adaptedResults.codigos_unspsc.map((codigo, idx) => (
                   <span
                     key={`${codigo}-${idx}`}
                     className="analysis-section-unspsc-code"
@@ -232,14 +264,14 @@ export default function AnalysisSection({
           )}
           
           {/*  NUEVO: Mostrar experiencia requerida si existe (SIEMPRE, independiente de indicadores/matrices) */}
-          {results.experiencia_requerida && 
-           typeof results.experiencia_requerida === 'object' && 
-           Object.keys(results.experiencia_requerida).length > 0 &&
-           Object.values(results.experiencia_requerida).some(val => val !== null && val !== undefined && val !== '') && (
+          {adaptedResults.experiencia_requerida && 
+           typeof adaptedResults.experiencia_requerida === 'object' && 
+           Object.keys(adaptedResults.experiencia_requerida).length > 0 &&
+           Object.values(adaptedResults.experiencia_requerida).some(val => val !== null && val !== undefined && val !== '') && (
             <div className="analysis-section-experience-group">
               <p className="analysis-section-experience-label"> Experiencia Requerida:</p>
               <div className="analysis-section-experience-box">
-                {Object.entries(results.experiencia_requerida)
+                {Object.entries(adaptedResults.experiencia_requerida)
                   .filter(([key, val]) => val !== null && val !== undefined && val !== '')
                   .map(([key, val]) => (
                     <p key={key} className="analysis-section-experience-text">
@@ -251,37 +283,37 @@ export default function AnalysisSection({
           )}
           
           {/*  NUEVO: Mostrar cuando no hay indicadores pero puede haber otros datos */}
-          {!results.matrices && (!results.indicadores || Object.keys(results.indicadores).length === 0) && (
+          {!adaptedResults.matrices && (!adaptedResults.indicadores || Object.keys(adaptedResults.indicadores).length === 0) && (
             <div className="analysis-section-no-indicators">
               <p className="analysis-section-no-indicators-title">
-                ⓘ {results.mensaje || "No se encontraron indicadores financieros"}
+                ⓘ {adaptedResults.mensaje || "No se encontraron indicadores financieros"}
               </p>
               
               {/* Mostrar resumen del análisis */}
               <div className="analysis-section-no-indicators-summary">
                 <p className="analysis-section-no-indicators-stat">
-                   <strong>Documentos analizados:</strong> {results.documentos_analizados || 0}
+                   <strong>Documentos analizados:</strong> {adaptedResults.documentos_analizados || 0}
                 </p>
-                {results.documentos_descartados > 0 && (
+                {adaptedResults.documentos_descartados > 0 && (
                   <p className="analysis-section-no-indicators-stat">
-                     <strong>Documentos descartados:</strong> {results.documentos_descartados} (administrativos)
+                     <strong>Documentos descartados:</strong> {adaptedResults.documentos_descartados} (administrativos)
                   </p>
                 )}
                 
                 {/*  NUEVO: Mostrar conteo de qué se encontró */}
-                {results.indicadores_organizacionales && Object.keys(results.indicadores_organizacionales).length > 0 && (
+                {adaptedResults.indicadores_organizacionales && Object.keys(adaptedResults.indicadores_organizacionales).length > 0 && (
                   <p className="analysis-section-no-indicators-stat">
-                     <strong>Indicadores organizacionales encontrados:</strong> {Object.keys(results.indicadores_organizacionales).length}
+                     <strong>Indicadores organizacionales encontrados:</strong> {Object.keys(adaptedResults.indicadores_organizacionales).length}
                   </p>
                 )}
-                {results.codigos_unspsc && results.codigos_unspsc.length > 0 && (
+                {adaptedResults.codigos_unspsc && adaptedResults.codigos_unspsc.length > 0 && (
                   <p className="analysis-section-no-indicators-stat">
-                     <strong>Códigos UNSPSC encontrados:</strong> {results.codigos_unspsc.length}
+                     <strong>Códigos UNSPSC encontrados:</strong> {adaptedResults.codigos_unspsc.length}
                   </p>
                 )}
-                {results.experiencia_requerida && Object.keys(results.experiencia_requerida).length > 0 && (
+                {adaptedResults.experiencia_requerida && Object.keys(adaptedResults.experiencia_requerida).length > 0 && (
                   <p className="analysis-section-no-indicators-stat">
-                     <strong>Requisitos de experiencia encontrados:</strong> {Object.keys(results.experiencia_requerida).length}
+                     <strong>Requisitos de experiencia encontrados:</strong> {Object.keys(adaptedResults.experiencia_requerida).length}
                   </p>
                 )}
                 

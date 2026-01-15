@@ -1,6 +1,7 @@
 import React from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
+import { useAutoAnalysis } from "../hooks/useAutoAnalysis.js";
 import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
@@ -9,6 +10,9 @@ export default function ResultsPanel({
   onPage,
   onItemClick
 }) {
+  // Hook para análisis automático en background
+  const { analysisStatus, isPolling } = useAutoAnalysis(resultados);
+
   return (
     <div className="rp">
       <div className="rp-box">
@@ -23,6 +27,13 @@ export default function ResultsPanel({
                 )} • Desde ${total === 0 ? 0 : offset + 1}`
               : "Realiza una búsqueda para ver resultados"}
           </div>
+          {/* Indicador de análisis en progreso */}
+          {isPolling && (
+            <div className="rp-analyzing-indicator">
+              <span className="rp-analyzing-spinner"></span>
+              <span className="rp-analyzing-text">Analizando requisitos...</span>
+            </div>
+          )}
         </div>
 
         {lastQuery && (
@@ -46,39 +57,43 @@ export default function ResultsPanel({
 
             {!loading && resultados && resultados.length > 0 && (
               <div className="rp-grid">
-                {resultados.map((item, idx) => (
-                  <ResultCard
-                    key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
-                    item={item}
-                    onClick={() => onItemClick(item)}
-                  />
-                ))}
+                {resultados.map((item, idx) => {
+                  const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+                  return (
+                    <ResultCard
+                      key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
+                      item={item}
+                      onClick={() => onItemClick(item)}
+                      analysisStatus={analysisStatus[idPortafolio]}
+                    />
+                  );
+                })}
               </div>
             )}
+          </div>
+        )}
 
-            {!loading && resultados && resultados.length > 0 && (
-              <div className="rp-footer">
-                <div className="rp-footer-text">
-                  Página {Math.floor(offset / limit) + 1} de {Math.max(1, Math.ceil(total / limit))}
-                </div>
-                <div className="space-x-2">
-                  <button
-                    onClick={() => onPage(Math.max(offset - limit, 0))}
-                    className="rp-btn"
-                    disabled={offset === 0}
-                  >
-                    ← Anterior
-                  </button>
-                  <button
-                    onClick={() => onPage(offset + limit)}
-                    className="rp-btn"
-                    disabled={offset + limit >= total}
-                  >
-                    Siguiente →
-                  </button>
-                </div>
-              </div>
-            )}
+        {!loading && resultados && resultados.length > 0 && (
+          <div className="rp-footer">
+            <div className="rp-footer-text">
+              Página {Math.floor(offset / limit) + 1} de {Math.max(1, Math.ceil(total / limit))}
+            </div>
+            <div className="space-x-2">
+              <button
+                onClick={() => onPage(Math.max(offset - limit, 0))}
+                className="rp-btn"
+                disabled={offset === 0}
+              >
+                ← Anterior
+              </button>
+              <button
+                onClick={() => onPage(offset + limit)}
+                className="rp-btn"
+                disabled={offset + limit >= total}
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -5,6 +5,8 @@
  * - Descarga de archivos
  * - Análisis de documentos
  * - IndexedDB storage
+ * 
+ *  SINCRONIZAR CON: app/extract_ia/document_skip_patterns.py
  */
 
 import API_BASE from '../../config/api.js';
@@ -12,6 +14,9 @@ import API_BASE from '../../config/api.js';
 // ============================================================================
 // PATRONES DE DOCUMENTOS
 // ============================================================================
+
+//  ÚNICA FUENTE DE VERDAD: app/extract_ia/document_skip_patterns.py
+// Mantener sincronizado manualmente con el backend
 
 export const DOCUMENTS_TO_PRIORITIZE_PATTERNS = [
   /estudio.*previo/i,
@@ -26,10 +31,6 @@ export const DOCUMENTS_TO_PRIORITIZE_PATTERNS = [
   /pliego.*condiciones/i,
   /pliegos?.*definitiv/i,
   /definitiv.*pliegos?/i,
-  /(?=.*\.zip)(?=.*estudio\s+financiero)/i,
-  /(?=.*\.zip)(?=.*estados?\s+financieros?)/i,
-  /(?=.*\.zip)(?=.*balance\s+general)/i,
-  /(?=.*\.zip)(?=.*indicadores?\s+financieros?)/i,
 ];
 
 export const DOCUMENTS_TO_SKIP_PATTERNS = [
@@ -57,11 +58,6 @@ export const DOCUMENTS_TO_SKIP_PATTERNS = [
   /acuerdo/i,
   /decreto/i,
   /orden/i,
-  /aviso\s+de\s+convocatoria/i,
-  /anexo\s+tecnico/i,
-  /ficha\s+condiciones\s+tecnicas/i,
-  /estudio\s+del\s+sector\s+economico/i,
-  /estudio\s+de\s+mercado/i,
 ];
 
 // ============================================================================

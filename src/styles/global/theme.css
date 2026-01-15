@@ -1,3 +1,15 @@
+/* ======================  TRANSICIONES GLOBALES  ====================== */
+/* Transiciones suaves entre temas */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Excepciones: elementos que no deben tener transición */
+button, a, input, textarea, select,
+.no-transition {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
 /* ======================  TEMA CLARO (RESTORE)  ====================== */
 /* Activo cuando el HTML tiene data-theme="light". */
 :root[data-theme="light"] {
@@ -108,10 +120,13 @@
 }
 :root[data-theme="dark"] .splash-text { color: #cdeff2; }
 
-/* Header */
+/* Header con efecto glassmorphism */
 :root[data-theme="dark"] .header-bar {
-  background: linear-gradient(90deg, #0e0e0e 0%, #0b3b40 200%);
-  border-bottom-color: rgba(255,255,255,0.2);
+  background: linear-gradient(90deg, rgba(14, 14, 14, 0.85) 0%, rgba(11, 59, 64, 0.85) 200%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(39, 197, 206, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(39, 197, 206, 0.1);
 }
 :root[data-theme="dark"] .header-inner { color: #e8f6f7; }
 :root[data-theme="dark"] .user-chip { color: rgba(232,246,247,0.9); }
@@ -119,26 +134,57 @@
   background: #0f1e21; border-color: rgba(255,255,255,.08); color: #e8f6f7;
 }
 :root[data-theme="dark"] .chip {
-  background: rgba(15,30,33,0.9); color: #b7e7ea; border-color: rgba(39,197,206,0.35);
+  background: rgba(15,30,33,0.95);
+  color: #b7e7ea;
+  border: 1px solid rgba(39,197,206,0.4);
+  box-shadow: 0 0 10px rgba(39, 197, 206, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+:root[data-theme="dark"] .chip:hover {
+  border-color: rgba(39,197,206,0.6);
+  box-shadow: 0 0 15px rgba(39, 197, 206, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 :root[data-theme="dark"] .chip-value { color: #c9fbff; }
-:root[data-theme="dark"] .avatar-btn { background: #1f2b30; box-shadow: 0 0 0 2px #0f1e21; }
-:root[data-theme="dark"] .user-menu {
-  background: #0f1e21; border-color: rgba(255,255,255,.08);
+:root[data-theme="dark"] .avatar-btn {
+  background: linear-gradient(135deg, #1f2b30 0%, #0f1e21 100%);
+  border: 2px solid rgba(39, 197, 206, 0.5);
+  box-shadow: 0 0 0 3px rgba(15, 30, 33, 0.8), 0 0 20px rgba(39, 197, 206, 0.3);
 }
-:root[data-theme="dark"] .menu-item { color: #e8f6f7; }
-:root[data-theme="dark"] .menu-item:hover { background: rgba(39, 197, 206, 0.18); }
+:root[data-theme="dark"] .avatar-btn:hover {
+  box-shadow: 0 0 0 3px rgba(15, 30, 33, 0.8), 0 0 25px rgba(39, 197, 206, 0.5);
+  transform: scale(1.05);
+}
+:root[data-theme="dark"] .user-menu {
+  background: rgba(15, 30, 33, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(39, 197, 206, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(39, 197, 206, 0.1);
+}
+:root[data-theme="dark"] .menu-item {
+  color: #e8f6f7;
+  position: relative;
+}
+:root[data-theme="dark"] .menu-item:hover {
+  background: linear-gradient(90deg, rgba(39, 197, 206, 0.15) 0%, rgba(39, 197, 206, 0.25) 100%);
+  box-shadow: inset 3px 0 0 rgba(39, 197, 206, 0.8);
+}
 :root[data-theme="dark"] .menu-sep { background: rgba(255,255,255,.08); }
 
-/* Toggle tema (icono) en oscuro */
+/* Toggle tema con efecto de brillo */
 :root[data-theme="dark"] .theme-toggle {
-  background: #1a2a2e; color: #8de4ea; border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(135deg, #1a2a2e 0%, #0f1e21 100%);
+  color: #8de4ea;
+  border: 1px solid rgba(39, 197, 206, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 :root[data-theme="dark"] .theme-toggle:hover {
-  background: #224248;
+  background: linear-gradient(135deg, #224248 0%, #1a2a2e 100%);
+  border-color: rgba(39, 197, 206, 0.5);
+  box-shadow: 0 4px 12px rgba(39, 197, 206, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
 }
 :root[data-theme="dark"] .theme-toggle:active {
-  transform: scale(0.98);
+  transform: scale(0.95) translateY(0);
 }
 
 /* Formularios (register/login) */
@@ -150,23 +196,41 @@
 :root[data-theme="dark"] .text-title { color: #8de4ea; }
 :root[data-theme="dark"] .label-center { color: #d7f5f7; }
 :root[data-theme="dark"] .input-field {
-  background: #0f1e21; color: #e8f6f7; border-color: #224248;
+  background: rgba(15, 30, 33, 0.6);
+  color: #e8f6f7;
+  border: 1px solid rgba(39, 197, 206, 0.2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
-:root[data-theme="dark"] .input-field:hover { border-color: #2b5860; }
+:root[data-theme="dark"] .input-field:hover {
+  border-color: rgba(39, 197, 206, 0.4);
+  background: rgba(15, 30, 33, 0.8);
+}
 :root[data-theme="dark"] .input-field:focus,
 :root[data-theme="dark"] .input-field:focus-visible {
-  border-color: #27C5CE; box-shadow: 0 0 0 2px #27C5CE55; caret-color: #27C5CE;
+  outline: none;
+  border-color: #27C5CE;
+  background: rgba(15, 30, 33, 0.9);
+  box-shadow: 0 0 0 3px rgba(39, 197, 206, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 20px rgba(39, 197, 206, 0.15);
+  caret-color: #27C5CE;
 }
 :root[data-theme="dark"] .input-wrapper:focus-within .input-icon-left { color: #8de4ea; }
 :root[data-theme="dark"] .hint-muted { color: #94b9bd; }
 :root[data-theme="dark"] .password-strength-bar { background: #1a2a2e; }
 :root[data-theme="dark"] .text-register { color: #b7e7ea; }
 
-/* Toast */
+/* Toast con glassmorphism */
 :root[data-theme="dark"] .toast {
-  background: #0f1e21; color: #cdeff2; border-color: rgba(255,255,255,.08);
+  background: rgba(15, 30, 33, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #cdeff2;
+  border: 1px solid rgba(39, 197, 206, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(39, 197, 206, 0.1), 0 0 30px rgba(39, 197, 206, 0.1);
 }
-:root[data-theme="dark"] .toast-dot { background: #27C5CE; box-shadow: 0 0 0 4px #27C5CE55; }
+:root[data-theme="dark"] .toast-dot {
+  background: #27C5CE;
+  box-shadow: 0 0 0 6px rgba(39, 197, 206, 0.3), 0 0 15px rgba(39, 197, 206, 0.6);
+}
 
 /* Fondo general de páginas privadas */
 :root[data-theme="dark"] body, 

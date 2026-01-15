@@ -68,7 +68,7 @@ const formatCOP = (val) => {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
 };
 
-export default memo(function ResultCard({ item = {}, onClick }) {
+export default memo(function ResultCard({ item = {}, onClick, analysisStatus }) {
   const idx = useMemo(() => buildIndex(item), [item]);
 
   const urlResuelto = getUrlProceso(item);
@@ -83,6 +83,84 @@ export default memo(function ResultCard({ item = {}, onClick }) {
   const descripcion = get(item, idx, ["Descripcion", "descripcion"], "");
   const codigoUnsp = get(item, idx, ["Codigo_categoria", "codigo_categoria", "codCategoria"], "");
 
+  // Renderizar badge de análisis automático
+  const renderAnalysisBadge = () => {
+    if (!analysisStatus) {
+      return null; // No mostrar nada si no hay análisis iniciado
+    }
+
+    switch (analysisStatus.estado) {
+      case 'pendiente':
+        return (
+          <span className="result-card-badge-analysis result-card-badge-pending">
+            ⏳ Analizando...
+          </span>
+        );
+      
+      case 'procesando':
+        return (
+          <span className="result-card-badge-analysis result-card-badge-processing">
+            🔄 Procesando...
+          </span>
+        );
+      
+      case 'completado':
+        if (analysisStatus.cumple) {
+          return (
+            <span className="result-card-badge-analysis result-card-badge-match">
+              ✅ APTO ({analysisStatus.porcentaje?.toFixed(0)}%)
+            </span>
+          );
+        } else if (analysisStatus.cumple === false) {
+          return (
+            <span className="result-card-badge-analysis result-card-badge-no-match">
+              ❌ NO APTO
+            </span>
+          );
+        } else {
+          // cumple es null - verificar si hay requisitos extraídos (matrices, UNSPSC, experiencia)
+          const requisitos = analysisStatus.requisitos || {};
+          
+          const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
+          const hasIndicadores = requisitos.indicadores_financieros && Object.keys(requisitos.indicadores_financieros).length > 0;
+          const hasUNSPSC = requisitos.codigos_unspsc && requisitos.codigos_unspsc.length > 0;
+          const hasExperiencia = requisitos.experiencia_requerida && requisitos.experiencia_requerida.experiencia_requerida;
+          
+          const hasAnyRequisitos = hasMatrices || hasIndicadores || hasUNSPSC || hasExperiencia;
+          
+          if (hasAnyRequisitos) {
+            // Construir texto descriptivo de lo que se encontró
+            const items = [];
+            if (hasMatrices || hasIndicadores) items.push('Indicadores');
+            if (hasUNSPSC) items.push(`${requisitos.codigos_unspsc.length} UNSPSC`);
+            if (hasExperiencia) items.push('Experiencia');
+            
+            return (
+              <span className="result-card-badge-analysis result-card-badge-info" title={items.join(' • ')}>
+                📊 Con requisitos
+              </span>
+            );
+          } else {
+            return (
+              <span className="result-card-badge-analysis result-card-badge-neutral">
+                ℹ️ Sin requisitos
+              </span>
+            );
+          }
+        }
+      
+      case 'error':
+        return (
+          <span className="result-card-badge-analysis result-card-badge-error">
+            ⚠️ Error
+          </span>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
   return (
     <article
       onClick={onClick}
@@ -96,6 +174,7 @@ export default memo(function ResultCard({ item = {}, onClick }) {
         </h3>
 
         <div className="result-card-badges">
+          {renderAnalysisBadge()}
           <span className="result-card-badge-ref">
             Ref: <span className="result-card-badge-ref-value">{ref}</span>
           </span>
@@ -122,6 +201,81 @@ export default memo(function ResultCard({ item = {}, onClick }) {
           </div>
         </section>
       ) : null}
+
+      {/* Detalles del análisis - Mostrar indicadores encontrados */}
+      {analysisStatus?.estado === 'completado' && analysisStatus?.requisitos && (
+        <section className="result-card-analysis-details">
+          {/* Mostrar matrices con indicadores financieros */}
+          {analysisStatus.requisitos.matrices && Object.keys(analysisStatus.requisitos.matrices).length > 0 && (
+            <div className="result-card-analysis-section">
+              <h4 className="result-card-analysis-title">💰 Indicadores Financieros:</h4>
+              <div className="result-card-analysis-indicators">
+                {Object.entries(analysisStatus.requisitos.matrices).map(([matrizTipo, indicadores]) => (
+                  <div key={matrizTipo} className="result-card-matriz-group">
+                    {matrizTipo !== 'general' && (
+                      <span className="result-card-matriz-label">{matrizTipo}:</span>
+                    )}
+                    {Object.entries(indicadores).map(([nombre, valor]) => (
+                      <span key={nombre} className="result-card-indicator-badge" title={`${nombre}: ${valor}`}>
+                        {nombre.replace(/_/g, ' ')}: <strong>{valor}</strong>
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mostrar códigos UNSPSC */}
+          {analysisStatus.requisitos.codigos_unspsc && analysisStatus.requisitos.codigos_unspsc.length > 0 && (
+            <div className="result-card-analysis-section">
+              <h4 className="result-card-analysis-title">🏷️ Códigos UNSPSC:</h4>
+              <div className="result-card-unspsc-list">
+                {analysisStatus.requisitos.codigos_unspsc.slice(0, 5).map((codigo, idx) => (
+                  <span key={idx} className="result-card-unspsc-badge">{codigo}</span>
+                ))}
+                {analysisStatus.requisitos.codigos_unspsc.length > 5 && (
+                  <span className="result-card-unspsc-more">
+                    +{analysisStatus.requisitos.codigos_unspsc.length - 5} más
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Mostrar experiencia requerida */}
+          {analysisStatus.requisitos.experiencia_requerida?.experiencia_requerida && (
+            <div className="result-card-analysis-section">
+              <h4 className="result-card-analysis-title">👔 Experiencia:</h4>
+              <p className="result-card-experience-text">
+                {analysisStatus.requisitos.experiencia_requerida.experiencia_requerida}
+              </p>
+            </div>
+          )}
+
+          {/* Mostrar comparación con perfil si cumple es true/false */}
+          {analysisStatus.cumple !== null && analysisStatus.detalles && (
+            <div className="result-card-analysis-section">
+              <h4 className="result-card-analysis-title">
+                {analysisStatus.cumple ? '✅ Cumplimiento del perfil:' : '❌ Requisitos no cumplidos:'}
+              </h4>
+              <div className="result-card-analysis-items">
+                {Object.entries(analysisStatus.detalles).slice(0, 4).map(([key, val]) => (
+                  <div key={key} className="result-card-analysis-item">
+                    <span className={`result-card-analysis-icon ${val.cumple ? 'match' : 'no-match'}`}>
+                      {val.cumple ? '✓' : '✗'}
+                    </span>
+                    <span className="result-card-analysis-label">{key}:</span>
+                    <span className="result-card-analysis-value">
+                      {val.usuario !== null ? val.usuario : 'N/D'} vs {val.requerido}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <footer className="result-card-footer">
         <div className="result-card-price"> {precio} Pesos</div>

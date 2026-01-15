@@ -74,15 +74,15 @@ export default function SearchForm({ onBuscar, onClear }) {
       return;
     }
     
-    // 🔄 MEJORA: "Presentación de Ofertas (Opcional)" siempre se rellena con fecha actual si está vacío
-    // "Presentación de Ofertas Hasta" puede quedarse vacío
+    // Aplicar rango de enero 2025 si está vacío (BD no actualizada con 2026)
     let finalFechaRecDesde = fechaRecDesde;
     let finalFechaRecHasta = fechaRecHasta;
     
-    // Si "Presentación de Ofertas (Desde)" está vacío, usar hoy
     if (!finalFechaRecDesde) {
-      const today = new Date().toISOString().split('T')[0];
-      finalFechaRecDesde = today;
+      finalFechaRecDesde = "2025-01-01"; // Desde inicio de enero 2025
+    }
+    if (!finalFechaRecHasta) {
+      finalFechaRecHasta = "2025-01-31"; // Hasta fin de enero 2025
     }
     
     onBuscar(termino, fechaPubDesde, fechaPubHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento);

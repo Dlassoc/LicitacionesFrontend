@@ -1,6 +1,7 @@
 // src/components/ResultModal.jsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useLocalDocumentAnalysis } from "../hooks/useLocalDocumentAnalysis.js";
+import { useBatchAnalysisStatus } from "../hooks/useBatchAnalysisStatus.js";
 import API_BASE_URL from "../config/api.js";
 import ModalHeader from "./modal/ModalHeader.jsx";
 import DocumentMetadata from "./modal/DocumentMetadata.jsx";
@@ -320,6 +321,9 @@ export default function ResultModal({ open, item, onClose }) {
     console.log('📍 [MODAL] idPortafolio actualizado en ResultModal:', idPortafolio);
   }, [idPortafolio]);
 
+  // ✅ NUEVO: Consultar si ya existe análisis batch completado
+  const { status: batchStatus, loading: batchLoading } = useBatchAnalysisStatus(idPortafolio);
+
   // ✅ Análisis automático LOCAL de indicadores financieros
   // Se analizarán TODOS los documentos sin necesidad de IA
   const { analyzing, analyzed, results, error: analysisError, analyze, cancel, progress } = useLocalDocumentAnalysis(
@@ -437,12 +441,26 @@ export default function ResultModal({ open, item, onClose }) {
       return;
     }
     
+    // ✅ NUEVO: Si ya existe análisis batch completado, usarlo en lugar de analizar localmente
+    if (batchStatus && batchStatus.estado === 'completado' && !batchLoading) {
+      console.log('✅ [BATCH] Análisis batch ya existe, omitiendo análisis local:', batchStatus);
+      // El análisis batch ya se mostrará en la sección de análisis
+      return;
+    }
+    
+    // Si hay análisis batch en proceso, esperar
+    if (batchStatus && (batchStatus.estado === 'pendiente' || batchStatus.estado === 'procesando')) {
+      console.log('⏱️ [BATCH] Análisis batch en progreso, omitiendo análisis local');
+      return;
+    }
+    
     console.log('✅ [READY] Documentos listos, iniciando análisis automático...', {
       docsLength: docs.length,
       docsLoading,
       analyzing,
       analyzed: !!analyzed,
       idPortafolio,
+      batchStatus: batchStatus?.estado,
     });
     
     console.log('🚀 Iniciando análisis automático local');
@@ -452,7 +470,7 @@ export default function ResultModal({ open, item, onClose }) {
     
     // Llamar analyze
     analyze();
-  }, [open, docs.length, docsLoading, analyzing, analyzed, idPortafolio, analyze]);
+  }, [open, docs.length, docsLoading, analyzing, analyzed, idPortafolio, analyze, batchStatus, batchLoading]);
 
   // ✅ OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
   useEffect(() => {
@@ -631,14 +649,15 @@ export default function ResultModal({ open, item, onClose }) {
           />
 
           {/* ====== Análisis de indicadores financieros (LOCAL) ====== */}
-          {/* ✅ CAMBIO: Usar análisis local sin IA */}
+          {/* ✅ CAMBIO: Usar análisis local sin IA o análisis batch si existe */}
           <AnalysisSection 
             docWithIndicators={docs.length > 0}
-            analyzing={analyzing}
-            analyzed={analyzed}
-            analysisError={analysisError}
-            analysisResults={results}
+            analyzing={analyzing || (batchStatus?.estado === 'procesando')}
+            analyzed={analyzed || (batchStatus?.estado === 'completado')}
+            analysisError={analysisError || (batchStatus?.estado === 'error' ? batchStatus.error_message : null)}
+            analysisResults={batchStatus?.estado === 'completado' ? batchStatus : results}
             analyze={handleAnalyze}
+            isBatchAnalysis={batchStatus?.estado === 'completado'}
           />
 
           {/* Footer */}
