@@ -110,6 +110,28 @@
   margin-right: 0;
 }
 
+.preferences-section {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto 2rem auto;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  padding: 1.5rem;
+}
+
+.preferences-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .preferences-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .preferences-field-group {
   display: flex;
   flex-direction: column;
@@ -781,6 +803,11 @@
   color: #b0b9c1;
 }
 
+:root[data-theme="dark"] .preferences-section {
+  background-color: #0f1e21;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 :root[data-theme="dark"] .preferences-section-title {
   color: #e8f6f7;
 }
@@ -879,4 +906,72 @@
 :root[data-theme="dark"] .preferences-sub-item-meta {
   color: #b0b9c1;
   font-size: 0.8125rem;
+}
+
+/* ============================= CACHE STATS ============================= */
+
+.preferences-cache-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  grid-column: 1 / -1;
+}
+
+.preferences-cache-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.preferences-cache-stat-label {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.preferences-cache-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.preferences-cache-stat-success {
+  color: #10b981;
+}
+
+.preferences-cache-stat-error {
+  color: #ef4444;
+}
+
+.preferences-cache-stat-recent {
+  color: #3b82f6;
+}
+
+:root[data-theme="dark"] .preferences-cache-stats {
+  background-color: #1a2d30;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .preferences-cache-stat-label {
+  color: #b0b9c1;
+}
+
+:root[data-theme="dark"] .preferences-cache-stat-value {
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .preferences-cache-stat-success {
+  color: #34d399;
+}
+
+:root[data-theme="dark"] .preferences-cache-stat-error {
+  color: #f87171;
+}
+
+:root[data-theme="dark"] .preferences-cache-stat-recent {
+  color: #60a5fa;
 }

@@ -1,0 +1,113 @@
+/* SavedLicitacionesPage Styles */
+
+.saved-page {
+  @apply min-h-screen py-8;
+  background: var(--main-bg);
+}
+
+.saved-page-container {
+  @apply max-w-6xl mx-auto px-4;
+}
+
+.saved-page-header {
+  @apply flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8;
+}
+
+.saved-page-header-content {
+  @apply flex-1;
+}
+
+.saved-page-title {
+  @apply text-3xl font-bold mb-2;
+  color: var(--text-primary);
+}
+
+.saved-page-subtitle {
+  @apply text-sm;
+  color: var(--text-muted);
+}
+
+.saved-page-refresh-btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all;
+  background: var(--panel-button);
+  color: var(--panel-button-text);
+  border: 1px solid var(--panel-border);
+}
+
+.saved-page-refresh-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.saved-page-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.saved-page-error {
+  @apply flex items-center gap-3 p-4 mb-6 rounded-lg border;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.saved-page-error-icon {
+  @apply text-2xl;
+}
+
+.saved-page-empty {
+  @apply text-center py-16;
+}
+
+.saved-page-empty-icon {
+  @apply text-6xl mb-4;
+}
+
+.saved-page-empty-title {
+  @apply text-2xl font-bold mb-3;
+  color: var(--text-primary);
+}
+
+.saved-page-empty-text {
+  @apply text-base max-w-md mx-auto;
+  color: var(--text-muted);
+}
+
+.saved-page-loading {
+  @apply text-center py-16 flex flex-col items-center gap-4;
+  color: var(--text-muted);
+}
+
+.saved-page-spinner {
+  @apply inline-block w-12 h-12 border-4 rounded-full;
+  border-color: var(--panel-button);
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.saved-page-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+/* Dark mode */
+:root[data-theme="dark"] .saved-page-error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+:root[data-theme="dark"] .saved-page-refresh-btn {
+  background: rgba(39, 197, 206, 0.2);
+  border-color: rgba(39, 197, 206, 0.3);
+  color: #e8f6f7;
+}
+
+:root[data-theme="dark"] .saved-page-refresh-btn:hover:not(:disabled) {
+  background: rgba(39, 197, 206, 0.3);
+  box-shadow: 0 4px 12px rgba(39, 197, 206, 0.2);
+}

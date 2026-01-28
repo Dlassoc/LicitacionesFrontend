@@ -68,7 +68,7 @@ const formatCOP = (val) => {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
 };
 
-export default memo(function ResultCard({ item = {}, onClick, analysisStatus }) {
+export default memo(function ResultCard({ item = {}, onClick, analysisStatus, isSaved, onToggleSave }) {
   const idx = useMemo(() => buildIndex(item), [item]);
 
   const urlResuelto = getUrlProceso(item);
@@ -167,6 +167,19 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus }) 
       className="result-card-container"
     >
       <span className="result-card-accent-bar" />
+      
+      {/* Botón de guardar/favoritos */}
+      <button
+        className={`result-card-save-btn ${isSaved ? 'saved' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSave && onToggleSave(item);
+        }}
+        title={isSaved ? 'Guardada' : 'Guardar licitación'}
+        aria-label={isSaved ? 'Quitar de guardadas' : 'Guardar licitación'}
+      >
+        {isSaved ? '★' : '☆'}
+      </button>
 
       <header className="result-card-header">
         <h3 className="result-card-title">
@@ -205,10 +218,10 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus }) 
       {/* Detalles del análisis - Mostrar indicadores encontrados */}
       {analysisStatus?.estado === 'completado' && analysisStatus?.requisitos && (
         <section className="result-card-analysis-details">
-          {/* Mostrar matrices con indicadores financieros */}
+          {/* Mostrar matrices con indicadores financieros - SIEMPRE visible si existen */}
           {analysisStatus.requisitos.matrices && Object.keys(analysisStatus.requisitos.matrices).length > 0 && (
             <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">💰 Indicadores Financieros:</h4>
+              <h4 className="result-card-analysis-title">💰 Indicadores Financieros Encontrados:</h4>
               <div className="result-card-analysis-indicators">
                 {Object.entries(analysisStatus.requisitos.matrices).map(([matrizTipo, indicadores]) => (
                   <div key={matrizTipo} className="result-card-matriz-group">

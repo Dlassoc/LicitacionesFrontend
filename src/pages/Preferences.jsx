@@ -37,6 +37,12 @@ export default function Preferences({ unlocked = true }) {
   const [retribucionRiesgoPropiedad, setRetribucionRiesgoPropiedad] = useState("");
   const [capacidadGenerarGanancias, setCapacidadGenerarGanancias] = useState("");
 
+  // Estado para estadísticas de caché
+  const [cacheStats, setCacheStats] = useState(null);
+  const [loadingCache, setLoadingCache] = useState(false);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [msgCache, setMsgCache] = useState("");
+
   const hasSavedSubs = subs.length > 0;
   const isActive = useMemo(() => unlocked || hasSavedSubs, [unlocked, hasSavedSubs]);
 
@@ -122,6 +128,62 @@ export default function Preferences({ unlocked = true }) {
     }
   }, []);
 
+  // NUEVO: Cargar estadísticas de caché
+  const loadCacheStats = useCallback(async () => {
+    if (!email) return;
+    setLoadingCache(true);
+    try {
+      const r = await fetch(`${API_BASE}/analysis/batch/cache/stats`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (!r.ok) {
+        setCacheStats(null);
+        return;
+      }
+      const data = await safeJson(r);
+      if (data?.ok) {
+        setCacheStats(data);
+      }
+    } catch {
+      setCacheStats(null);
+    } finally {
+      setLoadingCache(false);
+    }
+  }, [email]);
+
+  // NUEVO: Limpiar caché
+  const clearAnalysisCache = async () => {
+    if (!email) return;
+    if (!confirm("¿Estás seguro de que deseas limpiar el caché de análisis? Esto forzará el re-análisis de todas las licitaciones.")) {
+      return;
+    }
+    
+    setClearingCache(true);
+    setMsgCache("");
+    try {
+      const r = await fetch(`${API_BASE}/analysis/batch/cache/clear`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      const data = await safeJson(r);
+      if (data?.ok) {
+        setMsgCache(`✅ Se eliminaron ${data.deleted} análisis del caché`);
+        // Recargar estadísticas
+        await loadCacheStats();
+      } else {
+        setMsgCache(`❌ Error: ${data?.error || 'Error desconocido'}`);
+      }
+    } catch (e) {
+      setMsgCache(`❌ Error al limpiar caché: ${e.message}`);
+    } finally {
+      setClearingCache(false);
+    }
+  };
+
   useEffect(() => {
     loadSession();
   }, [loadSession]);
@@ -129,9 +191,10 @@ export default function Preferences({ unlocked = true }) {
   useEffect(() => {
     if (email) {
       loadSubs(email);
-      loadIndicadores();  // NUEVO: Cargar indicadores cuando hay email
+      loadIndicadores();
+      loadCacheStats();  // NUEVO: Cargar estadísticas de caché
     }
-  }, [email, loadSubs, loadIndicadores]);
+  }, [email, loadSubs, loadIndicadores, loadCacheStats]);
 
   // Guardar nombre cuando pierde el foco
   const saveName = async () => {
@@ -505,6 +568,70 @@ export default function Preferences({ unlocked = true }) {
           )}
         </div>
       </div>
+
+      {/* Estadísticas de Caché de Análisis */}
+      {email && (
+        <div className="preferences-section">
+          <h3 className="preferences-section-title">📊 Caché de Análisis</h3>
+          <div className="preferences-form">
+            {loadingCache ? (
+              <p className="preferences-loading-text preferences-grid-full">Cargando estadísticas...</p>
+            ) : cacheStats ? (
+              <>
+                <div className="preferences-cache-stats">
+                  <div className="preferences-cache-stat-item">
+                    <span className="preferences-cache-stat-label">Total de análisis:</span>
+                    <span className="preferences-cache-stat-value">{cacheStats.total_analisis || 0}</span>
+                  </div>
+                  <div className="preferences-cache-stat-item">
+                    <span className="preferences-cache-stat-label">Completados:</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-success">{cacheStats.completados || 0}</span>
+                  </div>
+                  <div className="preferences-cache-stat-item">
+                    <span className="preferences-cache-stat-label">Con errores:</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-error">{cacheStats.errores || 0}</span>
+                  </div>
+                  <div className="preferences-cache-stat-item">
+                    <span className="preferences-cache-stat-label">Recientes (24h):</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-recent">{cacheStats.recientes_24h || 0}</span>
+                  </div>
+                </div>
+                
+                <p className="preferences-helper-text preferences-grid-full">
+                  ℹ️ Los análisis se guardan por 1 hora. Limpiar el caché forzará el re-análisis de todas las licitaciones.
+                </p>
+
+                <div className="preferences-button-group preferences-grid-full">
+                  <button
+                    onClick={clearAnalysisCache}
+                    className="preferences-button preferences-button-secondary"
+                    disabled={clearingCache || cacheStats.total_analisis === 0}
+                  >
+                    {clearingCache ? "Limpiando..." : "🗑️ Limpiar Caché"}
+                  </button>
+                  <button
+                    onClick={loadCacheStats}
+                    className="preferences-button preferences-button-secondary"
+                    disabled={loadingCache}
+                  >
+                    🔄 Actualizar
+                  </button>
+                </div>
+
+                {msgCache && (
+                  <p className={`preferences-status-message preferences-grid-full ${msgCache.includes("❌") ? "preferences-status-error" : "preferences-status-success"}`}>
+                    {msgCache}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="preferences-helper-text preferences-grid-full">
+                No se pudieron cargar las estadísticas de caché.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Suscripciones */}
       {(loadingSubs || subs.length > 0) && (

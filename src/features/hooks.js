@@ -1,19 +1,125 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { API_ENDPOINTS } from "../config/api.js";
+
+// Claves para localStorage
+const STORAGE_KEYS = {
+  RESULTS: 'secop_search_results',
+  QUERY: 'secop_last_query',
+  TOTAL: 'secop_total',
+  OFFSET: 'secop_offset',
+  LIMIT: 'secop_limit'
+};
 
 /**
  * Hook de búsqueda para la API SECOP (Procesos)
  * Maneja paginación, filtros y chips de etiquetas activas.
+ * Ahora con persistencia en localStorage para mantener resultados al recargar.
  */
 export function useSearchResults(initialLimit = 21) {
-  const [resultados, setResultados] = useState([]);
+  // Flag para saber si los resultados vienen del localStorage (no de una búsqueda nueva)
+  const [isFromCache, setIsFromCache] = useState(() => {
+    try {
+      const savedResults = localStorage.getItem(STORAGE_KEYS.RESULTS);
+      const savedQuery = localStorage.getItem(STORAGE_KEYS.QUERY);
+      return !!(savedResults && savedQuery); // true si hay datos guardados
+    } catch {
+      return false;
+    }
+  });
+
+  // Inicializar estados desde localStorage si existen
+  const [resultados, setResultados] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [total, setTotal] = useState(0);
-  const [limit, setLimit] = useState(initialLimit);
-  const [offset, setOffset] = useState(0);
-  const [lastQuery, setLastQuery] = useState(null);
+  const [total, setTotal] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TOTAL);
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  
+  const [limit, setLimit] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LIMIT);
+      return saved ? parseInt(saved, 10) : initialLimit;
+    } catch {
+      return initialLimit;
+    }
+  });
+  
+  const [offset, setOffset] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.OFFSET);
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  
+  const [lastQuery, setLastQuery] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.QUERY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Guardar en localStorage cuando cambien los estados
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(resultados));
+    } catch (e) {
+      console.warn('Error guardando resultados:', e);
+    }
+  }, [resultados]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TOTAL, total.toString());
+    } catch (e) {
+      console.warn('Error guardando total:', e);
+    }
+  }, [total]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.LIMIT, limit.toString());
+    } catch (e) {
+      console.warn('Error guardando limit:', e);
+    }
+  }, [limit]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.OFFSET, offset.toString());
+    } catch (e) {
+      console.warn('Error guardando offset:', e);
+    }
+  }, [offset]);
+
+  useEffect(() => {
+    try {
+      if (lastQuery) {
+        localStorage.setItem(STORAGE_KEYS.QUERY, JSON.stringify(lastQuery));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.QUERY);
+      }
+    } catch (e) {
+      console.warn('Error guardando query:', e);
+    }
+  }, [lastQuery]);
 
   /**
    * Llama al backend /secop/buscar con los parámetros dados
@@ -84,20 +190,33 @@ export function useSearchResults(initialLimit = 21) {
       if (ciudad) baseParams.ciudad = ciudad;
 
       setLastQuery(baseParams);
+      setIsFromCache(false); // Marcar que ahora tenemos una búsqueda nueva, no del cache
       await fetchBuscar(baseParams);
     },
     [fetchBuscar, initialLimit]
   );
 
   /**
-   * Limpia resultados y errores
+   * Limpia resultados y errores (incluyendo localStorage)
    */
   const limpiar = useCallback(() => {
     setResultados([]);
     setTotal(0);
     setOffset(0);
     setLastQuery(null);
+    setIsFromCache(false);
     setError(null);
+    
+    // Limpiar también del localStorage
+    try {
+      localStorage.removeItem(STORAGE_KEYS.RESULTS);
+      localStorage.removeItem(STORAGE_KEYS.TOTAL);
+      localStorage.removeItem(STORAGE_KEYS.OFFSET);
+      localStorage.removeItem(STORAGE_KEYS.LIMIT);
+      localStorage.removeItem(STORAGE_KEYS.QUERY);
+    } catch (e) {
+      console.warn('Error limpiando localStorage:', e);
+    }
   }, []);
 
   /**
@@ -178,6 +297,7 @@ export function useSearchResults(initialLimit = 21) {
     limit,
     offset,
     lastQuery,
+    isFromCache,
     chips,
     setLimit,
     buscar,

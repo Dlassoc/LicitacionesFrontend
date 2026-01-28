@@ -318,7 +318,7 @@ export default function ResultModal({ open, item, onClose }) {
 
   // ✅ DEBUG: Loguear cuando cambia idPortafolio
   useEffect(() => {
-    console.log('📍 [MODAL] idPortafolio actualizado en ResultModal:', idPortafolio);
+
   }, [idPortafolio]);
 
   // ✅ NUEVO: Consultar si ya existe análisis batch completado
@@ -334,7 +334,7 @@ export default function ResultModal({ open, item, onClose }) {
   // ✅ NUEVO: Cancelar y resetear cuando cambia el idPortafolio (IMPORTANTE para evitar mezcla de datos)
   useEffect(() => {
     if (open && idPortafolio) {
-      console.log('🔄 [MODAL] Detectado cambio de idPortafolio, cancelando análisis anterior...');
+
       cancel?.();
     }
   }, [idPortafolio, open, cancel]);
@@ -349,7 +349,7 @@ export default function ResultModal({ open, item, onClose }) {
       wasOpenRef.current = true;
     } else if (wasOpenRef.current) {
       // Modal se cerró después de estar abierto
-      console.log('🛑 [CLEANUP] Modal se está cerrando, cancelando análisis...');
+
       cancel?.();
       wasOpenRef.current = false;
     }
@@ -380,21 +380,21 @@ export default function ResultModal({ open, item, onClose }) {
     
     // Si no hay documentos, no hacer nada
     if (docs.length === 0) {
-      console.warn('⚠️ No hay documentos para analizar');
+
       return;
     }
     
-    console.log(`📊 Iniciando análisis local de ${docs.length} documentos...`);
+
     // REMOVIDO: analyze() se dispara desde el effect principal abajo para evitar duplicados
   }, [docs.length, analyzing, analyzed, docsLoading]);
 
   // ✅ CORREGIDO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
   // Este effect SOLO se ejecuta cuando cambia idPortafolio
   useEffect(() => {
-    console.log('🔄 Portafolio cambió a:', idPortafolio);
+
     // Cancelar análisis anterior si existe y resetear para forzar uno nuevo
     if (analyzed) {
-      console.log('🔄 Limpiando análisis previo - nueva licitación detectada');
+
       cancel?.();
     }
   }, [idPortafolio, cancel]);
@@ -411,46 +411,46 @@ export default function ResultModal({ open, item, onClose }) {
 
     // Guards para no analizar
     if (!open) {
-      console.log('⏱️ Modal cerrado, no analizando');
+
       return;
     }
     
     if (docs.length === 0) {
-      console.log('⏱️ [WAIT] No hay documentos aún, esperando a que se carguen...');
+
       return;
     }
     
     if (docsLoading) {
-      console.log('⏱️ [WAIT] Documentos aún cargándose desde Socrata...');
+
       return;
     }
     
     if (analyzing) {
-      console.log('⏱️ [WAIT] Análisis en progreso...');
+
       return;
     }
     
     if (analyzed) {
-      console.log('⏱️ [WAIT] Análisis ya completado para idPortafolio:', idPortafolio);
+
       return;
     }
     
     // Si ya iniciamos análisis para este portafolio, no iniciar nuevamente
     if (analysisStartedRef.current === idPortafolio) {
-      console.log('⏱️ [SKIP] Análisis ya iniciado para este portafolio, omitiendo nueva ejecución');
+
       return;
     }
     
     // ✅ NUEVO: Si ya existe análisis batch completado, usarlo en lugar de analizar localmente
     if (batchStatus && batchStatus.estado === 'completado' && !batchLoading) {
-      console.log('✅ [BATCH] Análisis batch ya existe, omitiendo análisis local:', batchStatus);
+
       // El análisis batch ya se mostrará en la sección de análisis
       return;
     }
     
     // Si hay análisis batch en proceso, esperar
     if (batchStatus && (batchStatus.estado === 'pendiente' || batchStatus.estado === 'procesando')) {
-      console.log('⏱️ [BATCH] Análisis batch en progreso, omitiendo análisis local');
+
       return;
     }
     
@@ -463,7 +463,7 @@ export default function ResultModal({ open, item, onClose }) {
       batchStatus: batchStatus?.estado,
     });
     
-    console.log('🚀 Iniciando análisis automático local');
+
     
     // Marcar como iniciado para este portafolio
     analysisStartedRef.current = idPortafolio;
@@ -487,7 +487,7 @@ export default function ResultModal({ open, item, onClose }) {
       setDocs([]);
       setDebugQuery(null);
 
-      console.log(`📋 [${new Date().toLocaleTimeString()}] Iniciando búsqueda de documentos para: ${idPortafolio}`);
+
       setDocsLoading(true);
       const startTime = performance.now();
       
@@ -504,7 +504,7 @@ export default function ResultModal({ open, item, onClose }) {
         const url = `${DMGG_API}?${params.toString()}`;
         setDebugQuery({ DMGG_API, params: Object.fromEntries(params.entries()) });
 
-        console.log(`🔗 [${new Date().toLocaleTimeString()}] Consultando Socrata (intento ${retryCount + 1}/${maxRetries + 1})...`);
+
         const res = await fetch(url, { method: "GET" });
         const elapsed = (performance.now() - startTime).toFixed(0);
         
@@ -513,7 +513,7 @@ export default function ResultModal({ open, item, onClose }) {
           
           // Si es 503, reintentar después de un tiempo
           if (res.status === 503 && retryCount < maxRetries) {
-            console.warn(`⚠️ Socrata retornó 503, reintentando en 2 segundos... (${retryCount + 1}/${maxRetries})`);
+
             retryCount++;
             if (!abort) {
               setTimeout(() => {
@@ -527,16 +527,16 @@ export default function ResultModal({ open, item, onClose }) {
         }
         
         const raw = await res.json();
-        console.log(`✅ [${new Date().toLocaleTimeString()}] Socrata respondió en ${elapsed}ms con ${raw.length || 0} registros`);
+
 
         // 1) Mapeo
         const mapped = Array.isArray(raw) ? raw.map(mapDoc) : [];
-        console.log(`🔍 [DEDUP] ${mapped.length} documentos antes de deduplicación`);
+
         mapped.slice(0, 5).forEach((d, i) => console.log(`   [${i}] ${d.titulo} | URL: ${d.url?.substring(0, 80)}`));
         
         // 2) Deduplicación (huella por DocumentId/DocUniqueIdentifier)
         const deduped = dedupeDocs(mapped);
-        console.log(`🔍 [DEDUP] ${deduped.length} documentos después de deduplicación`);
+
         deduped.slice(0, 5).forEach((d, i) => console.log(`   [${i}] ${d.titulo} | URL: ${d.url?.substring(0, 80)}`));
         
         // 3) Mostrar sólo los que tienen URL descargable
@@ -545,7 +545,7 @@ export default function ResultModal({ open, item, onClose }) {
         // ✅ DEBUG: Mostrar qué documentos se perdieron por falta de URL
         const sinUrl = deduped.filter((d) => !d.url);
         if (sinUrl.length > 0) {
-          console.log(`⚠️ [SIN_URL] ${sinUrl.length} documentos sin URL (serán descartados):`);
+
           sinUrl.forEach((d, i) => console.log(`   [${i}] ${d.titulo}`));
         }
         
@@ -553,13 +553,13 @@ export default function ResultModal({ open, item, onClose }) {
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
         // ✅ CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
-        console.log(`📄 [${new Date().toLocaleTimeString()}] ${tagged.length} documentos encontrados en Socrata (sin filtrado IA aún)`);
+
         if (!abort) {
           setDocs(tagged);
           setDocsLoading(false);
         }
       } catch (e) {
-        console.error(`❌ [${new Date().toLocaleTimeString()}] Error cargando docs: ${e.message}`);
+
         if (!abort) {
           setDocsErr(e.message || "Error al cargar descargas");
           setDocsLoading(false);

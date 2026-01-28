@@ -8,6 +8,8 @@ import App from "./app/App.jsx";
 
 // IMPORTA las páginas que ya incluyen el Header:
 import PreferencesPage from "./pages/PreferencesPage.jsx";
+import SavedLicitacionesPage from "./pages/SavedLicitacionesPage.jsx";
+import RootLayout from "./layout/RootLayout.jsx";
 
 export default function Root() {
   return (
@@ -31,6 +33,18 @@ export default function Root() {
         element={
           <ProtectedRoute>
             <PreferencesPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* /app/saved - Licitaciones guardadas */}
+      <Route
+        path="/app/saved"
+        element={
+          <ProtectedRoute>
+            <RootLayout>
+              <SavedLicitacionesPage />
+            </RootLayout>
           </ProtectedRoute>
         }
       />

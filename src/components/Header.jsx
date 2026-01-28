@@ -102,6 +102,17 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                         </li>
                       )}
 
+                      <li>
+                        <Link
+                          to="/app/saved"
+                          className="menu-item"
+                          role="menuitem"
+                          onClick={() => setOpenMenu(false)}
+                        >
+                           Guardadas
+                        </Link>
+                      </li>
+
                       <li className="menu-sep" role="separator" />
 
                       <li>

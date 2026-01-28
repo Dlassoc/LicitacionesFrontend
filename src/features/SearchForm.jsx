@@ -47,23 +47,61 @@ const CIUDADES_COLOMBIA = {
   Vichada:["Puerto Carreño"]
 };
 
+// Claves para localStorage
+const FORM_STORAGE_KEY = 'secop_search_form';
+
 export default function SearchForm({ onBuscar, onClear }) {
-  const [termino, setTermino] = useState("");
-  const [fechaPubDesde, setFechaPubDesde] = useState("");
-  const [fechaPubHasta, setFechaPubHasta] = useState("");
-  const [fechaRecDesde, setFechaRecDesde] = useState("");
-  const [fechaRecHasta, setFechaRecHasta] = useState("");
-  const [departamento, setDepartamento] = useState("");
-  const [ciudad, setCiudad] = useState("");
+  // Cargar valores guardados del formulario
+  const loadFormData = () => {
+    try {
+      const saved = localStorage.getItem(FORM_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const savedData = loadFormData();
+
+  const [termino, setTermino] = useState(savedData.termino || "");
+  const [fechaPubDesde, setFechaPubDesde] = useState(savedData.fechaPubDesde || "");
+  const [fechaPubHasta, setFechaPubHasta] = useState(savedData.fechaPubHasta || "");
+  const [fechaRecDesde, setFechaRecDesde] = useState(savedData.fechaRecDesde || "");
+  const [fechaRecHasta, setFechaRecHasta] = useState(savedData.fechaRecHasta || "");
+  const [departamento, setDepartamento] = useState(savedData.departamento || "");
+  const [ciudad, setCiudad] = useState(savedData.ciudad || "");
   const [ciudadesFiltradas, setCiudadesFiltradas] = useState([]);
+
+  // Guardar formulario en localStorage cuando cambien los valores
+  useEffect(() => {
+    try {
+      const formData = {
+        termino,
+        fechaPubDesde,
+        fechaPubHasta,
+        fechaRecDesde,
+        fechaRecHasta,
+        departamento,
+        ciudad
+      };
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+    } catch (e) {
+      console.warn('Error guardando formulario:', e);
+    }
+  }, [termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, departamento, ciudad]);
 
   useEffect(() => {
     if (departamento && CIUDADES_COLOMBIA[departamento]) {
       setCiudadesFiltradas(CIUDADES_COLOMBIA[departamento]);
-      setCiudad("");
+      // Solo limpiar ciudad si el departamento cambió y la ciudad actual no está en la nueva lista
+      if (ciudad && !CIUDADES_COLOMBIA[departamento].includes(ciudad)) {
+        setCiudad("");
+      }
     } else {
       setCiudadesFiltradas([]);
-      setCiudad("");
+      if (departamento === "") {
+        setCiudad("");
+      }
     }
   }, [departamento]);
 
@@ -97,6 +135,14 @@ export default function SearchForm({ onBuscar, onClear }) {
     setDepartamento("");
     setCiudad("");
     setCiudadesFiltradas([]);
+    
+    // Limpiar también del localStorage
+    try {
+      localStorage.removeItem(FORM_STORAGE_KEY);
+    } catch (e) {
+      console.warn('Error limpiando formulario:', e);
+    }
+    
     onClear?.();
   };
 

@@ -23,7 +23,7 @@ export const useBatchAnalysisStatus = (idPortafolio) => {
 
       try {
         const response = await fetch(
-          `${API_BASE}/analysis/status/${idPortafolio}`,
+          `${API_BASE}/analysis/batch/status/${idPortafolio}`,
           {
             credentials: 'include',
             headers: {
