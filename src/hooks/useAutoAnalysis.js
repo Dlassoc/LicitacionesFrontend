@@ -5,7 +5,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_B
 
 /**
  * Hook para análisis automático de licitaciones en background.
- * Analiza secuencialmente: página 1 → página 2 → página 3
+ * Analiza SOLO las páginas que realmente existen en los resultados.
+ * No intenta analizar páginas que no existen.
  * 
  * @param {Array} licitaciones - Array de objetos con ID_Portafolio (página actual)
  * @param {Object} paginationInfo - Info de paginación {lastQuery, offset, limit, total}
@@ -15,6 +16,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
   const [analysisStatus, setAnalysisStatus] = useState({});
   const [isPolling, setIsPolling] = useState(false);
   const [pageIndex, setPageIndex] = useState(0); // 0=página 1, 1=página 2, 2=página 3
+  const [allResultados, setAllResultados] = useState([]); // Acumular resultados de TODAS las páginas
   const intervalRef = useRef(null);
   const pollingCountRef = useRef(0);
   const triggerSentRef = useRef(false);
@@ -23,6 +25,16 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
   const cachedIdsRef = useRef(new Set()); // Track IDs that are already cached
 
   const { lastQuery, offset, limit, total } = paginationInfo;
+
+  // Calcular total de páginas que realmente existen
+  // ⚠️ PRUEBA: Limitar a máximo 1 página para testing rápido (sin OCR latency)
+  const MAX_PAGES_FOR_TESTING = 1;
+  const calculatedTotalPages = limit && total ? Math.ceil(total / limit) : 1;
+  const totalPages = Math.min(calculatedTotalPages, MAX_PAGES_FOR_TESTING);
+  
+  if (calculatedTotalPages !== totalPages) {
+    console.log(`[AUTO_ANALYSIS] 🧪 MODO TEST: Limitando análisis de ${calculatedTotalPages} a ${MAX_PAGES_FOR_TESTING} página(s)`);
+  }
 
   // 1. Cargar caché inicial para las licitaciones actuales
   useEffect(() => {
@@ -51,8 +63,14 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
             
             const data = await response.json();
             
-            if (data.ok && data.estado === 'completado') {
-              newCachedIds.add(id);
+            console.log(`[AUTO_ANALYSIS] Respuesta para ${id}:`, {
+              ok: data.ok,
+              estado: data.estado,
+              cumple: data.cumple,
+              porcentaje: data.porcentaje
+            });
+            
+            if (data.ok) {
               const newStatus = {
                 estado: data.estado,
                 cumple: data.cumple,
@@ -62,21 +80,28 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
                 error_message: data.error_message
               };
               
-              console.log(`[AUTO_ANALYSIS] CACHÉ ENCONTRADO para ${id}:`, data.estado);
+              if (data.estado === 'completado') {
+                newCachedIds.add(id);
+                console.log(`[AUTO_ANALYSIS] ✅ CACHÉ ENCONTRADO para ${id}: cumple=${data.cumple}`);
+              } else {
+                console.log(`[AUTO_ANALYSIS] ⏳ No completado para ${id}: estado=${data.estado}`);
+              }
               
               setAnalysisStatus(prev => ({
                 ...prev,
                 [id]: newStatus
               }));
+            } else {
+              console.log(`[AUTO_ANALYSIS] ❌ No OK para ${id}`);
             }
           } catch (error) {
-            // Silenciar errores
+            console.error(`[AUTO_ANALYSIS] Error fetching ${id}:`, error);
           }
         }));
       }
 
       cachedIdsRef.current = newCachedIds;
-      console.log(`[AUTO_ANALYSIS] Caché cargado: ${newCachedIds.size} de ${ids.length} licitaciones ya analizadas`);
+      console.log(`[AUTO_ANALYSIS] Caché cargado: ${newCachedIds.size} de ${ids.length} licitaciones completadas`);
     };
 
     checkCachedStatus();
@@ -99,10 +124,39 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
     const isNewSearch = lastQueryRef.current !== JSON.stringify(lastQuery);
     
     if (isNewSearch) {
-      console.log('[ANÁLISIS_SEQ] Nueva búsqueda detectada, iniciando análisis secuencial');
+      console.log('[ANÁLISIS_SEQ] 🆕 NUEVA BÚSQUEDA DETECTADA - Cancelando análisis anterior...');
+      
+      // NOTIFICAR AL BACKEND para cancelar análisis en progreso
+      fetch(`${API_BASE}/analysis/batch/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            console.log('[ANÁLISIS_SEQ] ✅ Backend canceló análisis anterior');
+          }
+        })
+        .catch(err => console.error('[ANÁLISIS_SEQ] Error cancelando:', err));
+      
+      // CANCELAR polling anterior
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      
+      // Resetear estado
       lastQueryRef.current = JSON.stringify(lastQuery);
       setPageIndex(0); // Resetear a página 1
       triggerSentRef.current = false;
+      pollingCountRef.current = 0;
+      setIsPolling(false); // Detener indicador de análisis
+      setAllResultados([]); // Limpiar resultados acumulados
+      setAnalysisStatus({}); // Limpiar estado de análisis anterior
+      cachedIdsRef.current = new Set(); // Resetear caché
+      
+      console.log('[ANÁLISIS_SEQ] ✅ Estado limpiado. Preparado para nueva búsqueda');
     }
 
     // Si es la misma búsqueda y ya se envió, no hacer nada
@@ -132,61 +186,42 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
       console.log(`[ANÁLISIS_SEQ] Página ${pageIndex + 1}: TODAS las licitaciones están en caché, pasando a siguiente página...`);
       triggerSentRef.current = true;
       setTimeout(() => {
-        if (pageIndex < 2) {
+        // Solo pasar a siguiente página si existe
+        if (pageIndex < totalPages - 1) {
           triggerSentRef.current = false;
           setPageIndex(prev => prev + 1);
+        } else {
+          console.log(`[ANÁLISIS_SEQ] ✅ NO HAY MÁS PÁGINAS (total: ${totalPages}). Análisis completado.`);
         }
       }, 1000);
     }
   }, [licitaciones, lastQuery, pageIndex]);
 
-  // 1.5. Cargar caché inicial
+  // 2.5. Acumular resultados de cada página (sin limpiar al cambiar búsqueda)
   useEffect(() => {
     if (!licitaciones || licitaciones.length === 0) return;
-
-    const ids = licitaciones
-      .map(lic => lic.ID_Portafolio || lic.id_del_portafolio)
-      .filter(Boolean);
-
-    if (ids.length === 0) return;
-
-    const checkCachedStatus = async () => {
-      const batchSize = 5;
-      for (let i = 0; i < Math.min(ids.length, 10); i += batchSize) {
-        const batch = ids.slice(i, i + batchSize);
-        await Promise.all(batch.map(async (id) => {
-          try {
-            const response = await fetch(
-              `${API_BASE}/analysis/batch/status/${encodeURIComponent(id)}`,
-              { credentials: 'include' }
-            );
-            
-            const data = await response.json();
-            
-            if (data.ok && data.estado === 'completado') {
-              const newStatus = {
-                estado: data.estado,
-                cumple: data.cumple,
-                porcentaje: data.porcentaje,
-                detalles: data.detalles,
-                requisitos: data.requisitos_extraidos,
-                error_message: data.error_message
-              };
-              
-              setAnalysisStatus(prev => ({
-                ...prev,
-                [id]: newStatus
-              }));
-            }
-          } catch (error) {
-            // Silenciar errores
-          }
-        }));
+    
+    // Solo acumular si NO es una nueva búsqueda
+    const currentQueryStr = JSON.stringify(lastQuery);
+    if (lastQueryRef.current === currentQueryStr) {
+      // Misma búsqueda, acumular resultados
+      if (pageIndex === 0) {
+        // Primera página: reemplazar
+        setAllResultados(licitaciones);
+      } else {
+        // Siguientes páginas: agregar sin duplicados
+        setAllResultados(prev => {
+          const existingIds = new Set(prev.map(l => l.ID_Portafolio || l.id_del_portafolio));
+          const newItems = licitaciones.filter(l => {
+            const id = l.ID_Portafolio || l.id_del_portafolio;
+            return !existingIds.has(id);
+          });
+          console.log(`[ANÁLISIS_SEQ] Acumulando página ${pageIndex + 1}: ${newItems.length} items nuevos`);
+          return [...prev, ...newItems];
+        });
       }
-    };
-
-    checkCachedStatus();
-  }, [licitaciones]);
+    }
+  }, [pageIndex, licitaciones]);
 
   // 3. Polling para consultar estado del batch - IMPORTANTE: NO incluir pageIndex en dependencias
   useEffect(() => {
@@ -205,13 +240,18 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
         }
         // Disparar análisis de siguiente página después de terminar
         setPageIndex(prev => {
-          if (prev < 2) {
-            console.log(`[ANÁLISIS_SEQ] Página ${prev + 1} completada, preparando página ${prev + 2}`);
+          const nextPage = prev + 1;
+          // Solo pasar a siguiente página si existe
+          if (nextPage < totalPages) {
+            console.log(`[ANÁLISIS_SEQ] Página ${prev + 1} completada, preparando página ${nextPage + 1} (total: ${totalPages})`);
             setTimeout(() => {
               triggerSentRef.current = false;
             }, 100);
+            return nextPage;
+          } else {
+            console.log(`[ANÁLISIS_SEQ] ✅ Página ${prev + 1} completada. NO HAY MÁS PÁGINAS (total: ${totalPages}). Análisis completado.`);
+            return prev;
           }
-          return prev + 1;
         });
         return;
       }
@@ -272,12 +312,17 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
         
         // Disparar siguiente página después de corto delay
         setPageIndex(prev => {
-          if (prev < 2) {
+          const nextPage = prev + 1;
+          // Solo pasar a siguiente página si existe
+          if (nextPage < totalPages) {
             setTimeout(() => {
               triggerSentRef.current = false;
             }, 100);
+            return nextPage;
+          } else {
+            console.log(`[ANÁLISIS_SEQ] ✅ Todas las páginas analizadas (total: ${totalPages})`);
+            return prev;
           }
-          return prev + 1;
         });
       }
     };
@@ -325,6 +370,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
   return { 
     analysisStatus, 
     isPolling,
-    pageIndex
+    pageIndex,
+    allResultados  // Retornar todos los resultados de todas las páginas
   };
 }

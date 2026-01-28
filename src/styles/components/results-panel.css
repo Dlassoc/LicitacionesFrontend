@@ -217,3 +217,33 @@
   background: rgba(39, 197, 206, 0.05);
   border-color: rgba(39, 197, 206, 0.2);
 }
+
+:root[data-theme="dark"] .rp-category-title {
+  color: #e8f6f7;
+  border-bottom-color: rgba(39, 197, 206, 0.3);
+}
+
+/* ============================= SECCIONES COLAPSABLES ============================= */
+
+.rp-category-title-collapsible {
+  cursor: pointer !important;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.rp-category-title-collapsible:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.rp-collapse-icon {
+  @apply inline-block text-sm font-bold;
+  display: inline-flex;
+  align-items: center;
+  width: 1.2em;
+  transition: transform 0.2s ease;
+}
+
+.rp-category-title-collapsible:hover .rp-collapse-icon {
+  transform: scale(1.1);
+}

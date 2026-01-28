@@ -290,10 +290,34 @@ export default function Preferences({ unlocked = true }) {
 
       setMsgPrefs("Preferencias de correo guardadas correctamente");
       await loadSubs(email);
+      
+      // 🆕 AUTO-BUSCAR: Después de guardar preferencias, buscar automáticamente licitaciones
+      console.log('[PREFERENCES] Preferencias guardadas. Buscando licitaciones con palabras clave:', palabras);
+      await buscarLicitacionesAutomaticamente(palabras, departamento, ciudad);
+      
     } catch (e) {
       setMsgPrefs("Error al guardar preferencias: " + (e.message || ""));
     } finally {
       setSavingPrefs(false);
+    }
+  };
+
+  // 🆕 Función para buscar y mostrar licitaciones automáticamente
+  const buscarLicitacionesAutomaticamente = async (palabrasClave, dept, ciud) => {
+    try {
+      // Construir query de búsqueda
+      const queryParams = new URLSearchParams();
+      if (palabrasClave?.trim()) queryParams.append('q', palabrasClave.trim());
+      if (dept) queryParams.append('departamento', dept);
+      if (ciud) queryParams.append('ciudad', ciud);
+      
+      const searchUrl = `/app?${queryParams.toString()}`;
+      console.log('[PREFERENCES] Redirigiendo a búsqueda:', searchUrl);
+      
+      // Redirigir a la página de búsqueda con los parámetros
+      window.location.href = searchUrl;
+    } catch (e) {
+      console.error('[PREFERENCES] Error en búsqueda automática:', e);
     }
   };
 
