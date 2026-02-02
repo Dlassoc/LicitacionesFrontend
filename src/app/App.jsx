@@ -5,6 +5,7 @@ import ResultsPanel from "../components/ResultsPanel.jsx";
 import ResultModal from "../components/ResultModal.jsx";
 import { useSearchResults } from "../features/hooks.js";
 import { useSavedLicitaciones } from "../hooks/useSavedLicitaciones.js";
+import { useMatchedLicitaciones } from "../hooks/useMatchedLicitaciones.js"; // 🆕
 import { useAuth } from "../auth/AuthContext.jsx";
 import SplashScreen from "../components/SplashScreen.jsx";
 import WelcomeToast from "../components/WelcomeToast.jsx";
@@ -21,6 +22,7 @@ export default function App() {
   } = useSearchResults(21);
   
   const { saveLicitacion, unsaveLicitacion, checkIfSaved, loadSaved, savedIds, toggleSavedIdOptimistic } = useSavedLicitaciones();
+  const { matchedLicitaciones, loadingMatched, errorMatched, loadMatched, clearMatched } = useMatchedLicitaciones(); // 🆕
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -30,6 +32,7 @@ export default function App() {
   const [searching, setSearching] = useState(false);
   const [fromAutoPreferences, setFromAutoPreferences] = useState(false); // 🆕 Marca si la búsqueda es desde preferencias automáticas
   const [preferredKeywords, setPreferredKeywords] = useState(null); // 🆕 Palabras clave preferidas del usuario
+  const [showingMatched, setShowingMatched] = useState(false); // 🆕 Flag para saber si estamos mostrando licitaciones aptas
   const hasInitialized = useRef(false); // 🆕 Flag para ejecutar auto-búsqueda solo UNA VEZ
   
   const handleBuscar = async (...args) => {
@@ -131,6 +134,14 @@ export default function App() {
       loadSaved();
     }
   }, [ready, user, loadSaved]);
+  
+  // 🆕 Cargar licitaciones aptas al iniciar
+  useEffect(() => {
+    if (ready && user) {
+      console.log('[APP] 📥 Cargando licitaciones aptas en el inicio...');
+      loadMatched();
+    }
+  }, [ready, user, loadMatched]);
   
   // 🆕 AUTO-BUSCAR: Ejecutar UNA SOLA VEZ al montar el componente
   useEffect(() => {
@@ -247,19 +258,20 @@ export default function App() {
       )}
 
       <ResultsPanel
-        resultados={resultados}
-        loading={loading}
-        error={error}
-        total={total}
+        resultados={!resultados || resultados.length === 0 ? matchedLicitaciones : resultados}
+        loading={loading || loadingMatched}
+        error={error || errorMatched}
+        total={total || matchedLicitaciones.length}
         limit={limit}
         offset={offset}
-        lastQuery={lastQuery}
-        isFromCache={isFromCache && !fromAutoPreferences}
+        lastQuery={lastQuery || (!resultados || resultados.length === 0 ? 'Licitaciones aptas guardadas' : '')}
+        isFromCache={!resultados || resultados.length === 0 ? false : (isFromCache && !fromAutoPreferences)}
         savedIds={savedIds}
         onPage={goPage}
         onItemClick={abrirModal}
         onToggleSave={handleToggleSave}
         preferredKeywords={preferredKeywords}
+        showingMatched={!resultados || resultados.length === 0}
       />
 
       <ResultModal 

@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { API_ENDPOINTS } from "../config/api.js";
+import { getFinalDateRange } from "../utils/dateHelpers.js";
 
 // Claves para localStorage
 const STORAGE_KEYS = {
@@ -158,23 +159,15 @@ export function useSearchResults(initialLimit = 21) {
    * Ejecuta una nueva búsqueda con los filtros dados
    */
   const buscar = useCallback(
-    async (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento) => {
+    async (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado) => {
       // Validación del término
       if (!termino || !termino.trim()) {
         console.warn("El término de búsqueda es requerido");
         return;
       }
 
-      // Fecha obligatoria: "Presentación de Ofertas" enero 2025 (BD no actualizada con 2026)
-      let finalFechaRecDesde = fechaRecDesde;
-      let finalFechaRecHasta = fechaRecHasta;
-      
-      if (!finalFechaRecDesde) {
-        finalFechaRecDesde = "2025-01-01"; // Desde inicio de enero 2025
-      }
-      if (!finalFechaRecHasta) {
-        finalFechaRecHasta = "2025-01-31"; // Hasta fin de enero 2025
-      }
+      // Fecha obligatoria: "Presentación de Ofertas" mes actual (BD actualizada)
+      const { finalFechaRecDesde, finalFechaRecHasta } = getFinalDateRange(fechaRecDesde, fechaRecHasta);
 
       const baseParams = {
         palabras_clave: termino.trim(),
@@ -188,6 +181,8 @@ export function useSearchResults(initialLimit = 21) {
       if (finalFechaRecHasta) baseParams.fecha_rec_hasta = finalFechaRecHasta;
       if (departamento) baseParams.departamento = departamento;
       if (ciudad) baseParams.ciudad = ciudad;
+      if (fase) baseParams.fase = fase;
+      if (estado) baseParams.estado = estado;
 
       setLastQuery(baseParams);
       setIsFromCache(false); // Marcar que ahora tenemos una búsqueda nueva, no del cache

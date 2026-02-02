@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
-import { useAutoAnalysis } from "../hooks/useAutoAnalysis.js";
+import { useAutoAnalysis } from "../hooks/useAutoAnalysis.js";  // ✅ RESTAURADO - Ahora sin loops infinitos
 import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
@@ -10,18 +10,19 @@ export default function ResultsPanel({
   onPage,
   onItemClick,
   onToggleSave,
-  preferredKeywords
+  preferredKeywords,
+  showingMatched = false // 🆕 Flag para indicar si estamos mostrando licitaciones aptas
 }) {
-  const [filterCategory, setFilterCategory] = useState('all'); // 'all', 'cumple', 'no-cumple'
+  const [filterCategory, setFilterCategory] = useState('cumple'); // 🆕 Por defecto mostrar solo las que CUMPLEN
   const [showOnlyMatching, setShowOnlyMatching] = useState(false); // 🆕 Mostrar solo coincidencias (desactivado por defecto)
   const [expandedSections, setExpandedSections] = useState({
-    cumple: false,      // Oculto por defecto
-    noCumple: true,     // Visible por defecto
+    cumple: true,       // 🆕 VISIBLE por defecto - Licitaciones que el usuario PUEDE aplicar
+    noCumple: false,    // 🆕 OCULTO por defecto - Licitaciones que el usuario NO puede aplicar
     sinAnalizar: false  // Oculto por defecto
   });
   
-  // Hook para análisis automático en background
-  const { analysisStatus, isPolling, pageIndex, allResultados } = useAutoAnalysis(resultados, {
+  // ✅ RESTAURADO - Hook para análisis automático en background (corregido para no causar loops infinitos)
+  const { analysisStatus, isPolling, pageIndex, allResultados, resumen } = useAutoAnalysis(resultados, {
     lastQuery,
     offset,
     limit,
@@ -39,8 +40,6 @@ export default function ResultsPanel({
     allResultados?.forEach((item) => {
       const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
       const status = analysisStatus[idPortafolio];
-
-      console.log(`[FILTER_DEBUG] ${idPortafolio}: cumple=${status?.cumple}, tiene_requisitos=${!!status?.requisitos}`);
 
       if (!status || status.estado !== 'completado') {
         // No analizado o en proceso
@@ -73,7 +72,6 @@ export default function ResultsPanel({
       }
     });
 
-    console.log(`[FILTER_DEBUG] Categorización: Cumple=${c.length}, NoCumple=${nc.length}, SinAnalizar=${sa.length}, ConIndicadores=${ci.length}`);
     return { cumple: c, noCumple: nc, sinAnalizar: sa, conIndicadores: ci };
   }, [allResultados, analysisStatus]);
 
@@ -180,19 +178,57 @@ export default function ResultsPanel({
                 )} • Desde ${total === 0 ? 0 : offset + 1}`
               : hasResults
               ? `Última búsqueda guardada • ${total.toLocaleString("es-CO")} resultados • Desde ${total === 0 ? 0 : offset + 1}`
-              : "Realiza una búsqueda para ver resultados"}
+              : "Sin resultados"
+            }
           </div>
-          {/* Indicador de análisis en progreso */}
+          
+          {/* 🆕 Información de análisis automático */}
           {isPolling && (
-            <div className="rp-analyzing-indicator">
-              <span className="rp-analyzing-spinner"></span>
-              <span className="rp-analyzing-text">Analizando página {pageIndex + 1}/3...</span>
+            <div className="rp-analysis-info" style={{
+              fontSize: '0.85rem',
+              color: '#666',
+              marginTop: '8px',
+              padding: '8px',
+              backgroundColor: '#f5f5f5',
+              borderRadius: '4px',
+              borderLeft: '3px solid #0066cc'
+            }}>
+              <div>🔍 <strong>Análisis en progreso:</strong></div>
+              <div>
+                • Total a analizar: <strong>{allResultados.length}</strong> licitaciones
+              </div>
+              <div>
+                • Páginas: <strong>{Math.ceil((total || 0) / (limit || 21))}</strong> página{Math.ceil((total || 0) / (limit || 21)) !== 1 ? 's' : ''}
+              </div>
+              <div>
+                • Query: <strong>{typeof lastQuery === 'string' ? lastQuery : lastQuery?.termino || 'automática'}</strong>
+              </div>
+              <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ddd' }}>
+                ✅ {resumen?.completados || 0} • 🔄 {resumen?.enProceso || 0} • ⏳ {resumen?.noIniciados || 0} • 💾 {resumen?.cumpliendo || 0} guardadas
+              </div>
             </div>
           )}
         </div>
+        
+        {/* Indicador de análisis en progreso */}
+        {isPolling && (
+          <div className="rp-analyzing-indicator">
+            <span className="rp-analyzing-spinner"></span>
+            <span className="rp-analyzing-text">Analizando licitaciones en background...</span>
+          </div>
+        )}
 
         {showResults && (
           <div className="rp-body">
+            {/* 🆕 Banner cuando estamos mostrando licitaciones aptas guardadas */}
+            {showingMatched && (
+              <div className="rp-info-banner" style={{backgroundColor: '#e8f5e9', borderColor: '#4caf50'}}>
+                <span className="rp-info-text">
+                  ✅ Mostrando <strong>{resultados.length} licitaciones</strong> que detectamos como aptas para ti. Realiza una búsqueda para ver más opciones.
+                </span>
+              </div>
+            )}
+            
             {/* 🆕 Banner cuando hay palabras clave preferidas */}
             {preferredKeywords && preferredKeywords.length > 0 && !showOnlyMatching && (
               <div className="rp-info-banner" style={{backgroundColor: '#e8f4f8', borderColor: '#4db8d4'}}>

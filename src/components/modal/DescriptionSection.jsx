@@ -4,18 +4,8 @@
  */
 
 import { useMemo, useCallback } from "react";
+import { renderVal, previewText } from "../../utils/commonHelpers.js";
 import "../../styles/components/description-section.css";
-
-// Funciones helper (fuera del componente para estabilidad)
-const renderVal = (v) => {
-  if (v === null || v === undefined || v === "") return "No disponible";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "No disponible";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
-};
-
-const previewText = (txt, maxChars = 420) =>
-  txt.length > maxChars ? txt.slice(0, maxChars).trim() + "…" : txt;
 
 export default function DescriptionSection({ descEntries, descExpanded, setDescExpanded }) {
   if (descEntries.length === 0) return null;

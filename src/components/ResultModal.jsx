@@ -9,6 +9,7 @@ import DescriptionSection from "./modal/DescriptionSection.jsx";
 import CategoriesSection from "./modal/CategoriesSection.jsx";
 import DownloadsSection from "./modal/DownloadsSection.jsx";
 import AnalysisSection from "./modal/AnalysisSection.jsx";
+import { renderVal, previewText, isDescriptionKey, normWs, norm, prettyKey } from "../utils/commonHelpers.js";
 import "../styles/components/result-modal.css";
 
 /* ==== Helpers para hallar ID_Portafolio de forma robusta ==== */
@@ -106,8 +107,6 @@ const mapDoc = (doc) => {
 };
 
 /* ========= Deduplicación de documentos (evita duplicados del dataset) ========= */
-const normWs = (s) => String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
-
 /* Huella canónica de URL SECOP: extrae DocumentId o DocUniqueIdentifier.
    Si no hay, normaliza host/path/query en minúsculas pero conservando el valor. */
 function secopFingerprint(u) {
@@ -190,7 +189,7 @@ function dedupeDocs(docs) {
 }
 
 /* ========= Reglas para detectar el documento candidato y resaltarlo ========= */
-const norm = (s) =>
+const normalizeForMatching = (s) =>
   String(s || "")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
@@ -235,8 +234,8 @@ function tagFinancialIndicatorDocs(docs) {
   let bestReason = "";
 
   const scored = docs.map((d, i) => {
-    const t  = norm(d.titulo);
-    const tp = norm(d.tipo);
+    const t  = normalizeForMatching(d.titulo);
+    const tp = normalizeForMatching(d.tipo);
     let score = 0;
     let reason = "";
 
@@ -274,25 +273,6 @@ function tagFinancialIndicatorDocs(docs) {
 
   return tagged.map(({ _score, _reason, ...rest }) => rest);
 }
-
-/* ======== Funciones helper para el componente ======== */
-const prettyKey = (k) =>
-  k.replace(/_/g, " ")
-   .replace(/([A-Z])/g, " $1")
-   .replace(/\s+/g, " ")
-   .trim();
-
-const renderVal = (v) => {
-  if (v === null || v === undefined || v === "") return "No disponible";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "No disponible";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
-};
-
-const previewText = (txt, maxChars = 320) =>
-  txt.length > maxChars ? txt.slice(0, maxChars).trim() + "…" : txt;
-
-const isDescriptionKey = (k) => /descripci[oó]n/i.test(k);
 
 const OMIT_FIELDS = new Set(["Enlace_oficial", "Documentos", "URL_Proceso", "ID_Portafolio", "id_del_portafolio", "Codigo_categoria", "Categorias_adicionales"]);
 

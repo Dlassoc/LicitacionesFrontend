@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getFinalDateRange } from "../utils/dateHelpers.js";
 import "../styles/features/search-form.css";
 
 // listas como en tu versión
@@ -71,6 +72,8 @@ export default function SearchForm({ onBuscar, onClear }) {
   const [departamento, setDepartamento] = useState(savedData.departamento || "");
   const [ciudad, setCiudad] = useState(savedData.ciudad || "");
   const [ciudadesFiltradas, setCiudadesFiltradas] = useState([]);
+  const [fase, setFase] = useState(savedData.fase || "Presentación de Ofertas");
+  const [estado, setEstado] = useState(savedData.estado || "Abierto");
 
   // Guardar formulario en localStorage cuando cambien los valores
   useEffect(() => {
@@ -82,13 +85,15 @@ export default function SearchForm({ onBuscar, onClear }) {
         fechaRecDesde,
         fechaRecHasta,
         departamento,
-        ciudad
+        ciudad,
+        fase,
+        estado
       };
       localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
     } catch (e) {
       console.warn('Error guardando formulario:', e);
     }
-  }, [termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, departamento, ciudad]);
+  }, [termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, departamento, ciudad, fase, estado]);
 
   useEffect(() => {
     if (departamento && CIUDADES_COLOMBIA[departamento]) {
@@ -112,18 +117,10 @@ export default function SearchForm({ onBuscar, onClear }) {
       return;
     }
     
-    // Aplicar rango de enero 2025 si está vacío (BD no actualizada con 2026)
-    let finalFechaRecDesde = fechaRecDesde;
-    let finalFechaRecHasta = fechaRecHasta;
+    // Aplicar rango del mes actual si está vacío (BD actualizada)
+    const { finalFechaRecDesde, finalFechaRecHasta } = getFinalDateRange(fechaRecDesde, fechaRecHasta);
     
-    if (!finalFechaRecDesde) {
-      finalFechaRecDesde = "2025-01-01"; // Desde inicio de enero 2025
-    }
-    if (!finalFechaRecHasta) {
-      finalFechaRecHasta = "2025-01-31"; // Hasta fin de enero 2025
-    }
-    
-    onBuscar(termino, fechaPubDesde, fechaPubHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento);
+    onBuscar(termino, fechaPubDesde, fechaPubHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento, fase, estado);
   };
 
   const handleClear = () => {
@@ -135,6 +132,8 @@ export default function SearchForm({ onBuscar, onClear }) {
     setDepartamento("");
     setCiudad("");
     setCiudadesFiltradas([]);
+    setFase("Presentación de Ofertas");
+    setEstado("Abierto");
     
     // Limpiar también del localStorage
     try {
@@ -202,6 +201,30 @@ export default function SearchForm({ onBuscar, onClear }) {
             onChange={(e) => setFechaRecHasta(e.target.value)}
             className="search-form-date-input"
           />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Fase</label>
+          <select
+            value={fase}
+            onChange={(e) => setFase(e.target.value)}
+            className="search-form-select"
+          >
+            <option value="Presentación de Ofertas">Presentación de Ofertas</option>
+            <option value="">Todas las Fases</option>
+          </select>
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Estado</label>
+          <select
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            className="search-form-select"
+          >
+            <option value="Abierto">Abierto</option>
+            <option value="">Todos los Estados</option>
+          </select>
         </div>
 
         <div className="search-form-button-group">
