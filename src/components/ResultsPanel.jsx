@@ -22,7 +22,7 @@ export default function ResultsPanel({
   });
   
   // ✅ RESTAURADO - Hook para análisis automático en background (corregido para no causar loops infinitos)
-  const { analysisStatus, isPolling, pageIndex, allResultados, resumen } = useAutoAnalysis(resultados, {
+  const { analysisStatus, isPolling, pageIndex, allResultados, resumen, paginationStatus } = useAutoAnalysis(resultados, {
     lastQuery,
     offset,
     limit,
@@ -198,7 +198,7 @@ export default function ResultsPanel({
                 • Total a analizar: <strong>{allResultados.length}</strong> licitaciones
               </div>
               <div>
-                • Páginas: <strong>{Math.ceil((total || 0) / (limit || 21))}</strong> página{Math.ceil((total || 0) / (limit || 21)) !== 1 ? 's' : ''}
+                • Página <strong>{paginationStatus?.currentPage || 1}/{paginationStatus?.totalPages || 1}</strong>
               </div>
               <div>
                 • Query: <strong>{typeof lastQuery === 'string' ? lastQuery : lastQuery?.termino || 'automática'}</strong>
@@ -206,6 +206,11 @@ export default function ResultsPanel({
               <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ddd' }}>
                 ✅ {resumen?.completados || 0} • 🔄 {resumen?.enProceso || 0} • ⏳ {resumen?.noIniciados || 0} • 💾 {resumen?.cumpliendo || 0} guardadas
               </div>
+              {paginationStatus?.esUltimaPagina && (
+                <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ddd', color: '#d32f2f', fontWeight: 'bold' }}>
+                  🏁 Última página - El análisis se detendrá cuando todos completen
+                </div>
+              )}
             </div>
           )}
         </div>

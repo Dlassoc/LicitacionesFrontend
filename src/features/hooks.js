@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { API_ENDPOINTS } from "../config/api.js";
+import API_BASE_URL from "../config/api.js";
 import { getFinalDateRange } from "../utils/dateHelpers.js";
 
 // Claves para localStorage
@@ -143,6 +144,33 @@ export function useSearchResults(initialLimit = 21) {
         setTotal(data.total || 0);
         setLimit(data.limit || paramsObj.limit || initialLimit);
         setOffset(data.offset || 0);
+        
+        // 🆕 Cargar análisis existentes en la BD para los resultados encontrados
+        if (data.resultados && data.resultados.length > 0) {
+          try {
+            const ids = data.resultados
+              .map(r => r.ID_Portafolio || r.id_del_portafolio)
+              .filter(Boolean);
+            
+            if (ids.length > 0) {
+              const existingRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analysis/batch/existing`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ ids })
+              });
+              
+              if (existingRes.ok) {
+                const existingData = await existingRes.json();
+                console.log('[SEARCH] Análisis existentes cargados:', Object.keys(existingData.data || {}).length);
+                // El hook useAutoAnalysis usará esta información
+              }
+            }
+          } catch (err) {
+            console.warn('[SEARCH] Error cargando análisis existentes:', err.message);
+            // No es crítico si falla
+          }
+        }
       } catch (err) {
         console.error("Error en fetchBuscar:", err);
         setError(err.message || "Error desconocido");

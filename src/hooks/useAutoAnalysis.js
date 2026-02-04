@@ -45,6 +45,36 @@ async function saveMatchedLicitacion(licitacion, analysisData) {
 }
 
 /**
+ * 🆕 Carga análisis existentes desde la BD para un conjunto de IDs
+ */
+async function loadExistingAnalysis(ids) {
+  try {
+    if (!ids || ids.length === 0) return {};
+    
+    const response = await fetch(`${API_BASE}/analysis/batch/existing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ids })
+    });
+    
+    if (!response.ok) {
+      console.warn(`[AUTO_ANALYSIS] ⚠️ Error cargando análisis existentes: ${response.status}`);
+      return {};
+    }
+    
+    const data = await response.json();
+    if (data.ok) {
+      console.log(`[AUTO_ANALYSIS] 📦 Análisis existentes cargados: ${Object.keys(data.data || {}).length}`);
+      return data.data || {};
+    }
+  } catch (error) {
+    console.warn(`[AUTO_ANALYSIS] ⚠️ Error en loadExistingAnalysis:`, error.message);
+  }
+  return {};
+}
+
+/**
  * 🆕 Extrae y prioriza documentos (PLIEGO DEFINITIVO primero)
  */
 function prepararDocumentos(licitacion) {
@@ -196,6 +226,41 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
     }
   }, [paginationInfo?.lastQuery, paginationInfo?.total, paginationInfo?.offset, paginationInfo?.limit]);
 
+  // 🆕 Cargar análisis existentes de la BD cuando llegan nuevas licitaciones
+  useEffect(() => {
+    if (!licitaciones || licitaciones.length === 0) return;
+    
+    const ids = licitaciones
+      .map(l => l.ID_Portafolio || l.id_del_portafolio)
+      .filter(Boolean);
+    
+    if (ids.length === 0) return;
+    
+    // Cargar análisis existentes
+    loadExistingAnalysis(ids).then(existingData => {
+      if (Object.keys(existingData).length > 0) {
+        console.log(`[AUTO_ANALYSIS] 🎯 Pre-cargando ${Object.keys(existingData).length} análisis existentes`);
+        
+        // Actualizar el estado de análisis con los datos existentes
+        const newStatus = { ...analysisStatus };
+        Object.entries(existingData).forEach(([id, analysis]) => {
+          if (analysis) {
+            newStatus[id] = {
+              estado: analysis.estado,
+              cumple: analysis.cumple,
+              porcentaje: analysis.porcentaje,
+              detalles: analysis.detalles,
+              requisitos: analysis.requisitos
+            };
+          }
+        });
+        
+        setAnalysisStatus(newStatus);
+        console.log(`[AUTO_ANALYSIS] ✅ Estado actualizado con análisis pre-cargados`);
+      }
+    });
+  }, [licitaciones]);
+
   // Actualizar resultados acumulados
   useEffect(() => {
     if (licitaciones && licitaciones.length > 0) {
@@ -276,7 +341,15 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
 
     lastLicitacionIdsRef.current = ids;
     
+    // 🆕 Calcular información de paginación una sola vez (se reutiliza en todo el useEffect)
+    const offset = paginationInfo?.offset || 0;
+    const limit = paginationInfo?.limit || 21;
+    const total = paginationInfo?.total || 0;
+    const esUltimaPagina = offset + limit >= total;
+    
     console.log(`[AUTO_ANALYSIS] 📊 POLLING: Iniciando para ${ids.length} licitaciones`);
+    console.log(`    📄 Página: ${Math.floor(offset / limit) + 1} de ${Math.ceil(total / limit)}`);
+    
     setIsPolling(true);
     pollingStartTimeRef.current = Date.now();
 
@@ -356,9 +429,18 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
 
       // Si todos completaron, parar
       if (allCompleted) {
-        console.log('[AUTO_ANALYSIS] ✅ Todos los análisis completados');
-        setIsPolling(false);
-        if (intervalRef.current) clearInterval(intervalRef.current);
+        console.log('[AUTO_ANALYSIS] ✅ Todos los análisis de esta página completados');
+        
+        // 🆕 Si además es la ÚLTIMA página, detener polling completamente
+        if (esUltimaPagina) {
+          console.log('[AUTO_ANALYSIS] 🏁 ÚLTIMA PÁGINA ANALIZADA - Deteniendo análisis');
+          setIsPolling(false);
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        } else {
+          // 🆕 Si NO es la última página, solo marcar esta como completada pero no parar
+          console.log('[AUTO_ANALYSIS] ⏸️ Página completada, pero hay más páginas. Manteniendo polling activo...');
+          // No detener el polling aún - el usuario podría ir a la siguiente página
+        }
       }
     };
 
@@ -373,6 +455,14 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
     };
   }, [licitaciones]);
 
+  // 🆕 Calcular si estamos en la última página
+  const offset = paginationInfo?.offset || 0;
+  const limit = paginationInfo?.limit || 21;
+  const total = paginationInfo?.total || 0;
+  const esUltimaPagina = offset + limit >= total;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const currentPage = Math.ceil((offset + 1) / limit) || 1;
+
   return {
     analysisStatus,
     isPolling,
@@ -385,6 +475,15 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
       enProceso: Object.values(analysisStatus).filter(s => s.estado === 'en_proceso' || s.estado === 'procesando').length,
       noIniciados: Object.values(analysisStatus).filter(s => s.estado === 'no_iniciado').length,
       cumpliendo: Object.values(analysisStatus).filter(s => s.cumple === true || (typeof s.cumple === 'number' && s.cumple > 0)).length
+    },
+    // 🆕 Información de paginación
+    paginationStatus: {
+      currentPage,
+      totalPages,
+      esUltimaPagina,
+      offset,
+      limit,
+      total
     }
   };
 }
