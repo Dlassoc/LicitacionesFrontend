@@ -39,8 +39,8 @@
   opacity: 0.8;
 }
 
-/* Botón de guardar/favoritos */
-.result-card-save-btn {
+/* 🗑️ NUEVO: Botón para descartar licitación */
+.result-card-discard-btn {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
@@ -50,7 +50,7 @@
   border: 2px solid #e5e7eb;
   background: rgba(255, 255, 255, 0.95);
   color: #9ca3af;
-  font-size: 1rem;
+  font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
@@ -60,55 +60,34 @@
   z-index: 10;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(4px);
+  font-weight: bold;
 }
 
-.result-card-save-btn:hover {
-  border-color: #fbbf24;
-  color: #fbbf24;
-  transform: scale(1.15) rotate(15deg);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+.result-card-discard-btn:hover {
+  border-color: #ef4444;
+  background: rgba(254, 242, 242, 0.95);
+  color: #ef4444;
+  transform: scale(1.15) rotate(90deg);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
-.result-card-save-btn.saved {
-  border-color: #fbbf24;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+.result-card-discard-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
-.result-card-save-btn.saved:hover {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
-  color: #d97706;
-  transform: scale(1.15) rotate(-15deg);
-}
-
-:root[data-theme="dark"] .result-card-save-btn {
-  border-color: rgba(39, 197, 206, 0.3);
+:root[data-theme="dark"] .result-card-discard-btn {
+  border-color: rgba(239, 68, 68, 0.3);
   background: rgba(15, 30, 33, 0.95);
   color: #64748b;
   backdrop-filter: blur(8px);
 }
 
-:root[data-theme="dark"] .result-card-save-btn:hover {
-  border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5), 0 0 20px rgba(251, 191, 36, 0.2);
-}
-
-:root[data-theme="dark"] .result-card-save-btn.saved {
-  border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.25);
-  color: #fbbf24;
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.4), 0 0 0 2px rgba(251, 191, 36, 0.2);
-}
-
-:root[data-theme="dark"] .result-card-save-btn.saved:hover {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 0 0 2px rgba(251, 191, 36, 0.3);
+:root[data-theme="dark"] .result-card-discard-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.2);
 }
 
 .result-card-header {
@@ -197,6 +176,41 @@
   line-height: 1.5;
   color: #374151;
   margin: 0;
+}
+
+/* 🗓️ Fechas importantes */
+.result-card-dates {
+  padding: 0.75rem;
+  background-color: #f3f4f6;
+  border-radius: 0.5rem;
+  border-left: 3px solid #06b6d4;
+  margin-top: 0.5rem;
+}
+
+.result-card-dates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.result-card-date-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-card-date-label {
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.result-card-date-value {
+  font-size: 0.8125rem;
+  color: #1f2937;
+  font-weight: 500;
 }
 
 .result-card-footer {
@@ -304,6 +318,20 @@
 :root[data-theme="dark"] .result-card-description {
   border-left-color: rgba(39, 197, 206, 0.5);
   box-shadow: -4px 0 10px rgba(39, 197, 206, 0.1);
+}
+
+/* 🗓️ Fechas - Dark theme */
+:root[data-theme="dark"] .result-card-dates {
+  background-color: rgba(39, 197, 206, 0.1);
+  border-left-color: rgba(39, 197, 206, 0.6);
+}
+
+:root[data-theme="dark"] .result-card-date-label {
+  color: #9ca3af;
+}
+
+:root[data-theme="dark"] .result-card-date-value {
+  color: #e5e7eb;
 }
 
 :root[data-theme="dark"] .result-card-footer {
@@ -697,5 +725,21 @@
 
 :root[data-theme="dark"] .rp-analyzing-text {
   text-shadow: 0 0 10px rgba(39, 197, 206, 0.3);
+}
+
+/* 🗑️ NUEVO: Animación de desvanecimiento para descartar licitaciones */
+@keyframes fadeOutDiscard {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.result-card-hiding {
+  animation: fadeOutDiscard 0.3s ease-out forwards;
 }
 

@@ -30,8 +30,8 @@ export function getCurrentYearRange() {
 }
 
 /**
- * Obtiene el rango de fechas del mes actual, con fallback a defaults si no se proporciona
- * Usado cuando ya hay valores en fecha_pub_desde/hasta
+ * Obtiene el rango de fechas para búsquedas
+ * Usado para establecer un rango por defecto: enero 1 hasta hoy
  * @param {string} fechaRecDesde - Fecha desde (opcional)
  * @param {string} fechaRecHasta - Fecha hasta (opcional)
  * @returns {Object} {finalFechaRecDesde, finalFechaRecHasta}
@@ -41,13 +41,15 @@ export function getFinalDateRange(fechaRecDesde, fechaRecHasta) {
   let finalFechaRecHasta = fechaRecHasta;
   
   if (!finalFechaRecDesde || !finalFechaRecHasta) {
-    const { primerDiaDelMes, ultimoDiaDelMes } = getCurrentMonthRange();
+    // 🔒 RANGO POR DEFECTO: Enero 1 hasta hoy
+    const hoy = new Date();
+    const año = hoy.getFullYear();
     
     if (!finalFechaRecDesde) {
-      finalFechaRecDesde = primerDiaDelMes;
+      finalFechaRecDesde = `${año}-01-01`;
     }
     if (!finalFechaRecHasta) {
-      finalFechaRecHasta = ultimoDiaDelMes;
+      finalFechaRecHasta = hoy.toISOString().split('T')[0];
     }
   }
   

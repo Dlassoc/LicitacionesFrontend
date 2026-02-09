@@ -24,6 +24,24 @@
   
   /* Bordes */
   --border-color: rgba(255,255,255,.08);
+  
+  /* Filtros y secciones (Dark mode) */
+  --filter-bg-light: rgba(39, 197, 206, 0.08);
+  --filter-border-light: rgba(39, 197, 206, 0.25);
+  --filter-hover-bg-light: rgba(39, 197, 206, 0.15);
+  --filter-hover-border-light: rgba(39, 197, 206, 0.5);
+  --filter-active-bg-light: rgba(39, 197, 206, 0.25);
+  --filter-active-border-light: #27c5ce;
+  --filter-active-text-light: #27c5ce;
+  
+  --section-bg-light: rgba(39, 197, 206, 0.06);
+  --section-border-light: rgba(39, 197, 206, 0.25);
+  --panel-text-light: #e8f6f7;
+  
+  /* Info Banner (Dark mode) */
+  --banner-bg-dark: rgba(39, 197, 206, 0.2);
+  --banner-border-dark: rgba(39, 197, 206, 0.4);
+  --banner-text-dark: #e8f6f7;
 }
 
 /* Light mode (valores por defecto) */
@@ -43,4 +61,21 @@
   --text-muted: #6b7280;
   
   --border-color: rgba(0,0,0,.08);
+  
+  /* Filtros y secciones (Light mode) */
+  --filter-bg-light: rgba(59, 130, 246, 0.05);
+  --filter-border-light: rgba(59, 130, 246, 0.3);
+  --filter-hover-bg-light: rgba(59, 130, 246, 0.1);
+  --filter-hover-border-light: rgba(59, 130, 246, 0.5);
+  --filter-active-bg-light: rgba(59, 130, 246, 0.2);
+  --filter-active-border-light: #3b82f6;
+  --filter-active-text-light: #3b82f6;
+  
+  --section-bg-light: rgba(255, 255, 255, 0.03);
+  --section-border-light: rgba(59, 130, 246, 0.2);
+  
+  /* Info Banner (Light mode) */
+  --banner-bg-dark: rgba(39, 197, 206, 0.15);
+  --banner-border-dark: rgba(39, 197, 206, 0.3);
+  --banner-text-dark: #0c4a6e;
 }

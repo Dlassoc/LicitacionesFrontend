@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "../styles/components/preferences.css";
 import { useAuth } from "../auth/AuthContext.jsx";
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_BASE = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function Preferences({ unlocked = true }) {
   const { updateUser } = useAuth();
@@ -57,18 +57,26 @@ export default function Preferences({ unlocked = true }) {
   const loadSession = useCallback(async () => {
     setLoadingSession(true);
     setMsg("");
+    console.log('[PREFERENCES] 🔐 Iniciando carga de sesión. API_BASE:', API_BASE);
     try {
       const r = await fetch(`${API_BASE}/auth/me`, { method: "GET", credentials: "include" });
+      console.log("[Preferences] /auth/me response status:", r.status);
       if (!r.ok) {
+        console.warn("[Preferences] No autenticado:", r.status);
         setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
         setEmail("");
         setName("");
         return;
       }
       const data = await safeJson(r);
+      console.log("[Preferences] /auth/me data:", data);
       setEmail(data?.email || "");
       setName(data?.name || "");
-    } catch {
+      if (data?.email) {
+        console.log("[Preferences] Usuario cargado:", data.email);
+      }
+    } catch (err) {
+      console.error("[Preferences] Error en loadSession:", err);
       setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
       setEmail("");
       setName("");
@@ -83,11 +91,13 @@ export default function Preferences({ unlocked = true }) {
       return;
     }
     setLoadingSubs(true);
+    console.log('[PREFERENCES] 📋 Cargando suscripciones para:', em);
     try {
       const r = await fetch(`${API_BASE}/subscriptions?email=${encodeURIComponent(em)}`, {
         credentials: "include",
       });
       if (!r.ok) {
+        console.warn('[PREFERENCES] ⚠️ Error cargando suscripciones:', r.status);
         setSubs([]);
         return;
       }
@@ -102,14 +112,19 @@ export default function Preferences({ unlocked = true }) {
 
   // NUEVO: Cargar indicadores financieros guardados
   const loadIndicadores = useCallback(async () => {
+    console.log('[PREFERENCES] 💰 Cargando indicadores financieros...');
     try {
       const r = await fetch(`${API_BASE}/finanzas/indicadores`, {
         method: "GET",
         credentials: "include",
       });
-      if (!r.ok) return;
+      if (!r.ok) {
+        console.warn('[PREFERENCES] ⚠️ Error cargando indicadores:', r.status);
+        return;
+      }
       
       const data = await safeJson(r);
+      console.log('[PREFERENCES] 💰 Respuesta indicadores:', data);
       if (data?.ok && data?.data) {
         const ind = data.data;
         // Cargar cada indicador en su estado
@@ -122,9 +137,10 @@ export default function Preferences({ unlocked = true }) {
         if (ind.porcentaje_acreedores !== null && ind.porcentaje_acreedores !== undefined) setPorcentajeAcreedores(String(ind.porcentaje_acreedores));
         if (ind.retribucion_riesgo_propiedad !== null && ind.retribucion_riesgo_propiedad !== undefined) setRetribucionRiesgoPropiedad(String(ind.retribucion_riesgo_propiedad));
         if (ind.capacidad_generar_ganancias !== null && ind.capacidad_generar_ganancias !== undefined) setCapacidadGenerarGanancias(String(ind.capacidad_generar_ganancias));
+        console.log('[PREFERENCES] ✅ Indicadores cargados correctamente');
       }
-    } catch {
-      // Ignorar errores de carga de indicadores
+    } catch (err) {
+      console.error('[PREFERENCES] ❌ Error cargando indicadores:', err);
     }
   }, []);
 
@@ -190,11 +206,12 @@ export default function Preferences({ unlocked = true }) {
 
   useEffect(() => {
     if (email) {
+      console.log('[PREFERENCES] 📧 Email cargado, iniciando cargas de suscripciones e indicadores');
       loadSubs(email);
       loadIndicadores();
       loadCacheStats();  // NUEVO: Cargar estadísticas de caché
     }
-  }, [email, loadSubs, loadIndicadores, loadCacheStats]);
+  }, [email]);
 
   // Guardar nombre cuando pierde el foco
   const saveName = async () => {
@@ -393,11 +410,13 @@ export default function Preferences({ unlocked = true }) {
         </div>
       )}
 
-      {loadingSession ? (
+      {loadingSession && (
         <p className="preferences-loading-text">Cargando sesión…</p>
-      ) : msg && !email ? (
+      )}
+
+      {msg && !email && (
         <p className="preferences-error-text">{msg}</p>
-      ) : null}
+      )}
 
       {/* Formulario completo */}
       <div className="preferences-grid">
@@ -658,45 +677,43 @@ export default function Preferences({ unlocked = true }) {
       )}
 
       {/* Suscripciones */}
-      {(loadingSubs || subs.length > 0) && (
-        <div className="preferences-sub-list">
-          <h4 className="preferences-sub-title">Tus suscripciones</h4>
+      <div className="preferences-sub-list">
+        <h4 className="preferences-sub-title">Tus suscripciones</h4>
 
-          {loadingSubs ? (
-            <p className="preferences-loading-text">Cargando suscripciones…</p>
-          ) : subs.length === 0 ? (
-            <p className="preferences-loading-text">No tienes suscripciones activas.</p>
-          ) : (
-            <ul>
-              {subs.map((s) => (
-                <li key={s.id} className="preferences-sub-item">
-                  <div>
-                    <div className="preferences-sub-item-name">
-                      {s.palabras_clave}{" "}
-                      {s.departamento ? `• ${s.departamento}` : ""}{" "}
-                      {s.ciudad ? `• ${s.ciudad}` : ""}
-                    </div>
-                    <div className="preferences-sub-item-meta">
-                      Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
-                    </div>
+        {loadingSubs ? (
+          <p className="preferences-loading-text">Cargando suscripciones…</p>
+        ) : subs.length === 0 ? (
+          <p className="preferences-loading-text">No tienes suscripciones activas. Guarda preferencias de búsqueda para crear una.</p>
+        ) : (
+          <ul>
+            {subs.map((s) => (
+              <li key={s.id} className="preferences-sub-item">
+                <div>
+                  <div className="preferences-sub-item-name">
+                    {s.palabras_clave}{" "}
+                    {s.departamento ? `• ${s.departamento}` : ""}{" "}
+                    {s.ciudad ? `• ${s.ciudad}` : ""}
                   </div>
-                  {s.is_active ? (
-                    <button
-                      onClick={() => deactivate(s.id)}
-                      className="preferences-sub-item-button"
-                      disabled={!isActive}
-                    >
-                      Desactivar
-                    </button>
-                  ) : (
-                    <span className="preferences-sub-item-meta">Inactiva</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+                  <div className="preferences-sub-item-meta">
+                    Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
+                  </div>
+                </div>
+                {s.is_active ? (
+                  <button
+                    onClick={() => deactivate(s.id)}
+                    className="preferences-sub-item-button"
+                    disabled={!isActive}
+                  >
+                    Desactivar
+                  </button>
+                ) : (
+                  <span className="preferences-sub-item-meta">Inactiva</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

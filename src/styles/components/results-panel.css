@@ -66,8 +66,8 @@
 /* Banner informativo para resultados guardados */
 .rp-info-banner {
   @apply flex items-center gap-3 p-3 mb-4 rounded-lg border backdrop-blur;
-  background: rgba(39, 197, 206, 0.15);
-  border-color: rgba(39, 197, 206, 0.3);
+  background: var(--banner-bg-dark);
+  border-color: var(--banner-border-dark);
   box-shadow: 0 4px 6px -1px rgba(39, 197, 206, 0.1);
 }
 
@@ -77,13 +77,13 @@
 
 .rp-info-text {
   @apply text-sm;
-  color: #0c4a6e;
+  color: var(--banner-text-dark);
   font-weight: 500;
 }
 
 :root[data-theme="dark"] .rp-info-banner {
-  background: rgba(39, 197, 206, 0.2);
-  border-color: rgba(39, 197, 206, 0.4);
+  background: var(--banner-bg-dark);
+  border-color: var(--banner-border-dark);
 }
 
 :root[data-theme="dark"] .rp-info-text {
@@ -145,26 +145,27 @@
 
 .rp-category-filters {
   @apply flex gap-2 mb-4 p-3 rounded-lg border flex-wrap;
-  background: rgba(59, 130, 246, 0.05);
-  border-color: rgba(59, 130, 246, 0.2);
+  background: var(--filter-bg-light);
+  border-color: var(--filter-border-light);
+  color: var(--panel-text);
 }
 
 .rp-filter-btn {
   @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition font-medium text-sm;
   background: transparent;
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: var(--filter-border-light);
   color: var(--panel-text);
 }
 
 .rp-filter-btn:hover {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.5);
+  background: var(--filter-hover-bg-light);
+  border-color: var(--filter-hover-border-light);
 }
 
 .rp-filter-btn.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
-  color: #3b82f6;
+  background: var(--filter-active-bg-light);
+  border-color: var(--filter-active-border-light);
+  color: var(--filter-active-text-light);
   font-weight: 600;
 }
 
@@ -173,24 +174,25 @@
 }
 
 :root[data-theme="dark"] .rp-category-filters {
-  background: rgba(39, 197, 206, 0.05);
-  border-color: rgba(39, 197, 206, 0.2);
+  background: var(--filter-bg-light);
+  border-color: var(--filter-border-light);
+  color: var(--panel-text-light);
 }
 
 :root[data-theme="dark"] .rp-filter-btn {
-  border-color: rgba(39, 197, 206, 0.3);
-  color: #b7e7ea;
+  border-color: var(--filter-border-light);
+  color: var(--panel-text-light);
 }
 
 :root[data-theme="dark"] .rp-filter-btn:hover {
-  background: rgba(39, 197, 206, 0.1);
-  border-color: rgba(39, 197, 206, 0.5);
+  background: var(--filter-hover-bg-light);
+  border-color: var(--filter-hover-border-light);
 }
 
 :root[data-theme="dark"] .rp-filter-btn.active {
-  background: rgba(39, 197, 206, 0.2);
-  border-color: #27c5ce;
-  color: #27c5ce;
+  background: var(--filter-active-bg-light);
+  border-color: var(--filter-active-border-light);
+  color: var(--filter-active-text-light);
   font-weight: 600;
 }
 
@@ -202,25 +204,27 @@
 
 .rp-category-section {
   @apply border rounded-lg p-4;
-  border-color: var(--panel-border);
-  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--section-border-light);
+  background: var(--section-bg-light);
+  color: var(--panel-text);
 }
 
 .rp-category-title {
   @apply text-lg font-bold mb-4 flex items-center gap-2;
   color: var(--panel-text);
   padding-bottom: 12px;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+  border-bottom: 2px solid var(--section-border-light);
 }
 
 :root[data-theme="dark"] .rp-category-section {
-  background: rgba(39, 197, 206, 0.05);
-  border-color: rgba(39, 197, 206, 0.2);
+  background: var(--section-bg-light);
+  border-color: var(--section-border-light);
+  color: var(--panel-text-light);
 }
 
 :root[data-theme="dark"] .rp-category-title {
-  color: #e8f6f7;
-  border-bottom-color: rgba(39, 197, 206, 0.3);
+  color: var(--panel-text-light);
+  border-bottom-color: var(--section-border-light);
 }
 
 /* ============================= SECCIONES COLAPSABLES ============================= */

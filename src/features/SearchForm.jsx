@@ -67,6 +67,8 @@ export default function SearchForm({ onBuscar, onClear }) {
   const [termino, setTermino] = useState(savedData.termino || "");
   const [fechaPubDesde, setFechaPubDesde] = useState(savedData.fechaPubDesde || "");
   const [fechaPubHasta, setFechaPubHasta] = useState(savedData.fechaPubHasta || "");
+  const [fechaManifDesde, setFechaManifDesde] = useState(savedData.fechaManifDesde || "");
+  const [fechaManifHasta, setFechaManifHasta] = useState(savedData.fechaManifHasta || "");
   const [fechaRecDesde, setFechaRecDesde] = useState(savedData.fechaRecDesde || "");
   const [fechaRecHasta, setFechaRecHasta] = useState(savedData.fechaRecHasta || "");
   const [departamento, setDepartamento] = useState(savedData.departamento || "");
@@ -82,6 +84,8 @@ export default function SearchForm({ onBuscar, onClear }) {
         termino,
         fechaPubDesde,
         fechaPubHasta,
+        fechaManifDesde,
+        fechaManifHasta,
         fechaRecDesde,
         fechaRecHasta,
         departamento,
@@ -93,7 +97,7 @@ export default function SearchForm({ onBuscar, onClear }) {
     } catch (e) {
       console.warn('Error guardando formulario:', e);
     }
-  }, [termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, departamento, ciudad, fase, estado]);
+  }, [termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, fechaRecDesde, fechaRecHasta, departamento, ciudad, fase, estado]);
 
   useEffect(() => {
     if (departamento && CIUDADES_COLOMBIA[departamento]) {
@@ -120,13 +124,15 @@ export default function SearchForm({ onBuscar, onClear }) {
     // Aplicar rango del mes actual si está vacío (BD actualizada)
     const { finalFechaRecDesde, finalFechaRecHasta } = getFinalDateRange(fechaRecDesde, fechaRecHasta);
     
-    onBuscar(termino, fechaPubDesde, fechaPubHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento, fase, estado);
+    onBuscar(termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, finalFechaRecDesde, finalFechaRecHasta, ciudad, departamento, fase, estado);
   };
 
   const handleClear = () => {
     setTermino("");
     setFechaPubDesde("");
     setFechaPubHasta("");
+    setFechaManifDesde("");
+    setFechaManifHasta("");
     setFechaRecDesde("");
     setFechaRecHasta("");
     setDepartamento("");
@@ -184,7 +190,27 @@ export default function SearchForm({ onBuscar, onClear }) {
         </div>
 
         <div className="search-form-date-group">
-          <label className="search-form-label">Presentacion de Ofertas (Opcional)</label>
+          <label className="search-form-label">Manifestacion de Interes De</label>
+          <input
+            type="date"
+            value={fechaManifDesde}
+            onChange={(e) => setFechaManifDesde(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Manifestacion de Interes Hasta</label>
+          <input
+            type="date"
+            value={fechaManifHasta}
+            onChange={(e) => setFechaManifHasta(e.target.value)}
+            className="search-form-date-input"
+          />
+        </div>
+
+        <div className="search-form-date-group">
+          <label className="search-form-label">Presentacion de Ofertas De (Opcional)</label>
           <input
             type="date"
             value={fechaRecDesde}

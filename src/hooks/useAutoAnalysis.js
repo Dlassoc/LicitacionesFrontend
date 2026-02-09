@@ -9,6 +9,13 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_B
 async function saveMatchedLicitacion(licitacion, analysisData) {
   try {
     const idPortafolio = licitacion.ID_Portafolio || licitacion.id_del_portafolio;
+    const percentage = typeof analysisData.porcentaje === 'number' ? analysisData.porcentaje : 0;
+    
+    // 🆕 Extraer indicadores financieros si existen
+    const indicadoresFinancieros = analysisData.requisitos_extraidos?.indicadores_financieros || 
+                                    analysisData.requisitos?.indicadores_financieros || {};
+    const matricesExtraidas = analysisData.requisitos_extraidos?.matrices || 
+                             analysisData.requisitos?.matrices || {};
     
     const payload = {
       id_portafolio: idPortafolio,
@@ -21,10 +28,32 @@ async function saveMatchedLicitacion(licitacion, analysisData) {
       estado: licitacion.Estado || licitacion.estado_del_procedimiento || '',
       fecha_publicacion: licitacion.Fecha_publicacion || licitacion.fecha_de_publicacion_del || '',
       enlace: licitacion.URL_Proceso || licitacion.enlace || '',
-      score: typeof analysisData.porcentaje === 'number' ? analysisData.porcentaje : 0,
-      razon: analysisData.detalles || 'Cumple requisitos',
-      requisitos_extraidos: analysisData.requisitos || {}
+      score: percentage,
+      razon: analysisData.detalles?.resumen || analysisData.detalles || 'Cumple requisitos',
+      // 🆕 Guardar TODA la información extraída: indicadores, matrices, y detalles
+      requisitos_extraidos: {
+        indicadores_financieros: indicadoresFinancieros,
+        matrices: matricesExtraidas,
+        detalles: analysisData.detalles,
+        // Mantener toda la estructura original también
+        ...analysisData.requisitos_extraidos
+      }
     };
+    
+    // 🆕 Log detallado de qué se está guardando
+    console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ 💾 GUARDANDO LICITACIÓN APTA EN BD
+╠════════════════════════════════════════════════════════════╣
+║ 🆔 ID: ${idPortafolio}
+║ 📄 Referencia: ${payload.referencia}
+║ 📊 Score: ${percentage}%
+║ 🏢 Entidad: ${payload.entidad.substring(0, 40)}${payload.entidad.length > 40 ? '...' : ''}
+║ 💰 Indicadores Financieros: ${Object.keys(indicadoresFinancieros).length} extraídos
+║ 📋 Matrices: ${Object.keys(matricesExtraidas).length} encontradas
+║ ⏰ ${new Date().toLocaleTimeString()}
+╚════════════════════════════════════════════════════════════╝
+    `);
     
     const response = await fetch(`${API_BASE}/saved/matched`, {
       method: 'POST',
@@ -35,11 +64,42 @@ async function saveMatchedLicitacion(licitacion, analysisData) {
     
     const result = await response.json();
     if (result.ok) {
-      console.log(`[AUTO_ANALYSIS] ✅ Guardada como apta: ${idPortafolio}`);
+      console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ ✅ GUARDADA EXITOSAMENTE EN BD
+╠════════════════════════════════════════════════════════════╣
+║ 🎯 Tabla: licitaciones_aptas
+║ 📄 Referencia: ${payload.referencia}
+║ 📊 Score: ${percentage}%
+║ 💰 Indicadores guardados: ${Object.keys(indicadoresFinancieros).length}
+║ 📋 Matrices guardadas: ${Object.keys(matricesExtraidas).length}
+║ 💬 ${result.message}
+║ ⏰ ${new Date().toLocaleTimeString()}
+╚════════════════════════════════════════════════════════════╝
+      `);
       return true;
+    } else {
+      console.warn(`
+╔════════════════════════════════════════════════════════════╗
+║ ⚠️  ERROR EN RESPUESTA DEL BACKEND
+╠════════════════════════════════════════════════════════════╣
+║ 🆔 ID: ${idPortafolio}
+║ ⚠️  Error: ${result.error || result.message}
+║ ⏰ ${new Date().toLocaleTimeString()}
+╚════════════════════════════════════════════════════════════╝
+      `);
     }
   } catch (error) {
-    console.error(`[AUTO_ANALYSIS] ❌ Error guardando:`, error);
+    console.error(`
+╔════════════════════════════════════════════════════════════╗
+║ ❌ ERROR GUARDANDO LICITACIÓN EN BD
+╠════════════════════════════════════════════════════════════╣
+║ 🆔 ID: ${licitacion?.ID_Portafolio || licitacion?.id_del_portafolio}
+║ ⚠️  Error: ${error.message}
+║ 🔍 Detalles: ${error.stack?.split('\n')[0]}
+║ ⏰ ${new Date().toLocaleTimeString()}
+╚════════════════════════════════════════════════════════════╝
+    `, error);
   }
   return false;
 }
@@ -187,8 +247,9 @@ async function triggerBatchAnalysis(payload) {
  * 3. LUEGO hace polling para chequear estado
  * 4. Máximo 5 minutos de polling
  * 5. Guarda como aptas las que cumplen
+ * 6. 🆕 AUTO-PAGINA cuando página actual completada (si no es última)
  */
-export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
+export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageComplete = null) {
   const [analysisStatus, setAnalysisStatus] = useState({});
   const [isPolling, setIsPolling] = useState(false);
   const [allResultados, setAllResultados] = useState([]);
@@ -200,7 +261,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
   const lastQueryRef = useRef(null);
   const triggerFailedRef = useRef(false); // Evitar spam de errores de trigger
   const MAX_POLLING_TIME = 10 * 60 * 1000; // 🆕 Aumentado a 10 minutos (análisis puede tardar)
-  const POLLING_INTERVAL = 5000; // 🆕 Reducido a 5 segundos para mayor frecuencia
+  const POLLING_INTERVAL = 2000; // 🔧 REDUCIDO a 2 segundos (WAS 5000) para mayor frecuencia - detectar cambios rápido
 
   // 🆕 Resetear cuando cambia la búsqueda
   useEffect(() => {
@@ -388,22 +449,29 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
             // 🆕 Logging más detallado para debug
             if (estado === 'completado') {
               completedCount++;
+              console.log(`[AUTO_ANALYSIS] ✅ COMPLETADO: ${id} - cumple=${data.cumple}, porcentaje=${data.porcentaje}%`);
             } else if (estado === 'en_proceso' || estado === 'procesando') {
               processingCount++;
+              console.log(`[AUTO_ANALYSIS] 🔄 EN PROCESO: ${id}`);
             } else if (estado === 'no_iniciado') {
               notInitiatedCount++;
+              console.log(`[AUTO_ANALYSIS] ⏳ NO INICIADO: ${id}`);
             }
 
-            setAnalysisStatus(prev => ({
-              ...prev,
-              [id]: {
-                estado: data.estado,
-                cumple: data.cumple,
-                porcentaje: data.porcentaje,
-                detalles: data.detalles,
-                requisitos: data.requisitos_extraidos
-              }
-            }));
+            setAnalysisStatus(prev => {
+              const updated = {
+                ...prev,
+                [id]: {
+                  estado: data.estado,
+                  cumple: data.cumple,
+                  porcentaje: data.porcentaje,
+                  detalles: data.detalles,
+                  requisitos: data.requisitos_extraidos
+                }
+              };
+              console.log(`[AUTO_ANALYSIS] Estado actualizado para ${id}:`, updated[id]);
+              return updated;
+            });
 
             // Si cumple, guardar como apta
             if ((data.cumple === true || (typeof data.cumple === 'number' && data.cumple > 0)) && data.estado === 'completado') {
@@ -431,15 +499,36 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}) {
       if (allCompleted) {
         console.log('[AUTO_ANALYSIS] ✅ Todos los análisis de esta página completados');
         
+        const { offset = 0, limit = 21, total = 0 } = paginationInfo;
+        const esUltimaPagina = offset + limit >= total;
+        
         // 🆕 Si además es la ÚLTIMA página, detener polling completamente
         if (esUltimaPagina) {
-          console.log('[AUTO_ANALYSIS] 🏁 ÚLTIMA PÁGINA ANALIZADA - Deteniendo análisis');
+          console.log('[AUTO_ANALYSIS] 🏁 ÚLTIMA PÁGINA ANALIZADA - Deteniendo análisis completamente');
           setIsPolling(false);
           if (intervalRef.current) clearInterval(intervalRef.current);
-        } else {
-          // 🆕 Si NO es la última página, solo marcar esta como completada pero no parar
-          console.log('[AUTO_ANALYSIS] ⏸️ Página completada, pero hay más páginas. Manteniendo polling activo...');
-          // No detener el polling aún - el usuario podría ir a la siguiente página
+        } else if (onPageComplete && typeof onPageComplete === 'function') {
+          // 🚀 AUTO-PAGINAR a la siguiente página
+          console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ 🚀 AUTO-PAGINACIÓN ACTIVADA
+╠════════════════════════════════════════════════════════════╣
+║ ✅ Página actual completada
+║ 📄 Offset: ${offset}, Limit: ${limit}
+║ 📊 Total: ${total}
+║ 👉 Saltando a próxima página...
+║ ⏰ ${new Date().toLocaleTimeString()}
+╚════════════════════════════════════════════════════════════╝
+          `);
+          
+          const nextOffset = offset + limit;
+          onPageComplete(nextOffset);
+          
+          // Reset para siguiente página
+          setAnalysisStatus({});
+          setAllResultados([]);
+          setIsPolling(false);
+          if (intervalRef.current) clearInterval(intervalRef.current);
         }
       }
     };

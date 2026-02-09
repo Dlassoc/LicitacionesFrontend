@@ -38,7 +38,7 @@ export default function SavedLicitacionesPage() {
         <div className="saved-page-container">
           <div className="saved-page-loading">
             <div className="saved-page-spinner"></div>
-            <p>Cargando licitaciones guardadas...</p>
+            <p>Cargando licitaciones excluidas...</p>
           </div>
         </div>
       </div>
@@ -51,12 +51,12 @@ export default function SavedLicitacionesPage() {
         <header className="saved-page-header">
           <div className="saved-page-header-content">
             <h1 className="saved-page-title">
-              ⭐ Licitaciones Guardadas
+              Licitaciones excluidas 
             </h1>
             <p className="saved-page-subtitle">
               {saved.length === 0 
-                ? "No tienes licitaciones guardadas aún"
-                : `${saved.length} licitación${saved.length !== 1 ? 'es' : ''} guardada${saved.length !== 1 ? 's' : ''}`
+                ? "No tienes licitaciones excluidas aún"
+                : `${saved.length} licitación${saved.length !== 1 ? 'es' : ''} excluida${saved.length !== 1 ? 's' : ''}`
               }
             </p>
           </div>
@@ -92,10 +92,8 @@ export default function SavedLicitacionesPage() {
         {saved.length === 0 && !loading && (
           <div className="saved-page-empty">
             <div className="saved-page-empty-icon">📋</div>
-            <h2 className="saved-page-empty-title">No hay licitaciones guardadas</h2>
-            <p className="saved-page-empty-text">
-              Cuando encuentres licitaciones de interés, haz clic en la estrella (☆) para guardarlas aquí.
-            </p>
+            <h2 className="saved-page-empty-title">No hay licitaciones excluidas</h2>
+
           </div>
         )}
 

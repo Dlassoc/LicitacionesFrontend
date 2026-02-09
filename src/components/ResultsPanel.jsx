@@ -6,10 +6,12 @@ import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
   resultados, loading, error,
-  total, limit, offset, lastQuery, isFromCache, savedIds,
+  total, limit, offset, lastQuery, isFromCache,
   onPage,
   onItemClick,
-  onToggleSave,
+  onDiscard,  // 🗑️ NUEVO: Handler para descartar
+  discardedIds,  // 🗑️ NUEVO: Set de IDs descartadas
+  isDiscarded,  // 🗑️ NUEVO: Función para verificar descarte
   preferredKeywords,
   showingMatched = false // 🆕 Flag para indicar si estamos mostrando licitaciones aptas
 }) {
@@ -22,15 +24,23 @@ export default function ResultsPanel({
   });
   
   // ✅ RESTAURADO - Hook para análisis automático en background (corregido para no causar loops infinitos)
-  const { analysisStatus, isPolling, pageIndex, allResultados, resumen, paginationStatus } = useAutoAnalysis(resultados, {
-    lastQuery,
-    offset,
-    limit,
-    total
-  });
+  // 🔒 DESHABILITADO cuando isFromCache=true (modo cached_only) para evitar análisis innecesarios
+  // 🆕 Agregado callback para auto-paginación
+  const { analysisStatus, isPolling, pageIndex, allResultados, resumen, paginationStatus } = useAutoAnalysis(
+    isFromCache ? [] : resultados,  // 🔒 Pasar array vacío si es desde caché para no desencadenar análisis
+    {
+      lastQuery,
+      offset,
+      limit,
+      total
+    },
+    onPage  // 🆕 Callback para auto-paginar cuando página completada
+  );
 
   // Categorizar resultados por cumplimiento - USAR allResultados para mostrar de TODAS las páginas
   const { cumple, noCumple, sinAnalizar, conIndicadores } = useMemo(() => {
+    console.log(`[RESULTS_PANEL]  Recategorizando: allResultados=${allResultados?.length}, analysisStatus keys=${Object.keys(analysisStatus).length}`);
+    
     const c = [];
     const nc = [];
     const sa = [];
@@ -39,41 +49,83 @@ export default function ResultsPanel({
     // Usar allResultados que acumula de todas las páginas
     allResultados?.forEach((item) => {
       const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+      
+      // 🗑️ NUEVO: Filtrar descartadas (solo si isDiscarded existe)
+      if (isDiscarded && typeof isDiscarded === 'function' && isDiscarded(idPortafolio)) {
+        console.log(`[RESULTS_PANEL] ⏭️  Saltando descartada: ${idPortafolio}`);
+        return;
+      }
+      
       const status = analysisStatus[idPortafolio];
 
       if (!status || status.estado !== 'completado') {
         // No analizado o en proceso
         sa.push(item);
-      } else if (status.cumple === null || status.cumple === undefined) {
-        // Análisis completado pero sin resultado binario (sin requisitos)
-        sa.push(item);
-      } else if (typeof status.cumple === 'number') {
-        // cumple es un número (cantidad de requisitos cumplidos)
-        // Si es > 0, significa que cumple algo
-        if (status.cumple > 0) {
+        return;
+      }
+      
+      // Verificar si tiene requisitos extraídos
+      const requisitos = status.requisitos || {};
+      const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
+      const hasIndicadores = requisitos.indicadores_financieros && Object.keys(requisitos.indicadores_financieros).length > 0;
+      const hasUNSPSC = requisitos.codigos_unspsc && requisitos.codigos_unspsc.length > 0;
+      const hasExperiencia = requisitos.experiencia_requerida && requisitos.experiencia_requerida.experiencia_requerida;
+      const hasAnyRequisitos = hasMatrices || hasIndicadores || hasUNSPSC || hasExperiencia;
+      
+      // Si tiene requisitos extraídos, contar como "con indicadores"
+      if (hasAnyRequisitos && status.requisitos) {
+        ci.push(item);
+      }
+      
+      // 🔧 LÓGICA MEJORADA: Si cumple es null/undefined PERO tiene requisitos, contar como "cumple"
+      if (status.cumple === null || status.cumple === undefined) {
+        if (hasAnyRequisitos) {
+          // Tiene requisitos (UNSPSC, experiencia, etc) → mover a "cumple"
           c.push(item);
-          if (status.requisitos) ci.push(item); // Tiene indicadores
+          console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: Sin evaluación BUT tiene requisitos → CUMPLE`);
+          return;
         } else {
-          // cumple === 0 significa que no cumple ninguno
-          nc.push(item);
-          if (status.requisitos) ci.push(item); // Tiene indicadores
+          // No tiene nada → "sin analizar"
+          sa.push(item);
+          console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: Sin evaluación, sin requisitos → SIN ANALIZAR`);
+          return;
         }
-      } else if (status.cumple === true) {
-        // Cumple (true)
-        c.push(item);
-        if (status.requisitos) ci.push(item);
-      } else if (status.cumple === false) {
-        // No cumple (false)
-        nc.push(item);
-        if (status.requisitos) ci.push(item);
+      }
+      
+      // 🔧 NORMALIZAR cumple a boolean
+      // El backend retorna cumple como NÚMERO: cumple_count (0, 1, 2, 3, etc.)
+      // 0 = no cumple nada, >0 = cumple algunos/todos
+      let cumplebool;
+      
+      if (typeof status.cumple === 'number') {
+        // cumple es un número: true si > 0, false si === 0
+        cumplebool = status.cumple > 0;
+        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (número) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
+      } else if (typeof status.cumple === 'boolean') {
+        // cumple es boolean: usarlo directo
+        cumplebool = status.cumple;
+        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (boolean) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
       } else {
-        // Cualquier otro caso
+        // Cualquier otro tipo: intentar conversión
+        cumplebool = Boolean(status.cumple);
+        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (${typeof status.cumple}) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
+      }
+      
+      if (cumplebool === true) {
+        // Cumple
+        c.push(item);
+      } else if (cumplebool === false) {
+        // No cumple
+        nc.push(item);
+      } else {
+        // Indeterminado
         sa.push(item);
       }
     });
 
+    console.log(`[RESULTS_PANEL] ✅ Categorización completa: cumple=${c.length}, noCumple=${nc.length}, sinAnalizar=${sa.length}`);
     return { cumple: c, noCumple: nc, sinAnalizar: sa, conIndicadores: ci };
-  }, [allResultados, analysisStatus]);
+  }, [allResultados, analysisStatus, isDiscarded]);
 
   // 🆕 Función helper para verificar si un item coincide con palabras clave
   const matchesPreferredKeywords = (item) => {
@@ -145,7 +197,6 @@ export default function ResultsPanel({
           <div className="rp-grid">
             {items.map((item, idx) => {
               const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
-              const isSaved = savedIds && savedIds.has(idPortafolio);
               
               return (
                 <ResultCard
@@ -153,8 +204,7 @@ export default function ResultsPanel({
                   item={item}
                   onClick={() => onItemClick(item)}
                   analysisStatus={analysisStatus[idPortafolio]}
-                  isSaved={isSaved}
-                  onToggleSave={onToggleSave}
+                  onDiscard={onDiscard}  // 🗑️ NUEVO
                 />
               );
             })}
@@ -236,7 +286,7 @@ export default function ResultsPanel({
             
             {/* 🆕 Banner cuando hay palabras clave preferidas */}
             {preferredKeywords && preferredKeywords.length > 0 && !showOnlyMatching && (
-              <div className="rp-info-banner" style={{backgroundColor: '#e8f4f8', borderColor: '#4db8d4'}}>
+              <div className="rp-info-banner">
                 <span className="rp-info-text">
                   📌 Mostrando licitaciones ordenadas por relevancia a tus palabras clave: <strong>{preferredKeywords.join(', ')}</strong>
                 </span>
@@ -308,9 +358,9 @@ export default function ResultsPanel({
                 {/* Mostrar resultados organizados - Solo items CON indicadores */}
                 {filterCategory === 'all' && (
                   <div className="rp-all-categories">
-                    {renderResultadosSeccion(cumple, '✅ CUMPLE REQUISITOS', cumple.length, 'cumple')}
-                    {renderResultadosSeccion(noCumple, '❌ NO CUMPLE REQUISITOS', noCumple.length, 'noCumple')}
-                    {renderResultadosSeccion(sinAnalizar, '⏳ SIN ANALIZAR', sinAnalizar.length, 'sinAnalizar')}
+                    {renderResultadosSeccion(cumple, 'CUMPLE REQUISITOS', cumple.length, 'cumple')}
+                    {renderResultadosSeccion(noCumple, 'NO CUMPLE REQUISITOS', noCumple.length, 'noCumple')}
+                    {renderResultadosSeccion(sinAnalizar, 'Sin requisitos', sinAnalizar.length, 'sinAnalizar')}
                   </div>
                 )}
 
@@ -319,7 +369,6 @@ export default function ResultsPanel({
                     {cumple.length > 0 ? (
                       cumple.map((item, idx) => {
                         const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
-                        const isSaved = savedIds && savedIds.has(idPortafolio);
                         
                         return (
                           <ResultCard
@@ -327,8 +376,7 @@ export default function ResultsPanel({
                             item={item}
                             onClick={() => onItemClick(item)}
                             analysisStatus={analysisStatus[idPortafolio]}
-                            isSaved={isSaved}
-                            onToggleSave={onToggleSave}
+                            onDiscard={onDiscard}  // 🗑️ NUEVO
                           />
                         );
                       })
@@ -345,7 +393,6 @@ export default function ResultsPanel({
                     {noCumple.length > 0 ? (
                       noCumple.map((item, idx) => {
                         const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
-                        const isSaved = savedIds && savedIds.has(idPortafolio);
                         
                         return (
                           <ResultCard
@@ -353,8 +400,7 @@ export default function ResultsPanel({
                             item={item}
                             onClick={() => onItemClick(item)}
                             analysisStatus={analysisStatus[idPortafolio]}
-                            isSaved={isSaved}
-                            onToggleSave={onToggleSave}
+                            onDiscard={onDiscard}  // 🗑️ NUEVO
                           />
                         );
                       })

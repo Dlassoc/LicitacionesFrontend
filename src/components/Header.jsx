@@ -109,7 +109,7 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                           role="menuitem"
                           onClick={() => setOpenMenu(false)}
                         >
-                           Guardadas
+                            Excluidas
                         </Link>
                       </li>
 

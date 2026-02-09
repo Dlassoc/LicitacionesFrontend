@@ -4,8 +4,9 @@ import Header from "../components/Header.jsx";
 import ResultsPanel from "../components/ResultsPanel.jsx";
 import ResultModal from "../components/ResultModal.jsx";
 import { useSearchResults } from "../features/hooks.js";
-import { useSavedLicitaciones } from "../hooks/useSavedLicitaciones.js";
-import { useMatchedLicitaciones } from "../hooks/useMatchedLicitaciones.js"; // 🆕
+import { useDiscardedLicitaciones } from "../hooks/useDiscardedLicitaciones.js";  // 🗑️ NUEVO
+import { useMatchedLicitaciones } from "../hooks/useMatchedLicitaciones.js";
+import { useAnalyzedLicitaciones } from "../hooks/useAnalyzedLicitaciones.js";  // 📦 NUEVO - Carga de BD local
 import { useAuth } from "../auth/AuthContext.jsx";
 import SplashScreen from "../components/SplashScreen.jsx";
 import WelcomeToast from "../components/WelcomeToast.jsx";
@@ -18,11 +19,12 @@ export default function App() {
   const {
     resultados, loading, error,
     total, limit, offset, lastQuery, isFromCache, chips,
-    buscar, limpiar, goPage
+    buscar, cargarMisLicitaciones, limpiar, goPage
   } = useSearchResults(21);
   
-  const { saveLicitacion, unsaveLicitacion, checkIfSaved, loadSaved, savedIds, toggleSavedIdOptimistic } = useSavedLicitaciones();
-  const { matchedLicitaciones, loadingMatched, errorMatched, loadMatched, clearMatched } = useMatchedLicitaciones(); // 🆕
+  const { discarded, discardedIds, loadDiscarded, discardLicitacion, restoreDiscarded, isDiscarded } = useDiscardedLicitaciones();  // 🗑️ NUEVO
+  const { matchedLicitaciones, loadingMatched, errorMatched, loadMatched, clearMatched } = useMatchedLicitaciones();
+  const { analyzedLicitaciones, loadingAnalyzed, errorAnalyzed, loadAnalyzed, clearAnalyzed } = useAnalyzedLicitaciones();  // 📦 NUEVO
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -34,6 +36,48 @@ export default function App() {
   const [preferredKeywords, setPreferredKeywords] = useState(null); // 🆕 Palabras clave preferidas del usuario
   const [showingMatched, setShowingMatched] = useState(false); // 🆕 Flag para saber si estamos mostrando licitaciones aptas
   const hasInitialized = useRef(false); // 🆕 Flag para ejecutar auto-búsqueda solo UNA VEZ
+  
+  // 🆕 Función para normalizar datos de BD a estructura de ResultCard
+  const normalizeFromDB = (item) => {
+    if (!item) return item;
+    
+    // 🆕 Extraer referencia de detalles si existe
+    let referencia = item.id_portafolio; // Por defecto usar id_portafolio
+    try {
+      if (item.detalles && typeof item.detalles === 'object') {
+        // Buscar el campo de referencia en detalles
+        const refs = Object.values(item.detalles)
+          .filter(v => typeof v === 'string' && v.length > 0);
+        if (refs.length > 0) {
+          referencia = refs[0]; // Usar el primer valor encontrado
+        }
+      }
+    } catch (e) {
+      console.log('[APP] Usando id_portafolio como referencia:', item.id_portafolio);
+    }
+    
+    const normalized = {
+      ...item,
+      // Normalizar campos de ID
+      ID_Portafolio: item.id_portafolio || item.ID_Portafolio,
+      id_del_portafolio: item.id_portafolio || item.id_del_portafolio,
+      // Normalizar campo de referencia
+      Referencia_del_proceso: referencia || item.Referencia_del_proceso,
+      // Normalizar entidad - buscar en detalles o usar default
+      Entidad: item.entidad || item.Entidad || 'Entidad no disponible',
+      // Normalizar precio
+      Precio_base: item.precio || item.Precio_base,
+      // Agregar URL si existe
+      URL_Proceso: item.enlace || item.URL_Proceso || '#',
+      // 🆕 Agregar score (porcentaje) para cards
+      score: item.porcentaje !== null && item.porcentaje !== undefined ? item.porcentaje : 0,
+      // 🆕 Agregar requisitos_extraidos si no existe
+      requisitos_extraidos: item.requisitos_extraidos || item.requisitos || {},
+    };
+    
+    console.log('[APP] 📋 Licitación normalizada:', normalized.ID_Portafolio, 'Ref:', normalized.Referencia_del_proceso, 'Score:', normalized.score);
+    return normalized;
+  };
   
   const handleBuscar = async (...args) => {
     setSearching(true);
@@ -108,16 +152,20 @@ export default function App() {
         setFromAutoPreferences(true);
         
         // Disparar búsqueda automática
-        // buscar() espera: (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento)
+        // buscar() espera: (termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado)
         setSearching(true);
         await buscar(
           data.palabras_clave,  // termino
           undefined,            // fechaPubDesde
           undefined,            // fechaPubHasta
+          undefined,            // fechaManifDesde
+          undefined,            // fechaManifHasta
           undefined,            // fechaRecDesde
           undefined,            // fechaRecHasta
           data.ciudad,          // ciudad
-          data.departamento     // departamento
+          data.departamento,    // departamento
+          undefined,            // fase
+          undefined             // estado
         );
         setSearching(false);
       } else {
@@ -128,20 +176,31 @@ export default function App() {
     }
   }, [limpiar, buscar]);
 
-  // Cargar savedIds al iniciar
+  // 🗑️ NUEVO: Cargar licitaciones descartadas al iniciar
   useEffect(() => {
     if (ready && user) {
-      loadSaved();
+      console.log('[APP] 🗑️  Cargando licitaciones descartadas...');
+      loadDiscarded();
     }
-  }, [ready, user, loadSaved]);
+  }, [ready, user]); // ⚠️ NO incluir loadDiscarded para evitar loops
   
-  // 🆕 Cargar licitaciones aptas al iniciar
+  // ✅ NUEVO: Cargar licitaciones aptas (que CUMPLEN) al iniciar
   useEffect(() => {
     if (ready && user) {
-      console.log('[APP] 📥 Cargando licitaciones aptas en el inicio...');
+      console.log('[APP] ✅ Cargando licitaciones aptas que CUMPLEN requisitos...');
       loadMatched();
     }
-  }, [ready, user, loadMatched]);
+  }, [ready, user]); // ⚠️ NO incluir loadMatched para evitar loops
+  
+  // � NUEVO: Cargar licitaciones ANALIZADAS desde BD local al iniciar
+  useEffect(() => {
+    if (ready && user) {
+      console.log('[APP] 📦 Cargando licitaciones analizadas desde BD local (sin API)...');
+      loadAnalyzed(false); // false = cargar todas (cumplen y no cumplen)
+    }
+  }, [ready, user]); // ⚠️ NO incluir loadAnalyzed para evitar loops
+  
+  // �🚫 DESHABILITADO: No cargar licitaciones guardadas al iniciar
   
   // 🆕 AUTO-BUSCAR: Ejecutar UNA SOLA VEZ al montar el componente
   useEffect(() => {
@@ -180,58 +239,31 @@ export default function App() {
       setFromAutoPreferences(true);
       
       // Disparar búsqueda automática
-      // buscar() espera: (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento)
+      // buscar() espera: (termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado)
       setSearching(true);
       buscar(
         q,                  // termino (palabras clave)
         undefined,          // fechaPubDesde
         undefined,          // fechaPubHasta
+        undefined,          // fechaManifDesde
+        undefined,          // fechaManifHasta
         undefined,          // fechaRecDesde
         undefined,          // fechaRecHasta
         ciudad,             // ciudad
-        departamento        // departamento
+        departamento,       // departamento
+        undefined,          // fase
+        undefined           // estado
       ).finally(() => setSearching(false));
       
       // Limpiar parámetros de URL para evitar búsquedas repetidas
       window.history.replaceState({}, document.title, '/app');
     } else {
-      // Si NO hay parámetros, cargar preferencias guardadas del usuario
-      console.log('[APP] ℹ️ Sin parámetros en URL. Cargando preferencias guardadas...');
+      // Si NO hay parámetros, cargar preferencias y buscar automáticamente
+      console.log('[APP] ℹ️ Cargando preferencias y buscando automáticamente...');
       cargarPreferenciasYBuscar();
     }
-  }, [ready, user, buscar, limpiar, cargarPreferenciasYBuscar]);
+  }, [ready, user, buscar, cargarMisLicitaciones, limpiar]);
   
-  
-  const handleToggleSave = useCallback(async (item) => {
-    const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
-    const isSaved = checkIfSaved(idPortafolio);
-    
-    // Actualización optimista: cambiar UI inmediatamente
-    toggleSavedIdOptimistic(idPortafolio, !isSaved);
-    
-    if (isSaved) {
-      const success = await unsaveLicitacion(idPortafolio);
-      
-      if (success) {
-        showToast('★ Licitación eliminada de guardadas', 'info');
-      } else {
-        // Si falla, revertir el cambio optimista
-        toggleSavedIdOptimistic(idPortafolio, true);
-        showToast('✗ Error al eliminar licitación', 'error');
-      }
-    } else {
-      const success = await saveLicitacion(item);
-      
-      if (success) {
-        showToast('★ Licitación guardada exitosamente', 'success');
-      } else {
-        // Si falla, revertir el cambio optimista
-        toggleSavedIdOptimistic(idPortafolio, false);
-        showToast('✗ Error al guardar licitación', 'error');
-      }
-    }
-  }, [checkIfSaved, saveLicitacion, unsaveLicitacion, toggleSavedIdOptimistic, showToast]);
-
   // 1) Splash a pantalla completa mientras el contexto Auth se inicializa
   if (!ready) return <SplashScreen text="Validando sesión…" />;
 
@@ -258,18 +290,47 @@ export default function App() {
       )}
 
       <ResultsPanel
-        resultados={!resultados || resultados.length === 0 ? matchedLicitaciones : resultados}
-        loading={loading || loadingMatched}
-        error={error || errorMatched}
-        total={total || matchedLicitaciones.length}
+        // 🗑️ NUEVO: Filtrar descartados de los resultados
+        // 📦 JERARQUÍA: Si hay resultados de búsqueda → usarlos
+        //               Si no → usar licitaciones analizadas (todas) 
+        //               Si no hay analizadas → usar matched (solo aptas)
+        resultados={
+          (() => {
+            if (!resultados || resultados.length === 0) {
+              if (analyzedLicitaciones && analyzedLicitaciones.length > 0) {
+                const normalized = analyzedLicitaciones
+                  .filter(r => !isDiscarded(r.id_portafolio))
+                  .map(normalizeFromDB);
+                console.log('[APP] 🎯 Mostrando ANALIZADAS desde BD local:', normalized.length);
+                return normalized;
+              } else {
+                const normalized = matchedLicitaciones.map(normalizeFromDB);
+                console.log('[APP] 🎯 Mostrando MATCHED (aptas):', normalized.length);
+                return normalized;
+              }
+            }
+            return resultados.filter(r => !isDiscarded(r.ID_Portafolio || r.id_del_portafolio));
+          })()
+        }
+        loading={loading || loadingAnalyzed || loadingMatched}
+        error={error || errorAnalyzed || errorMatched}
+        total={Math.max(0, (total || analyzedLicitaciones.length || matchedLicitaciones.length) - discardedIds.size)}
         limit={limit}
         offset={offset}
-        lastQuery={lastQuery || (!resultados || resultados.length === 0 ? 'Licitaciones aptas guardadas' : '')}
-        isFromCache={!resultados || resultados.length === 0 ? false : (isFromCache && !fromAutoPreferences)}
-        savedIds={savedIds}
+        lastQuery={
+          lastQuery || 
+          (!resultados || resultados.length === 0 
+            ? (analyzedLicitaciones && analyzedLicitaciones.length > 0
+                ? 'Licitaciones analizadas (desde BD local)'
+                : 'Licitaciones aptas guardadas')
+            : '')
+        }
+        isFromCache={!resultados || resultados.length === 0 ? true : (isFromCache && !fromAutoPreferences)}
         onPage={goPage}
         onItemClick={abrirModal}
-        onToggleSave={handleToggleSave}
+        onDiscard={discardLicitacion}  // 🗑️ NUEVO: Handler para descartar
+        discardedIds={discardedIds}  // 🗑️ NUEVO: IDs de licitaciones descartadas
+        isDiscarded={isDiscarded}  // 🗑️ NUEVO: Función para verificar si está descartada
         preferredKeywords={preferredKeywords}
         showingMatched={!resultados || resultados.length === 0}
       />

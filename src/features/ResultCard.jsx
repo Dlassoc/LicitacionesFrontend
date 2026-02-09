@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useState } from "react";
 import "../styles/features/result-card.css";
 
 /* ========== Helpers de normalización ========== */
@@ -68,7 +68,10 @@ const formatCOP = (val) => {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
 };
 
-export default memo(function ResultCard({ item = {}, onClick, analysisStatus, isSaved, onToggleSave }) {
+// 🔧 TEMPORALMENTE: Deshabilitado memo() para debug - las cards no se actualizaban
+// export default memo(function ResultCard({
+export default function ResultCard({ item = {}, onClick, analysisStatus, onDiscard }) {
+  const [isHiding, setIsHiding] = useState(false);  // 🗑️ NUEVO: Estado para animación de desvanecimiento
   const idx = useMemo(() => buildIndex(item), [item]);
 
   const urlResuelto = getUrlProceso(item);
@@ -82,6 +85,14 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
   const precio = precioVal ? formatCOP(precioVal) : "Cuantía no especificada";
   const descripcion = get(item, idx, ["Descripcion", "descripcion"], "");
   const codigoUnsp = get(item, idx, ["Codigo_categoria", "codigo_categoria", "codCategoria"], "");
+  const fechaPublicacion = get(item, idx, ["Fecha_publicacion", "fecha_publicacion"], "");
+  const fechaManifestacion = get(item, idx, ["Fecha_manifestacion_interes"], "");
+  const fechaRecepcion = get(item, idx, ["Fecha_recepcion_respuestas", "fecha_recepcion_respuestas"], "");
+
+  // 🔧 Log para debug cuando analysisStatus cambia
+  if (analysisStatus && analysisStatus.estado === 'completado') {
+    console.log(`[RESULT_CARD] ${ref} - Estado actualizado: cumple=${analysisStatus.cumple}, porcentaje=${analysisStatus.porcentaje}`);
+  }
 
   // Renderizar badge de análisis automático
   const renderAnalysisBadge = () => {
@@ -105,16 +116,23 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
         );
       
       case 'completado':
-        if (analysisStatus.cumple) {
+        // 🔧 Normalizar cumple: puede ser boolean o número
+        const cumpleBool = typeof analysisStatus.cumple === 'number' 
+          ? analysisStatus.cumple > 0  // Si es número: true si > 0
+          : analysisStatus.cumple;      // Si es boolean: usa directo
+        
+        const porcentaje = analysisStatus.porcentaje || 0;
+        
+        if (cumpleBool === true) {
           return (
             <span className="result-card-badge-analysis result-card-badge-match">
-              ✅ APTO ({analysisStatus.porcentaje?.toFixed(0)}%)
+              ✅ APTO ({porcentaje.toFixed(0)}%)
             </span>
           );
-        } else if (analysisStatus.cumple === false) {
+        } else if (cumpleBool === false) {
           return (
             <span className="result-card-badge-analysis result-card-badge-no-match">
-              ❌ NO APTO
+              ❌ NO APTO ({porcentaje.toFixed(0)}%)
             </span>
           );
         } else {
@@ -164,21 +182,28 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
   return (
     <article
       onClick={onClick}
-      className="result-card-container"
+      className={`result-card-container ${isHiding ? 'result-card-hiding' : ''}`}
     >
       <span className="result-card-accent-bar" />
       
-      {/* Botón de guardar/favoritos */}
+      {/* 🗑️ NUEVO: Botón para descartar licitación */}
       <button
-        className={`result-card-save-btn ${isSaved ? 'saved' : ''}`}
+        className="result-card-discard-btn"
         onClick={(e) => {
           e.stopPropagation();
-          onToggleSave && onToggleSave(item);
+          if (onDiscard && !isHiding) {
+            // Iniciar animación de fade-out
+            setIsHiding(true);
+            // Después de la animación (300ms), ejecutar el descarte
+            setTimeout(() => {
+              onDiscard(item);
+            }, 300);
+          }
         }}
-        title={isSaved ? 'Guardada' : 'Guardar licitación'}
-        aria-label={isSaved ? 'Quitar de guardadas' : 'Guardar licitación'}
+        title="Descartar licitación (no se mostrará de nuevo)"
+        aria-label="Descartar licitación"
       >
-        {isSaved ? '★' : '☆'}
+        ✕
       </button>
 
       <header className="result-card-header">
@@ -214,6 +239,32 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
           </div>
         </section>
       ) : null}
+
+      {/* 🗓️ Sección de fechas importantes */}
+      {(fechaPublicacion || fechaManifestacion || fechaRecepcion) && (
+        <section className="result-card-dates">
+          <div className="result-card-dates-grid">
+            {fechaPublicacion && (
+              <div className="result-card-date-item">
+                <span className="result-card-date-label">📅 Publicación:</span>
+                <span className="result-card-date-value">{fechaPublicacion}</span>
+              </div>
+            )}
+            {fechaManifestacion && (
+              <div className="result-card-date-item">
+                <span className="result-card-date-label">📢 Manifestación:</span>
+                <span className="result-card-date-value">{fechaManifestacion}</span>
+              </div>
+            )}
+            {fechaRecepcion && (
+              <div className="result-card-date-item">
+                <span className="result-card-date-label">📬 Recepción:</span>
+                <span className="result-card-date-value">{fechaRecepcion}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Detalles del análisis - Mostrar indicadores encontrados */}
       {analysisStatus?.estado === 'completado' && analysisStatus?.requisitos && (
@@ -273,7 +324,11 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
                 {analysisStatus.cumple ? '✅ Cumplimiento del perfil:' : '❌ Requisitos no cumplidos:'}
               </h4>
               <div className="result-card-analysis-items">
-                {Object.entries(analysisStatus.detalles).slice(0, 4).map(([key, val]) => (
+                {Object.entries(
+                  typeof analysisStatus.detalles === 'string' 
+                    ? JSON.parse(analysisStatus.detalles) 
+                    : analysisStatus.detalles
+                ).slice(0, 4).map(([key, val]) => (
                   <div key={key} className="result-card-analysis-item">
                     <span className={`result-card-analysis-icon ${val.cumple ? 'match' : 'no-match'}`}>
                       {val.cumple ? '✓' : '✗'}
@@ -295,4 +350,4 @@ export default memo(function ResultCard({ item = {}, onClick, analysisStatus, is
       </footer>
     </article>
   );
-});
+}

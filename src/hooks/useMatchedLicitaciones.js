@@ -28,7 +28,11 @@ export function useMatchedLicitaciones() {
       setLoadingMatched(true);
       setErrorMatched(null);
 
-      console.log('[MATCHED_LICITACIONES] 📥 Cargando licitaciones aptas...');
+      console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ 📥 CARGANDO LICITACIONES APTAS QUE CUMPLEN REQUISITOS
+╚════════════════════════════════════════════════════════════╝
+      `);
 
       const response = await fetch(`${API_BASE}/saved/matched`, {
         method: 'GET',
@@ -43,14 +47,34 @@ export function useMatchedLicitaciones() {
       const data = await response.json();
 
       if (data.ok && Array.isArray(data.licitaciones)) {
-        console.log(`[MATCHED_LICITACIONES] ✅ Se cargaron ${data.licitaciones.length} licitaciones aptas`);
+        console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ ✅ LICITACIONES APTAS CARGADAS EXITOSAMENTE
+╠════════════════════════════════════════════════════════════╣
+║ 📊 Total: ${data.licitaciones.length} licitaciones que CUMPLEN
+║ 💰 Indicadores guardados: SÍ (en requisitos_extraidos)
+║ 📈 Listas para mostrar con scores
+╚════════════════════════════════════════════════════════════╝
+        `);
+        
+        // Log detallado de cada licitación
+        data.licitaciones.forEach((lic, idx) => {
+          console.log(`[MATCHED] [${idx + 1}] ${lic.referencia || lic.id_portafolio} - Score: ${lic.score}%`);
+        });
+        
         setMatchedLicitaciones(data.licitaciones);
         return data.licitaciones;
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (error) {
-      console.error('[MATCHED_LICITACIONES] ❌ Error al cargar licitaciones aptas:', error);
+      console.error(`
+╔════════════════════════════════════════════════════════════╗
+║ ❌ ERROR CARGANDO LICITACIONES APTAS
+╠════════════════════════════════════════════════════════════╣
+║ Error: ${error.message}
+╚════════════════════════════════════════════════════════════╝
+      `, error);
       setErrorMatched(error.message);
       setMatchedLicitaciones([]);
       return [];

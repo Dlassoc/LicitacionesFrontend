@@ -3,6 +3,9 @@ import { API_ENDPOINTS } from "../config/api.js";
 import API_BASE_URL from "../config/api.js";
 import { getFinalDateRange } from "../utils/dateHelpers.js";
 
+// Asegurar que API_BASE tenga siempre un valor válido
+const API_BASE = import.meta.env.VITE_API_BASE || API_BASE_URL || "http://localhost:5000";
+
 // Claves para localStorage
 const STORAGE_KEYS = {
   RESULTS: 'secop_search_results',
@@ -15,68 +18,25 @@ const STORAGE_KEYS = {
 /**
  * Hook de búsqueda para la API SECOP (Procesos)
  * Maneja paginación, filtros y chips de etiquetas activas.
- * Ahora con persistencia en localStorage para mantener resultados al recargar.
+ * IMPORTANTE: NO carga datos guardados en localStorage al iniciar (búsqueda siempre fresca)
  */
 export function useSearchResults(initialLimit = 21) {
-  // Flag para saber si los resultados vienen del localStorage (no de una búsqueda nueva)
-  const [isFromCache, setIsFromCache] = useState(() => {
-    try {
-      const savedResults = localStorage.getItem(STORAGE_KEYS.RESULTS);
-      const savedQuery = localStorage.getItem(STORAGE_KEYS.QUERY);
-      return !!(savedResults && savedQuery); // true si hay datos guardados
-    } catch {
-      return false;
-    }
-  });
+  // NO cargar datos del caché - siempre empezar vacío
+  const [isFromCache, setIsFromCache] = useState(false);
 
-  // Inicializar estados desde localStorage si existen
-  const [resultados, setResultados] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Inicializar siempre vacío - sin cargar de localStorage
+  const [resultados, setResultados] = useState([]);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [total, setTotal] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TOTAL);
-      return saved ? parseInt(saved, 10) : 0;
-    } catch {
-      return 0;
-    }
-  });
+  const [total, setTotal] = useState(0);
   
-  const [limit, setLimit] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LIMIT);
-      return saved ? parseInt(saved, 10) : initialLimit;
-    } catch {
-      return initialLimit;
-    }
-  });
+  const [limit, setLimit] = useState(initialLimit);
   
-  const [offset, setOffset] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.OFFSET);
-      return saved ? parseInt(saved, 10) : 0;
-    } catch {
-      return 0;
-    }
-  });
+  const [offset, setOffset] = useState(0);
   
-  const [lastQuery, setLastQuery] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.QUERY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [lastQuery, setLastQuery] = useState(null);
 
   // Guardar en localStorage cuando cambien los estados
   useEffect(() => {
@@ -184,10 +144,41 @@ export function useSearchResults(initialLimit = 21) {
   );
 
   /**
+   * 🆕 Carga las licitaciones analizadas del usuario (sin búsqueda)
+   */
+  const cargarMisLicitaciones = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/secop/mis-licitaciones?limit=50`, {
+        credentials: 'include'
+      });
+
+      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
+
+      const data = await res.json();
+      setResultados(data.resultados || []);
+      setTotal(data.total || 0);
+      setLimit(data.limit || 20);
+      setOffset(data.offset || 0);
+      
+      console.log('[HOOKS] Mis licitaciones cargadas:', data.total);
+    } catch (err) {
+      console.error("[HOOKS] Error en cargarMisLicitaciones:", err);
+      setError(err.message || "Error desconocido");
+      setResultados([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Ejecuta una nueva búsqueda con los filtros dados
    */
   const buscar = useCallback(
-    async (termino, fechaPubDesde, fechaPubHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado) => {
+    async (termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado) => {
       // Validación del término
       if (!termino || !termino.trim()) {
         console.warn("El término de búsqueda es requerido");
@@ -205,6 +196,8 @@ export function useSearchResults(initialLimit = 21) {
 
       if (fechaPubDesde) baseParams.fecha_pub_desde = fechaPubDesde;
       if (fechaPubHasta) baseParams.fecha_pub_hasta = fechaPubHasta;
+      if (fechaManifDesde) baseParams.fecha_manif_desde = fechaManifDesde;
+      if (fechaManifHasta) baseParams.fecha_manif_hasta = fechaManifHasta;
       if (finalFechaRecDesde) baseParams.fecha_rec_desde = finalFechaRecDesde;
       if (finalFechaRecHasta) baseParams.fecha_rec_hasta = finalFechaRecHasta;
       if (departamento) baseParams.departamento = departamento;
@@ -214,6 +207,7 @@ export function useSearchResults(initialLimit = 21) {
 
       setLastQuery(baseParams);
       setIsFromCache(false); // Marcar que ahora tenemos una búsqueda nueva, no del cache
+      console.log("[BUSCAR] Buscando solo en BD con cached_only=true");
       await fetchBuscar(baseParams);
     },
     [fetchBuscar, initialLimit]
@@ -324,6 +318,7 @@ export function useSearchResults(initialLimit = 21) {
     chips,
     setLimit,
     buscar,
+    cargarMisLicitaciones,  // 🆕 Nueva función para cargar licitaciones del usuario
     limpiar,
     goPage,
   };

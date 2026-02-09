@@ -6,7 +6,7 @@ import "../styles/pages/preferences-page.css";
 export default function PreferencesPage() {
   return (
     <div className="preferences-page-container">
-      <Header chips={[]} />
+      <Header chips={[]} onBuscar={() => {}} onLimpiar={() => {}} />
 
       <main className="preferences-page-main">
         <Preferences unlocked={true} />
