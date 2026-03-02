@@ -14,15 +14,17 @@ export default function AnalysisSection({
   analysisResults,
   analyze,
   isBatchAnalysis = false,
+  skipDownload = false,
 }) {
   if (!docWithIndicators) return null;
 
-  //  Disparar análisis automáticamente cuando el componente se monta
+  // Disparar análisis automáticamente cuando el componente se monta
+  // PERO saltarlo si skipDownload es true (análisis previo ya existe)
   useEffect(() => {
-    if (!analyzing && !analyzed && !analysisError) {
+    if (!skipDownload && !analyzing && !analyzed && !analysisError) {
       analyze();
     }
-  }, [docWithIndicators]);
+  }, [docWithIndicators, skipDownload, analyzing, analyzed, analysisError, analyze]);
 
   //  NUEVO: Usar analysisResults (nuevo formato) si existen, sino analyzed (formato antiguo)
   const results = analysisResults || analyzed;
@@ -30,12 +32,20 @@ export default function AnalysisSection({
   // ✅ NUEVO: Adaptar formato de análisis batch al formato esperado
   let adaptedResults = results;
   if (isBatchAnalysis && results) {
+    // 🔧 Obtener datos de requisitos desde múltiples posibles ubicaciones
+    const requisitos = results.requisitos_extraidos || results.requisitos || results || {};
+    
     adaptedResults = {
       ...results,
-      matrices: results.requisitos_extraidos?.matrices || results.matrices,
-      indicadores: results.requisitos_extraidos?.indicadores_financieros || results.indicadores,
-      codigos_unspsc: results.requisitos_extraidos?.codigos_unspsc || results.codigos_unspsc,
-      experiencia_requerida: results.requisitos_extraidos?.experiencia_requerida || results.experiencia_requerida,
+      // Extraer matrices de múltiples posibles ubicaciones
+      matrices: (requisitos?.matrices || results?.matrices || {}),
+      // Extraer indicadores financieros
+      indicadores: (requisitos?.indicadores_financieros || results?.indicadores || requisitos?.indicadores || {}),
+      // Extraer códigos UNSPSC
+      codigos_unspsc: (requisitos?.codigos_unspsc || results?.codigos_unspsc || []),
+      // Extraer experiencia requerida  
+      experiencia_requerida: (requisitos?.experiencia_requerida || results?.experiencia_requerida || {}),
+      // Flag para análisis batch
       documentos_analizados: 'Análisis batch',
     };
   }

@@ -68,10 +68,9 @@ const formatCOP = (val) => {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
 };
 
-// 🔧 TEMPORALMENTE: Deshabilitado memo() para debug - las cards no se actualizaban
-// export default memo(function ResultCard({
-export default function ResultCard({ item = {}, onClick, analysisStatus, onDiscard }) {
-  const [isHiding, setIsHiding] = useState(false);  // 🗑️ NUEVO: Estado para animación de desvanecimiento
+// 🔧 RE-HABILITADO: memo() con comparador manual para props correcamente
+const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus, onDiscard }) {
+  const [isHiding, setIsHiding] = useState(false);
   const idx = useMemo(() => buildIndex(item), [item]);
 
   const urlResuelto = getUrlProceso(item);
@@ -94,6 +93,8 @@ export default function ResultCard({ item = {}, onClick, analysisStatus, onDisca
     console.log(`[RESULT_CARD] ${ref} - Estado actualizado: cumple=${analysisStatus.cumple}, porcentaje=${analysisStatus.porcentaje}`);
   }
 
+  const getSourceText = () => (item.from_cache ? 'Base propia' : 'SECOP');
+
   // Renderizar badge de análisis automático
   const renderAnalysisBadge = () => {
     if (!analysisStatus) {
@@ -101,6 +102,7 @@ export default function ResultCard({ item = {}, onClick, analysisStatus, onDisca
     }
 
     switch (analysisStatus.estado) {
+      case 'pendiente_analisis':
       case 'pendiente':
         return (
           <span className="result-card-badge-analysis result-card-badge-pending">
@@ -126,18 +128,19 @@ export default function ResultCard({ item = {}, onClick, analysisStatus, onDisca
         if (cumpleBool === true) {
           return (
             <span className="result-card-badge-analysis result-card-badge-match">
-              ✅ APTO ({porcentaje.toFixed(0)}%)
+              APTO ({getSourceText()})
             </span>
           );
         } else if (cumpleBool === false) {
           return (
             <span className="result-card-badge-analysis result-card-badge-no-match">
-              ❌ NO APTO ({porcentaje.toFixed(0)}%)
+              NO APTO ({getSourceText()})
             </span>
           );
         } else {
           // cumple es null - verificar si hay requisitos extraídos (matrices, UNSPSC, experiencia)
           const requisitos = analysisStatus.requisitos || {};
+          const source = getSourceText();
           
           const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
           const hasIndicadores = requisitos.indicadores_financieros && Object.keys(requisitos.indicadores_financieros).length > 0;
@@ -155,13 +158,13 @@ export default function ResultCard({ item = {}, onClick, analysisStatus, onDisca
             
             return (
               <span className="result-card-badge-analysis result-card-badge-info" title={items.join(' • ')}>
-                📊 Con requisitos
+                📊 Con requisitos ({source})
               </span>
             );
           } else {
             return (
               <span className="result-card-badge-analysis result-card-badge-neutral">
-                ℹ️ Sin requisitos
+                ℹ️ Sin requisitos ({source})
               </span>
             );
           }
@@ -350,4 +353,20 @@ export default function ResultCard({ item = {}, onClick, analysisStatus, onDisca
       </footer>
     </article>
   );
-}
+}, (prevProps, nextProps) => {
+  // Comparador manual: re-render solo si item o analysisStatus cambian significativamente
+  if (prevProps.item?.ID_Portafolio !== nextProps.item?.ID_Portafolio) return false;
+  if (prevProps.item?.id_del_portafolio !== nextProps.item?.id_del_portafolio) return false;
+  // Comparar analysisStatus por referencia (si cambió, es un nuevo objeto)
+  if (prevProps.analysisStatus !== nextProps.analysisStatus) {
+    // Pero las properties internas son las mismas
+    if (prevProps.analysisStatus?.cumple === nextProps.analysisStatus?.cumple &&
+        prevProps.analysisStatus?.estado === nextProps.analysisStatus?.estado) {
+      return true; // Props iguales, no renderizar
+    }
+    return false; // Props distintas, sí renderizar
+  }
+  return true; // Props iguales, no renderizar
+});
+
+export default ResultCard;

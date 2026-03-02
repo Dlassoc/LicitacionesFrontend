@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "../components/Header.jsx";
 import ResultsPanel from "../components/ResultsPanel.jsx";
@@ -7,6 +7,7 @@ import { useSearchResults } from "../features/hooks.js";
 import { useDiscardedLicitaciones } from "../hooks/useDiscardedLicitaciones.js";  // 🗑️ NUEVO
 import { useMatchedLicitaciones } from "../hooks/useMatchedLicitaciones.js";
 import { useAnalyzedLicitaciones } from "../hooks/useAnalyzedLicitaciones.js";  // 📦 NUEVO - Carga de BD local
+import { useAutoAnalysis } from "../hooks/useAutoAnalysis.js";  // 🆕 AUTO-ANÁLISIS
 import { useAuth } from "../auth/AuthContext.jsx";
 import SplashScreen from "../components/SplashScreen.jsx";
 import WelcomeToast from "../components/WelcomeToast.jsx";
@@ -25,6 +26,211 @@ export default function App() {
   const { discarded, discardedIds, loadDiscarded, discardLicitacion, restoreDiscarded, isDiscarded } = useDiscardedLicitaciones();  // 🗑️ NUEVO
   const { matchedLicitaciones, loadingMatched, errorMatched, loadMatched, clearMatched } = useMatchedLicitaciones();
   const { analyzedLicitaciones, loadingAnalyzed, errorAnalyzed, loadAnalyzed, clearAnalyzed } = useAnalyzedLicitaciones();  // 📦 NUEVO
+  const { analysisStatus, isPolling, allResultados, resumen, paginationStatus } = useAutoAnalysis(resultados, { lastQuery, total, limit, offset }, goPage);  // 🆕 AUTO-ANÁLISIS + destructurar allResultados, resumen, paginationStatus
+
+  // 🔧 Helper: Crear analysisStatus normalizado ANTES de useMemo
+  const createAnalysisStatus = (item, isMatched, isAnalyzed) => {
+    // Si es apta (matched), siempre completado con cumple=true
+    if (isMatched) {
+      return { 
+        estado: 'completado', 
+        cumple: true, 
+        porcentaje: item.score || 0, 
+        requisitos: item.requisitos_extraidos || {} 
+      };
+    }
+    
+    // Si es analizado y tiene cumple, mostrar resultado (sin depender de campo estado)
+    if (isAnalyzed && item.cumple !== undefined) {
+      return { 
+        estado: 'completado', 
+        cumple: item.cumple, 
+        porcentaje: item.porcentaje_cumplimiento || 0, 
+        requisitos: item.requisitos_extraidos || {} 
+      };
+    }
+    
+    // Fallback para datos antiguos o en progreso
+    if (item.from_cache && item.cumple !== undefined) {
+      return { 
+        estado: 'completado', 
+        cumple: item.cumple, 
+        porcentaje: item.porcentaje_cumplimiento || 0, 
+        requisitos: item.requisitos_extraidos || {} 
+      };
+    }
+    
+    return null;
+  };
+
+  const normalizeFromDB = (item) => {
+    if (!item) return item;
+    const isMatched = item.score !== undefined && item.score !== null && item.referencia;
+    // 🔧 MEJORADO: Detectar como analizado simplemente si tiene campo cumple definido (true, false o null)
+    const isAnalyzed = (item.id_portafolio || item.ID_Portafolio) && (item.cumple !== undefined);
+    const id_portafolio = item.id_portafolio || item.ID_Portafolio || (isMatched ? item.referencia : item.id);
+    let referencia = id_portafolio;
+    try {
+      if (item.detalles && typeof item.detalles === 'object') {
+        const refs = Object.values(item.detalles).filter(v => typeof v === 'string' && v.length > 0);
+        if (refs.length > 0) referencia = refs[0];
+      }
+    } catch (e) {
+      if (isMatched && item.referencia) referencia = item.referencia;
+    }
+    return {
+      ...item,
+      ID_Portafolio: id_portafolio, id_del_portafolio: id_portafolio, id_portafolio: id_portafolio,
+      Referencia_del_proceso: item.referencia || referencia || item.Referencia_del_proceso,
+      Entidad: item.entidad || item.Entidad || 'Entidad no disponible',
+      Descripcion: item.objeto_contratar || item.Descripcion || item.descripcion || '',
+      OBJETO_A_CONTRATAR: item.objeto_contratar || item.OBJETO_A_CONTRATAR || '',
+      DESCRIPCION_DEL_PROCESO: item.objeto_contratar || item.DESCRIPCION_DEL_PROCESO || '',
+      Precio_base: item.precio || item.cuantia || item.Precio_base,
+      Departamento_de_la_entidad: item.departamento || item.Departamento_de_la_entidad || '',
+      Ciudad_entidad: item.ciudad || item.Ciudad_entidad || '',
+      Fecha_publicacion: item.fecha_publicacion || item.Fecha_publicacion || '',
+      Fase: isAnalyzed ? (item.Fase || item.fase || 'Analizado') : (item.estado || item.Fase || item.fase || ''),
+      URL_Proceso: item.enlace || item.url || item.URL_Proceso || '#',
+      score: item.porcentaje !== null && item.porcentaje !== undefined ? item.porcentaje : (item.porcentaje_cumplimiento !== null && item.porcentaje_cumplimiento !== undefined ? item.porcentaje_cumplimiento : (item.score !== null && item.score !== undefined ? item.score : 0)),
+      requisitos_extraidos: item.requisitos_extraidos || item.requisitos || {},
+      _fromMatched: isMatched, _fromAnalyzed: isAnalyzed,
+      _analysisStatus: createAnalysisStatus(item, isMatched, isAnalyzed)
+    };
+  };
+
+  // MEMOIZAR: Calcular resultados filtrados SOLO cuando las dependencias cambien realmente
+  // Esto evita que se recree el array en cada render, causando flickering en categorizacion
+  const memoizedResults = useMemo(() => {
+    console.log('[APP] ============================================');
+    console.log('[APP] 🔄 Recalculando memoizedResults...');
+    console.log('[APP] - resultados (SECOP):', resultados?.length || 0);
+    console.log('[APP] - matchedLicitaciones:', matchedLicitaciones?.length || 0);
+    console.log('[APP] - analyzedLicitaciones:', analyzedLicitaciones?.length || 0);
+    console.log('[APP] ============================================');
+    
+    let combined = [];
+    const seenIds = new Set();
+
+    const mergeCacheData = (existingItem, cacheItem, sourceTag) => {
+      const merged = { ...existingItem };
+      merged.from_cache = true;
+      merged._fromMatched = existingItem._fromMatched || cacheItem._fromMatched;
+      merged._fromAnalyzed = existingItem._fromAnalyzed || cacheItem._fromAnalyzed;
+
+      if (cacheItem.requisitos_extraidos && Object.keys(cacheItem.requisitos_extraidos).length > 0) {
+        merged.requisitos_extraidos = cacheItem.requisitos_extraidos;
+      }
+
+      // 🔧 CRÍTICO: Copiar o recrear _analysisStatus
+      if (cacheItem._analysisStatus) {
+        merged._analysisStatus = cacheItem._analysisStatus;
+        console.log(`[APP] ✅ _analysisStatus copiado desde BD:`, cacheItem._analysisStatus);
+      } else if (cacheItem.cumple !== undefined) {
+        // Si no hay _analysisStatus pero sí hay cumple, recrearlo
+        merged._analysisStatus = createAnalysisStatus(cacheItem, false, true);
+        console.log(`[APP] ✅ _analysisStatus recreado desde cumple:`, merged._analysisStatus);
+      }
+
+      if (cacheItem.score !== undefined && cacheItem.score !== null) {
+        merged.score = cacheItem.score;
+      }
+
+      if (cacheItem.porcentaje_cumplimiento !== undefined) {
+        merged.porcentaje_cumplimiento = cacheItem.porcentaje_cumplimiento;
+      }
+
+      if (cacheItem.cumple !== undefined) {
+        merged.cumple = cacheItem.cumple;
+      }
+
+      console.log(`[APP] ♻️ Merge BD (${sourceTag}) con SECOP para`, merged.ID_Portafolio || merged.id_del_portafolio);
+      return merged;
+    };
+
+    const addOrMergeFromDB = (item, sourceTag) => {
+      const normalized = normalizeFromDB(item);
+      if (!normalized) return false;
+
+      normalized.from_cache = true;
+      const id = normalized.ID_Portafolio || normalized.id_del_portafolio;
+      if (!id || isDiscarded(id)) return false;
+
+      const existingIndex = combined.findIndex(existing => {
+        const existingId = existing.ID_Portafolio || existing.id_del_portafolio;
+        return existingId === id;
+      });
+
+      if (existingIndex >= 0) {
+        combined[existingIndex] = mergeCacheData(combined[existingIndex], normalized, sourceTag);
+        return false;
+      }
+
+      combined.push(normalized);
+      seenIds.add(id);
+      console.log(`[APP] 📦 ${sourceTag} agregado (sin duplicar):`, id);
+      return true;
+    };
+    
+    // 🆕 PASO 1: Agregar resultados de SECOP NORMALIZADOS (si hay)
+    if (resultados && Array.isArray(resultados) && resultados.length > 0) {
+      resultados.forEach(r => {
+        const id = r.ID_Portafolio || r.id_del_portafolio || r.id_portafolio;
+        if (!isDiscarded(id)) {
+          // 🔧 Normalizar campos de ID AQUÍ antes de agregar
+          const normalized = {
+            ...r,
+            ID_Portafolio: id,
+            id_del_portafolio: id,
+            id_portafolio: id
+          };
+          combined.push(normalized);
+          seenIds.add(id);
+        }
+      });
+      console.log('[APP] 📡 SECOP items normalizados y agregados:', combined.length);
+    }
+    
+    // 🆕 PASO 2: Agregar MATCHED de BD que NO estén ya en SECOP
+    if (matchedLicitaciones && matchedLicitaciones.length > 0) {
+      let addedMatched = 0;
+      matchedLicitaciones.forEach(m => {
+        const id = m.id_portafolio || m.ID_Portafolio || m.referencia || m.id;
+        if (!isDiscarded(id)) {
+          const added = addOrMergeFromDB(m, 'MATCHED');
+          if (added) {
+            addedMatched++;
+          }
+        }
+      });
+      if (addedMatched > 0) {
+        console.log('[APP] 📦 MATCHED de BD agregados (no duplicados):', addedMatched);
+      }
+    }
+    
+    // 🆕 PASO 3: Agregar ANALYZED de BD que NO estén ya presentes
+    if (analyzedLicitaciones && analyzedLicitaciones.length > 0) {
+      let addedAnalyzed = 0;
+      analyzedLicitaciones.forEach(a => {
+        const id = a.id_portafolio || a.ID_Portafolio;
+        if (!isDiscarded(id)) {
+          const added = addOrMergeFromDB(a, 'ANALYZED');
+          if (added) {
+            addedAnalyzed++;
+          }
+        }
+      });
+      if (addedAnalyzed > 0) {
+        console.log('[APP] 📦 ANALYZED de BD agregados (no duplicados):', addedAnalyzed);
+      }
+    }
+    
+    console.log('[APP] ✅ TOTAL COMBINADO:', combined.length, '(SECOP + BD sin duplicados)');
+    if (combined.length === 0) {
+      console.warn('[APP] ⚠️ WARNING: memoizedResults está vacío!');
+    }
+    return combined;
+  }, [resultados, matchedLicitaciones, analyzedLicitaciones, discardedIds]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -36,48 +242,21 @@ export default function App() {
   const [preferredKeywords, setPreferredKeywords] = useState(null); // 🆕 Palabras clave preferidas del usuario
   const [showingMatched, setShowingMatched] = useState(false); // 🆕 Flag para saber si estamos mostrando licitaciones aptas
   const hasInitialized = useRef(false); // 🆕 Flag para ejecutar auto-búsqueda solo UNA VEZ
+  const queryStringRef = useRef(""); // 🔧 FIX: Mantener lastQuery estable durante paginación automática
   
-  // 🆕 Función para normalizar datos de BD a estructura de ResultCard
-  const normalizeFromDB = (item) => {
-    if (!item) return item;
-    
-    // 🆕 Extraer referencia de detalles si existe
-    let referencia = item.id_portafolio; // Por defecto usar id_portafolio
-    try {
-      if (item.detalles && typeof item.detalles === 'object') {
-        // Buscar el campo de referencia en detalles
-        const refs = Object.values(item.detalles)
-          .filter(v => typeof v === 'string' && v.length > 0);
-        if (refs.length > 0) {
-          referencia = refs[0]; // Usar el primer valor encontrado
-        }
-      }
-    } catch (e) {
-      console.log('[APP] Usando id_portafolio como referencia:', item.id_portafolio);
+  // 🔧 FIX: Actualizar queryStringRef cuando `lastQuery` proveniente del hook cambia
+  // Esto impide que se recalcule dinámicamente durante paginación automática
+  useEffect(() => {
+    if (lastQuery && typeof lastQuery === 'object') {
+      // Es una búsqueda real (objeto con parámetros)
+      queryStringRef.current = JSON.stringify(lastQuery);
+      console.log('[APP] 🔍 Nueva búsqueda registrada:', queryStringRef.current);
+    } else if (!lastQuery && (analyzedLicitaciones?.length > 0 || matchedLicitaciones?.length > 0)) {
+      // No hay búsqueda en curso pero hay datos de BD
+      // Mantener el queryString anterior sin cambiar
+      console.log('[APP] 📦 Usando datos de BD, mantiendo queryString anterior');
     }
-    
-    const normalized = {
-      ...item,
-      // Normalizar campos de ID
-      ID_Portafolio: item.id_portafolio || item.ID_Portafolio,
-      id_del_portafolio: item.id_portafolio || item.id_del_portafolio,
-      // Normalizar campo de referencia
-      Referencia_del_proceso: referencia || item.Referencia_del_proceso,
-      // Normalizar entidad - buscar en detalles o usar default
-      Entidad: item.entidad || item.Entidad || 'Entidad no disponible',
-      // Normalizar precio
-      Precio_base: item.precio || item.Precio_base,
-      // Agregar URL si existe
-      URL_Proceso: item.enlace || item.URL_Proceso || '#',
-      // 🆕 Agregar score (porcentaje) para cards
-      score: item.porcentaje !== null && item.porcentaje !== undefined ? item.porcentaje : 0,
-      // 🆕 Agregar requisitos_extraidos si no existe
-      requisitos_extraidos: item.requisitos_extraidos || item.requisitos || {},
-    };
-    
-    console.log('[APP] 📋 Licitación normalizada:', normalized.ID_Portafolio, 'Ref:', normalized.Referencia_del_proceso, 'Score:', normalized.score);
-    return normalized;
-  };
+  }, [lastQuery, analyzedLicitaciones, matchedLicitaciones]);
   
   const handleBuscar = async (...args) => {
     setSearching(true);
@@ -192,15 +371,52 @@ export default function App() {
     }
   }, [ready, user]); // ⚠️ NO incluir loadMatched para evitar loops
   
-  // � NUEVO: Cargar licitaciones ANALIZADAS desde BD local al iniciar
+  // 📦 Cargar análisis previos cuando hay resultados nuevos de SECOP
+  // Esto permite mostrar análisis existentes instántáneamente sin esperar re-análisis
+  // 🔧 MEJORADO: Ahora intenta cargar TODOS los análisis previos (no solo los aptos)
   useEffect(() => {
-    if (ready && user) {
-      console.log('[APP] 📦 Cargando licitaciones analizadas desde BD local (sin API)...');
-      loadAnalyzed(false); // false = cargar todas (cumplen y no cumplen)
+    if (ready && user && resultados && resultados.length > 0) {
+      // Extraer IDs de los resultados
+      const ids = resultados
+        .map(r => r.ID_Portafolio || r.id_del_portafolio)
+        .filter(Boolean);
+      
+      if (ids.length > 0) {
+        console.log(`[APP] 📦 Buscando análisis PREVIOS para ${ids.length} licitaciones de SECOP...`);
+        // 🔧 CAMBIO: Cargar TODOS los análisis previos (completados), no solo los aptos
+        loadAnalyzed(false, ids);  // false = no filtrar solo aptos, traer TODOS los completados
+      }
     }
-  }, [ready, user]); // ⚠️ NO incluir loadAnalyzed para evitar loops
+  }, [resultados, ready, user, loadAnalyzed]);
   
-  // �🚫 DESHABILITADO: No cargar licitaciones guardadas al iniciar
+  // 📦 Cargar licitaciones ANALIZADAS desde BD local cuando hay una búsqueda activa (SIEMPRE, no solo como fallback)
+  // 🆕 CAMBIO: Se ejecuta cada vez que hay una palabra clave activa, combinándose con MATCHED
+  useEffect(() => {
+    if (ready && user && lastQuery && lastQuery.palabras_clave) {
+      // 🔧 NO limpiar - dejar que memoizedResults maneje el merge sin parpadeo
+      console.log(`[APP] 📦 Cargando licitaciones analizadas por palabra clave: "${lastQuery.palabras_clave}"`);
+      // 🆕 Cargar por palabra clave SIEMPRE que haya búsqueda activa
+      loadAnalyzed(false, lastQuery.palabras_clave);
+    }
+  }, [ready, user, lastQuery, loadAnalyzed]);
+  
+  // 📦 Cargar licitaciones APTAS (MATCHED) filtrando por palabra clave
+  // 🆕 Se ejecuta cuando hay búsqueda activa para mostrar solo los aptos relevantes
+  useEffect(() => {
+    if (ready && user && lastQuery && lastQuery.palabras_clave) {
+      console.log(`[APP] 📦 Cargando licitaciones aptas filtrando por: "${lastQuery.palabras_clave}"`);
+      loadMatched(lastQuery.palabras_clave);
+    }
+  }, [ready, user, lastQuery, loadMatched]);
+  
+    // 🔧 FUERZA LOG CUANDO LLEGAN DATOS DE BD
+  useEffect(() => {
+    if (analyzedLicitaciones.length > 0) {
+      console.log(`[APP] ✅ DATOS DE BD CARGADOS - Analyzed: ${analyzedLicitaciones.length}, Matched: ${matchedLicitaciones.length}`);
+      console.log(`[APP] 🎯 memoizedResults ahora tiene ${memoizedResults?.length || 0} items`);
+    }
+  }, [analyzedLicitaciones.length, matchedLicitaciones.length, memoizedResults?.length]);
+    // �🚫 DESHABILITADO: No cargar licitaciones guardadas al iniciar
   
   // 🆕 AUTO-BUSCAR: Ejecutar UNA SOLA VEZ al montar el componente
   useEffect(() => {
@@ -269,11 +485,14 @@ export default function App() {
 
   // 2) Splash visible cada vez que comienza una búsqueda (sin limpiar filtros)
   //    - Solo se activa cuando el loading viene de handleBuscar (no de goPage)
-  const showSplash = loading && searching;
+  //    - 🆕 NO mostrar splash si ya hay items de BD listos para mostrar
+  const showSplash = loading && searching && memoizedResults.length === 0;
 
   return (
     <div className="min-h-screen main-bg relative">
       {showSplash && <SplashScreen text={lastQuery ? `Buscando proyectos…` : "Cargando resultados…"} />}
+
+      {console.log('[APP.JSX RENDER]', { memoizedResults: memoizedResults?.length || 0, SECOP: resultados?.length || 0, matched: matchedLicitaciones?.length || 0, analyzed: analyzedLicitaciones?.length || 0 })}
 
       <Header chips={chips} onBuscar={handleBuscar} onLimpiar={limpiar} />
 
@@ -289,42 +508,21 @@ export default function App() {
         />
       )}
 
+      {/* 🔧 LOG: Verificar qué se pasa a ResultsPanel */}
+      {memoizedResults && console.log('[APP] 📤 PASANDO A RESULTSPANEL:', memoizedResults.length, 'items')}
+      
       <ResultsPanel
         // 🗑️ NUEVO: Filtrar descartados de los resultados
         // 📦 JERARQUÍA: Si hay resultados de búsqueda → usarlos
         //               Si no → usar licitaciones analizadas (todas) 
         //               Si no hay analizadas → usar matched (solo aptas)
-        resultados={
-          (() => {
-            if (!resultados || resultados.length === 0) {
-              if (analyzedLicitaciones && analyzedLicitaciones.length > 0) {
-                const normalized = analyzedLicitaciones
-                  .filter(r => !isDiscarded(r.id_portafolio))
-                  .map(normalizeFromDB);
-                console.log('[APP] 🎯 Mostrando ANALIZADAS desde BD local:', normalized.length);
-                return normalized;
-              } else {
-                const normalized = matchedLicitaciones.map(normalizeFromDB);
-                console.log('[APP] 🎯 Mostrando MATCHED (aptas):', normalized.length);
-                return normalized;
-              }
-            }
-            return resultados.filter(r => !isDiscarded(r.ID_Portafolio || r.id_del_portafolio));
-          })()
-        }
-        loading={loading || loadingAnalyzed || loadingMatched}
+        resultados={memoizedResults && memoizedResults.length > 0 ? memoizedResults : []}
+        loading={loading}
         error={error || errorAnalyzed || errorMatched}
         total={Math.max(0, (total || analyzedLicitaciones.length || matchedLicitaciones.length) - discardedIds.size)}
         limit={limit}
         offset={offset}
-        lastQuery={
-          lastQuery || 
-          (!resultados || resultados.length === 0 
-            ? (analyzedLicitaciones && analyzedLicitaciones.length > 0
-                ? 'Licitaciones analizadas (desde BD local)'
-                : 'Licitaciones aptas guardadas')
-            : '')
-        }
+        lastQuery={queryStringRef.current}
         isFromCache={!resultados || resultados.length === 0 ? true : (isFromCache && !fromAutoPreferences)}
         onPage={goPage}
         onItemClick={abrirModal}
@@ -333,6 +531,11 @@ export default function App() {
         isDiscarded={isDiscarded}  // 🗑️ NUEVO: Función para verificar si está descartada
         preferredKeywords={preferredKeywords}
         showingMatched={!resultados || resultados.length === 0}
+        analysisStatus={analysisStatus}  // 🆕 Pasar analysisStatus desde App
+        isPolling={isPolling}  // 🆕 Pasar isPolling desde App
+        allResultados={allResultados}  // 🆕 Pasar allResultados para mostrar total a analizar
+        resumen={resumen}  // 🆕 Pasar resumen con contadores
+        paginationStatus={paginationStatus}  // 🆕 Pasar información de paginación
       />
 
       <ResultModal 
@@ -340,6 +543,7 @@ export default function App() {
         open={modalOpen} 
         item={selectedItem} 
         onClose={cerrarModal} 
+        analysisStatus={analysisStatus}
       />
     </div>
   );

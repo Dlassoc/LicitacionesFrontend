@@ -17,31 +17,65 @@ export const useAnalyzedLicitaciones = () => {
   const [loadingAnalyzed, setLoadingAnalyzed] = useState(false);
   const [errorAnalyzed, setErrorAnalyzed] = useState(null);
 
-  const loadAnalyzed = useCallback(async (onlyAptas = false) => {
+  const loadAnalyzed = useCallback(async (onlyAptas = false, searchQueryOrIds = null) => {
     try {
       setLoadingAnalyzed(true);
       setErrorAnalyzed(null);
 
-      console.log(`
-╔════════════════════════════════════════════════════════════╗
-║ 📦 CARGANDO LICITACIONES ANALIZADAS DESDE BD LOCAL
-║ (Sin consultar API de SECOP)
-╠════════════════════════════════════════════════════════════╣
-║ Buscando en: licitaciones_analisis
-║ Solo aptas: ${onlyAptas ? 'SÍ' : 'NO'}
-╚════════════════════════════════════════════════════════════╝
-      `);
+      // 🆕 Aceptar array de IDs o string de palabra clave
+      let ids = [];
+      let searchQuery = null;
+      
+      if (Array.isArray(searchQueryOrIds)) {
+        ids = searchQueryOrIds;
+      } else if (typeof searchQueryOrIds === 'string' && searchQueryOrIds.trim()) {
+        searchQuery = searchQueryOrIds.trim();
+      }
+      
+      // 🆕 Si no hay IDs ni palabra clave, no cargar
+      if (ids.length === 0 && !searchQuery) {
+        console.log(`[ANALYZED] ℹ️ Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
+        setAnalyzedLicitaciones([]);
+        setLoadingAnalyzed(false);
+        return;
+      }
 
-      const params = new URLSearchParams();
-      params.append('limit', 100);
-      params.append('offset', 0);
-      if (onlyAptas) params.append('only_aptas', 'true');
+      if (searchQuery) {
+        console.log(`[ANALYZED] 📦 Cargando análisis previos para: "${searchQuery}"`);
+      } else {
+        console.log(`[ANALYZED] 📦 Cargando análisis previos para ${ids.length} IDs específicos`);
+      }
 
-      const response = await fetch(`${API_BASE_URL}/saved/analyzed?${params.toString()}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // 🆕 ENVIAR IDs como POST si los hay, o usar GET con palabra clave
+      let response;
+      if (ids.length > 0) {
+        // POST con IDs específicos
+        response = await fetch(`${API_BASE_URL}/saved/analyzed`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            ids,
+            search_query: searchQuery,
+            limit: 100,
+            offset: 0,
+            only_aptas: onlyAptas
+          })
+        });
+      } else {
+        // GET con palabra clave
+        const params = new URLSearchParams();
+        params.append('search_query', searchQuery);
+        params.append('limit', 100);
+        params.append('offset', 0);
+        if (onlyAptas) params.append('only_aptas', 'true');
+        
+        response = await fetch(`${API_BASE_URL}/saved/analyzed?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Error en la respuesta: ${response.status}`);

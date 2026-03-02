@@ -278,8 +278,8 @@ const OMIT_FIELDS = new Set(["Enlace_oficial", "Documentos", "URL_Proceso", "ID_
 
 /* =============================== Componente =============================== */
 
-export default function ResultModal({ open, item, onClose }) {
-  // ✅ PRIORITARIO: Inicializar el hook ANTES del early return
+export default function ResultModal({ open, item, onClose, analysisStatus = {} }) {
+  // Inicializar el hook ANTES del early return
   // para que el cleanup siempre se ejecute
   const [descExpanded, setDescExpanded] = useState(false);
 
@@ -296,22 +296,60 @@ export default function ResultModal({ open, item, onClose }) {
     [idx]
   );
 
-  // ✅ DEBUG: Loguear cuando cambia idPortafolio
+  // Verificar si ya existe análisis previo completado
+  const previousAnalysis = useMemo(() => {
+    if (!analysisStatus || !idPortafolio) return null;
+    const status = analysisStatus[idPortafolio];
+    if (status && status.estado === 'completado') {
+      // 🔧 IMPORTANTE: Hook guarda como 'requisitos' (no 'requisitos_extraidos')
+      // Backend devuelve 'requisitos_extraidos' pero hook renombra a 'requisitos' en analysisStatus
+      const requisitosData = status.requisitos || status.requisitos_extraidos || {};
+      
+      // 🔍 Agregar logs para debuggear datos vacíos
+      const hasData = Object.keys(requisitosData).length > 0;
+      if (!hasData) {
+        console.warn(`[RESULT_MODAL] ⚠️ previousAnalysis tiene requisitosData VACÍA para ${idPortafolio}:`, {
+          tiene_requisitos: !!status.requisitos,
+          tiene_requisitos_extraidos: !!status.requisitos_extraidos,
+          requisitos_keys: status.requisitos ? Object.keys(status.requisitos) : [],
+          requisitos_extraidos_keys: status.requisitos_extraidos ? Object.keys(status.requisitos_extraidos) : [],
+          status_keys: Object.keys(status)
+        });
+      }
+      
+      return {
+        cumple: status.cumple,
+        porcentaje_cumplimiento: status.porcentaje_cumplimiento || 0,
+        detalles: status.detalles,
+        requisitos_extraidos: requisitosData,
+        hasRealData: hasData  // Flag para detectar si realmente tenemos datos
+      };
+    }
+    return null;
+  }, [analysisStatus, idPortafolio]);
+
+  // DEBUG: Add comprehensive logging
   useEffect(() => {
+    if (open && idPortafolio && analysisStatus) {
+      const status = analysisStatus[idPortafolio];
+      console.log(`[RESULT_MODAL] 🔍 idPortafolio=${idPortafolio}, status exists=${!!status}, estado=${status?.estado}, requisitos keys=${status?.requisitos ? Object.keys(status.requisitos) : 'none'}`);
+      if (!status) {
+        console.log(`[RESULT_MODAL] ⚠️ ID not found in analysisStatus. Available keys:`, Object.keys(analysisStatus).slice(0, 10));
+      }
+    }
+  }, [open, idPortafolio, analysisStatus]);
 
-  }, [idPortafolio]);
-
-  // ✅ NUEVO: Consultar si ya existe análisis batch completado
+  // Consultar si ya existe análisis batch completado
   const { status: batchStatus, loading: batchLoading } = useBatchAnalysisStatus(idPortafolio);
 
-  // ✅ Análisis automático LOCAL de indicadores financieros
+  // Análisis automático LOCAL de indicadores financieros
   // Se analizarán TODOS los documentos sin necesidad de IA
   const { analyzing, analyzed, results, error: analysisError, analyze, cancel, progress } = useLocalDocumentAnalysis(
     docs, // Todos los documentos descargados
     idPortafolio
   );
 
-  // ✅ NUEVO: Cancelar y resetear cuando cambia el idPortafolio (IMPORTANTE para evitar mezcla de datos)
+  // Cancelar y resetear cuando cambia el idPortafolio (IMPORTANTE para evitar mezcla de datos)
   useEffect(() => {
     if (open && idPortafolio) {
 
@@ -319,10 +357,10 @@ export default function ResultModal({ open, item, onClose }) {
     }
   }, [idPortafolio, open, cancel]);
 
-  // ✅ NUEVO: Rastrear si el modal fue abierto antes para detectar cierre
+  // Rastrear si el modal fue abierto antes para detectar cierre
   const wasOpenRef = useRef(false);
 
-  // ✅ NUEVO: Cancelar análisis SOLO cuando el modal se cierre (transición de true a false)
+  // Cancelar análisis SOLO cuando el modal se cierre (transición de true a false)
   useEffect(() => {
     if (open) {
       // Modal se abrió
@@ -628,16 +666,17 @@ export default function ResultModal({ open, item, onClose }) {
             analyzed={analyzed}
           />
 
-          {/* ====== Análisis de indicadores financieros (LOCAL) ====== */}
-          {/* ✅ CAMBIO: Usar análisis local sin IA o análisis batch si existe */}
+          {/* Análisis de indicadores financieros (LOCAL) */}
+          {/* Si ya existe análisis previo, usarlo directamente sin re-analizar */}
           <AnalysisSection 
-            docWithIndicators={docs.length > 0}
-            analyzing={analyzing || (batchStatus?.estado === 'procesando')}
-            analyzed={analyzed || (batchStatus?.estado === 'completado')}
-            analysisError={analysisError || (batchStatus?.estado === 'error' ? batchStatus.error_message : null)}
-            analysisResults={batchStatus?.estado === 'completado' ? batchStatus : results}
+            docWithIndicators={docs.length > 0 || previousAnalysis !== null}
+            analyzing={previousAnalysis?.hasRealData ? false : (analyzing || (batchStatus?.estado === 'procesando'))}
+            analyzed={previousAnalysis?.hasRealData ? true : (analyzed || (batchStatus?.estado === 'completado'))}
+            analysisError={previousAnalysis?.hasRealData ? null : (analysisError || (batchStatus?.estado === 'error' ? batchStatus.error_message : null))}
+            analysisResults={previousAnalysis || (batchStatus?.estado === 'completado' ? batchStatus : results)}
             analyze={handleAnalyze}
-            isBatchAnalysis={batchStatus?.estado === 'completado'}
+            isBatchAnalysis={previousAnalysis?.hasRealData ? true : (batchStatus?.estado === 'completado' ? true : false)}
+            skipDownload={previousAnalysis?.hasRealData === true}
           />
 
           {/* Footer */}

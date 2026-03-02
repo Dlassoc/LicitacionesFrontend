@@ -22,8 +22,9 @@ export function useMatchedLicitaciones() {
 
   /**
    * 🆕 Carga las licitaciones aptas del usuario desde el backend
+   * @param {string} searchQuery - Palabra clave opcional para filtrar
    */
-  const loadMatched = useCallback(async () => {
+  const loadMatched = useCallback(async (searchQuery = null) => {
     try {
       setLoadingMatched(true);
       setErrorMatched(null);
@@ -34,7 +35,14 @@ export function useMatchedLicitaciones() {
 ╚════════════════════════════════════════════════════════════╝
       `);
 
-      const response = await fetch(`${API_BASE}/saved/matched`, {
+      // 🆕 Construir URL con parámetro search_query si existe
+      const url = new URL(`${API_BASE}/saved/matched`);
+      if (searchQuery) {
+        url.searchParams.append('search_query', searchQuery);
+        console.log(`[MATCHED] Filtrando por palabra clave: ${searchQuery}`);
+      }
+
+      const response = await fetch(url.toString(), {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }

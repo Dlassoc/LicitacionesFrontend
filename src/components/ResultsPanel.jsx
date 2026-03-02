@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
-import { useAutoAnalysis } from "../hooks/useAutoAnalysis.js";  // ✅ RESTAURADO - Ahora sin loops infinitos
 import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
@@ -13,121 +12,152 @@ export default function ResultsPanel({
   discardedIds,  // 🗑️ NUEVO: Set de IDs descartadas
   isDiscarded,  // 🗑️ NUEVO: Función para verificar descarte
   preferredKeywords,
-  showingMatched = false // 🆕 Flag para indicar si estamos mostrando licitaciones aptas
+  showingMatched = false, // 🆕 Flag para indicar si estamos mostrando licitaciones aptas
+  analysisStatus = {},  // 🆕 Recibir analysisStatus desde App
+  isPolling = false,  // 🆕 Recibir isPolling desde App
+  allResultados = [],  // 🆕 Recibir allResultados desde App (total de licitaciones a analizar)
+  resumen = {},  // 🆕 Recibir resumen con contadores
+  paginationStatus = {}  // 🆕 Recibir información de paginación
 }) {
-  const [filterCategory, setFilterCategory] = useState('cumple'); // 🆕 Por defecto mostrar solo las que CUMPLEN
+  console.log('[RESULTS_PANEL] 📥 PROPS RECIBIDAS - resultados:', resultados?.length || 0, 'items');
+  console.log('[RESULTS_PANEL] 📥 tipos:', typeof resultados, Array.isArray(resultados) ? 'es array' : 'NO es array');
+  console.log('[RESULTS_PANEL] 📥 loading:', loading, 'error:', !!error);
+  
+  // 🔧 FUERZA RE-RENDER cuando llegan nuevos resultados
+  const [forceUpdateKey, setForceUpdateKey] = useState(0);
+  
+  useEffect(() => {
+    if (resultados && resultados.length > 0) {
+      setForceUpdateKey(prev => prev + 1);
+      console.log('[RESULTS_PANEL] 🔄 NUEVA DATA DETECTADA - Forzando re-categorización, items:', resultados.length);
+    }
+  }, [resultados?.length]); // Solo trigger cuando cantidad cambia
+  
+  const [filterCategory, setFilterCategory] = useState('all'); // 🆕 Por defecto mostrar TODAS (incluyendo las que se están analizando)
   const [showOnlyMatching, setShowOnlyMatching] = useState(false); // 🆕 Mostrar solo coincidencias (desactivado por defecto)
   const [expandedSections, setExpandedSections] = useState({
     cumple: true,       // 🆕 VISIBLE por defecto - Licitaciones que el usuario PUEDE aplicar
     noCumple: false,    // 🆕 OCULTO por defecto - Licitaciones que el usuario NO puede aplicar
-    sinAnalizar: false  // Oculto por defecto
+    sinAnalizar: true   // 🆕 VISIBLE por defecto - Licitaciones en análisis (mientras se procesan)
   });
-  
-  // ✅ RESTAURADO - Hook para análisis automático en background (corregido para no causar loops infinitos)
-  // 🔒 DESHABILITADO cuando isFromCache=true (modo cached_only) para evitar análisis innecesarios
-  // 🆕 Agregado callback para auto-paginación
-  const { analysisStatus, isPolling, pageIndex, allResultados, resumen, paginationStatus } = useAutoAnalysis(
-    isFromCache ? [] : resultados,  // 🔒 Pasar array vacío si es desde caché para no desencadenar análisis
-    {
-      lastQuery,
-      offset,
-      limit,
-      total
-    },
-    onPage  // 🆕 Callback para auto-paginar cuando página completada
-  );
 
-  // Categorizar resultados por cumplimiento - USAR allResultados para mostrar de TODAS las páginas
-  const { cumple, noCumple, sinAnalizar, conIndicadores } = useMemo(() => {
-    console.log(`[RESULTS_PANEL]  Recategorizando: allResultados=${allResultados?.length}, analysisStatus keys=${Object.keys(analysisStatus).length}`);
+  // 🔧 DEBOUNCE analysisStatus: evitar que se recategoritce en cada polling (cada 10 segundos)
+  // Usar una versión "estabilizada" que solo cambie cuando sea importante
+  const [stableAnalysisStatus, setStableAnalysisStatus] = useState(analysisStatus);
+  const debounceTimerRef = useRef(null);
+
+  useEffect(() => {
+    // Limpiar timeout anterior si existe
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // 🔧 IMPORTANTE: Usar debounce más corto (100ms) para análisis completados
+    // Esto evita flickering pero mantiene responsividad cuando se guardan análisis
+    // El debounce agrupa múltiples cambios rápidos en una sola actualización
+    // pero no ralentiza licitaciones que se completan esporádicamente
+    debounceTimerRef.current = setTimeout(() => {
+      setStableAnalysisStatus(analysisStatus);
+      console.log('[RESULTS_PANEL] 🔄 analysisStatus actualizado (debounced 100ms)');
+    }, 100);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [analysisStatus]);
+
+  const hasFinalVerdict = (status) =>
+    status && (typeof status.cumple === 'boolean' || status.estado === 'completado');
+
+  // 🔧 REFACTORIZADO: Obtener status para un item, priorizando datos de BD si vienen
+  const getStatusForItem = (idPortafolio, item) => {
+    // Prioridad 1: Si el item tiene _analysisStatus (datos de BD normalizados), usarlo
+    if (item._analysisStatus) {
+      return item._analysisStatus;
+    }
+
+    // Prioridad 2: Si item tiene cumple directo (caché antiguo), crear analysis normal
+    if (item.cumple !== undefined) {
+      return {
+        estado: 'completado',
+        cumple: item.cumple,
+        porcentaje: item.porcentaje_cumplimiento || 0,
+        requisitos: item.requisitos_extraidos || {}
+      };
+    }
+
+    // Prioridad 3: Si hay polling activo, buscar en analysisStatus
+    const pollingStatus = analysisStatus[idPortafolio];
+    if (pollingStatus) {
+      return pollingStatus;
+    }
+
+    // Sin status
+    return null;
+  };
+
+  // Categorizar resultados por cumplimiento
+  const { cumple, noCumple, sinAnalizar } = useMemo(() => {
+    console.log(`[RESULTS_PANEL] Categorizando ${resultados?.length || 0} resultados... (key: ${forceUpdateKey})`);
     
     const c = [];
     const nc = [];
     const sa = [];
-    const ci = []; // Con indicadores (tiene requisitos_extraidos)
 
-    // Usar allResultados que acumula de todas las páginas
-    allResultados?.forEach((item) => {
-      const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+    resultados?.forEach((item, itemIdx) => {
+      const idPortafolio = item.ID_Portafolio || item.id_del_portafolio || item.referencia;
+      console.log(`[RESULTS_PANEL] [${itemIdx}] ${idPortafolio} | from_cache=${item.from_cache} | _fromMatched=${item._fromMatched} | _fromAnalyzed=${item._fromAnalyzed}`);
       
-      // 🗑️ NUEVO: Filtrar descartadas (solo si isDiscarded existe)
+      // Saltar descartados
       if (isDiscarded && typeof isDiscarded === 'function' && isDiscarded(idPortafolio)) {
-        console.log(`[RESULTS_PANEL] ⏭️  Saltando descartada: ${idPortafolio}`);
+        console.log(`[RESULTS_PANEL] ❌ DESCARTADA`);
         return;
       }
       
-      const status = analysisStatus[idPortafolio];
-
-      if (!status || status.estado !== 'completado') {
-        // No analizado o en proceso
-        sa.push(item);
-        return;
-      }
+      // Obtener status del item (desde BD o desde polling)
+      const status = getStatusForItem(idPortafolio, item);
       
-      // Verificar si tiene requisitos extraídos
-      const requisitos = status.requisitos || {};
-      const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
-      const hasIndicadores = requisitos.indicadores_financieros && Object.keys(requisitos.indicadores_financieros).length > 0;
-      const hasUNSPSC = requisitos.codigos_unspsc && requisitos.codigos_unspsc.length > 0;
-      const hasExperiencia = requisitos.experiencia_requerida && requisitos.experiencia_requerida.experiencia_requerida;
-      const hasAnyRequisitos = hasMatrices || hasIndicadores || hasUNSPSC || hasExperiencia;
+      // Categorizar basado en:
+      // 1. Si es MATCHED → CUMPLE (por definición)
+      // 2. Si es ANALYZED/CACHE → usar su cumple
+      // 3. Si está en polling → usar status actual
       
-      // Si tiene requisitos extraídos, contar como "con indicadores"
-      if (hasAnyRequisitos && status.requisitos) {
-        ci.push(item);
-      }
-      
-      // 🔧 LÓGICA MEJORADA: Si cumple es null/undefined PERO tiene requisitos, contar como "cumple"
-      if (status.cumple === null || status.cumple === undefined) {
-        if (hasAnyRequisitos) {
-          // Tiene requisitos (UNSPSC, experiencia, etc) → mover a "cumple"
-          c.push(item);
-          console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: Sin evaluación BUT tiene requisitos → CUMPLE`);
-          return;
-        } else {
-          // No tiene nada → "sin analizar"
-          sa.push(item);
-          console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: Sin evaluación, sin requisitos → SIN ANALIZAR`);
-          return;
-        }
-      }
-      
-      // 🔧 NORMALIZAR cumple a boolean
-      // El backend retorna cumple como NÚMERO: cumple_count (0, 1, 2, 3, etc.)
-      // 0 = no cumple nada, >0 = cumple algunos/todos
-      let cumplebool;
-      
-      if (typeof status.cumple === 'number') {
-        // cumple es un número: true si > 0, false si === 0
-        cumplebool = status.cumple > 0;
-        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (número) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
-      } else if (typeof status.cumple === 'boolean') {
-        // cumple es boolean: usarlo directo
-        cumplebool = status.cumple;
-        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (boolean) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
-      } else {
-        // Cualquier otro tipo: intentar conversión
-        cumplebool = Boolean(status.cumple);
-        console.log(`[RESULTS_PANEL] → ${item.ID_Portafolio || item.id_del_portafolio}: cumple=${status.cumple} (${typeof status.cumple}) → ${cumplebool ? 'CUMPLE' : 'NO CUMPLE'}`);
-      }
-      
-      if (cumplebool === true) {
-        // Cumple
+      if (item._fromMatched === true) {
+        console.log(`[RESULTS_PANEL] ✅ MATCHED → CUMPLE`);
         c.push(item);
-      } else if (cumplebool === false) {
-        // No cumple
-        nc.push(item);
+        return;
+      }
+
+      if (status) {
+        if (status.cumple === true) {
+          console.log(`[RESULTS_PANEL] ✅ CUMPLE | ${status.porcentaje || 0}%`);
+          c.push(item);
+        } else if (status.cumple === false) {
+          console.log(`[RESULTS_PANEL] ❌ NO CUMPLE | ${status.porcentaje || 0}%`);
+          nc.push(item);
+        } else if (status.estado === 'completado') {
+          // Completado pero cumple=null → no encontró requisitos
+          console.log(`[RESULTS_PANEL] ❌ COMPLETADO SIN REQUISITOS → NO CUMPLE`);
+          nc.push(item);
+        } else {
+          // En proceso
+          console.log(`[RESULTS_PANEL] ⏳ EN ANÁLISIS (estado=${status.estado})`);
+          sa.push(item);
+        }
       } else {
-        // Indeterminado
+        // Sin status → sin analizar
+        console.log(`[RESULTS_PANEL] ⏳ SIN ANALIZAR`);
         sa.push(item);
       }
     });
 
-    console.log(`[RESULTS_PANEL] ✅ Categorización completa: cumple=${c.length}, noCumple=${nc.length}, sinAnalizar=${sa.length}`);
-    return { cumple: c, noCumple: nc, sinAnalizar: sa, conIndicadores: ci };
-  }, [allResultados, analysisStatus, isDiscarded]);
+    console.log(`[RESULTS_PANEL] 📊 FINAL: cumple=${c.length}, noCumple=${nc.length}, sinAnalizar=${sa.length}`);
+    return { cumple: c, noCumple: nc, sinAnalizar: sa };
+  }, [resultados, analysisStatus, discardedIds, isDiscarded, forceUpdateKey]);
 
-  // 🆕 Función helper para verificar si un item coincide con palabras clave
+  // Función helper para verificar si un item coincide con palabras clave
   const matchesPreferredKeywords = (item) => {
     if (!preferredKeywords || preferredKeywords.length === 0) return false;
     
@@ -152,7 +182,7 @@ export default function ResultsPanel({
         items = noCumple;
         break;
       default:
-        items = allResultados || []; // Usar allResultados en lugar de resultados
+        items = resultados || [];  // Usar resultados en lugar de allResultados
     }
     
     // 🆕 Aplicar filtro de palabras clave preferidas si está activado
@@ -168,11 +198,12 @@ export default function ResultsPanel({
     }
     
     return items;
-  }, [filterCategory, cumple, noCumple, allResultados, showOnlyMatching, preferredKeywords]);
+  }, [filterCategory, cumple, noCumple, resultados, showOnlyMatching, preferredKeywords]);
 
-  // Determinar si hay resultados guardados
+  // 🆕 ARREGLO: Mostrar si hay resultados categorizados O si hay datos crudos, NO solo si hay lastQuery
   const hasResults = resultados && resultados.length > 0;
-  const showResults = hasResults || lastQuery;
+  const hasCategorizedResults = cumple.length > 0 || noCumple.length > 0 || sinAnalizar.length > 0;
+  const showResults = hasResults || hasCategorizedResults || lastQuery;
 
   // Componente para renderizar una sección de resultados COLAPSABLE
   const renderResultadosSeccion = (items, titulo, contador, sectionKey) => {
@@ -196,15 +227,18 @@ export default function ResultsPanel({
         {isExpanded && (
           <div className="rp-grid">
             {items.map((item, idx) => {
-              const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+              const idPortafolio = item.ID_Portafolio || item.id_del_portafolio || item.referencia;
+              
+              // Obtener status del item (ya debe estar normalizado desde App.jsx)
+              const itemAnalysisStatus = getStatusForItem(idPortafolio, item);
               
               return (
                 <ResultCard
-                  key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
+                  key={`${item.Referencia_del_proceso || item.referencia || "ref"}-${idx}`}
                   item={item}
                   onClick={() => onItemClick(item)}
-                  analysisStatus={analysisStatus[idPortafolio]}
-                  onDiscard={onDiscard}  // 🗑️ NUEVO
+                  analysisStatus={itemAnalysisStatus}
+                  onDiscard={onDiscard}
                 />
               );
             })}
@@ -219,15 +253,17 @@ export default function ResultsPanel({
       <div className="rp-box">
         <div className="rp-header">
           <div className="rp-header-text">
-            {loading
+            {loading && (!resultados || resultados.length === 0)
               ? "Buscando resultados…"
+              : loading && resultados && resultados.length > 0
+              ? `Cargando… • Mostrando ${resultados.length} de la base de datos`
               : lastQuery
               ? `Total: ${total.toLocaleString("es-CO")} • Mostrando ${Math.min(
                   limit,
                   Math.max(0, total - offset)
                 )} • Desde ${total === 0 ? 0 : offset + 1}`
               : hasResults
-              ? `Última búsqueda guardada • ${total.toLocaleString("es-CO")} resultados • Desde ${total === 0 ? 0 : offset + 1}`
+              ? `${resultados.length} licitaciones encontradas en la base de datos`
               : "Sin resultados"
             }
           </div>
@@ -306,9 +342,29 @@ export default function ResultsPanel({
               <p className="rp-error">{error}</p>
             )}
 
-            {loading && (
+            {/* 🆕 Skeletons SOLO cuando loading Y no hay items de BD */}
+            {loading && (!resultados || resultados.length === 0) && (
               <div className="rp-grid">
                 {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            )}
+
+            {/* 🆕 Indicador de carga cuando ya hay items de BD pero SECOP sigue buscando */}
+            {loading && resultados && resultados.length > 0 && (
+              <div className="rp-loading-inline" style={{
+                padding: '10px 16px',
+                backgroundColor: '#e3f2fd',
+                borderRadius: '8px',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '0.9rem',
+                color: '#1565c0',
+                borderLeft: '3px solid #1976d2'
+              }}>
+                <span className="rp-analyzing-spinner" style={{ width: '16px', height: '16px' }}></span>
+                Buscando más licitaciones en SECOP… Mostrando {resultados.length} de la base de datos.
               </div>
             )}
 
@@ -319,7 +375,8 @@ export default function ResultsPanel({
               </div>
             )}
 
-            {!loading && resultados && resultados.length > 0 && (
+            {/* 🆕 Mostrar items SIEMPRE que existan, incluso durante loading */}
+            {resultados && resultados.length > 0 && (
               <>
                 {/* Filtros de categoría */}
                 <div className="rp-category-filters">
@@ -369,13 +426,14 @@ export default function ResultsPanel({
                     {cumple.length > 0 ? (
                       cumple.map((item, idx) => {
                         const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+                        const itemAnalysisStatus = getStatusForItem(idPortafolio, item);
                         
                         return (
                           <ResultCard
                             key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
                             item={item}
                             onClick={() => onItemClick(item)}
-                            analysisStatus={analysisStatus[idPortafolio]}
+                            analysisStatus={itemAnalysisStatus}
                             onDiscard={onDiscard}  // 🗑️ NUEVO
                           />
                         );
@@ -393,14 +451,15 @@ export default function ResultsPanel({
                     {noCumple.length > 0 ? (
                       noCumple.map((item, idx) => {
                         const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+                        const itemAnalysisStatus = getStatusForItem(idPortafolio, item);
                         
                         return (
                           <ResultCard
                             key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
                             item={item}
                             onClick={() => onItemClick(item)}
-                            analysisStatus={analysisStatus[idPortafolio]}
-                            onDiscard={onDiscard}  // 🗑️ NUEVO
+                            analysisStatus={itemAnalysisStatus}
+                            onDiscard={onDiscard}
                           />
                         );
                       })
@@ -416,7 +475,7 @@ export default function ResultsPanel({
           </div>
         )}
 
-        {!loading && resultados && resultados.length > 0 && (
+        {resultados && resultados.length > 0 && (
           <div className="rp-footer">
             <div className="rp-footer-text">
               Página {Math.floor(offset / limit) + 1} de {Math.max(1, Math.ceil(total / limit))}

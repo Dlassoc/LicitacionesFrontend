@@ -105,30 +105,51 @@ export function useSearchResults(initialLimit = 21) {
         setLimit(data.limit || paramsObj.limit || initialLimit);
         setOffset(data.offset || 0);
         
-        // 🆕 Cargar análisis existentes en la BD para los resultados encontrados
-        if (data.resultados && data.resultados.length > 0) {
-          try {
-            const ids = data.resultados
-              .map(r => r.ID_Portafolio || r.id_del_portafolio)
-              .filter(Boolean);
-            
-            if (ids.length > 0) {
-              const existingRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analysis/batch/existing`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ ids })
-              });
+        console.log(`[SEARCH] Búsqueda completada:`, {
+          total: data.total,
+          smart_search: data.smart_search,
+          analyzed_count: data.analyzed_count,
+          pending_count: data.pending_count,
+          resultados: data.resultados?.length
+        });
+        
+        // 🆕 Si es búsqueda inteligente, mostrar resumen y no cargar análisis por separado
+        if (data.smart_search) {
+          console.log(`
+╔════════════════════════════════════════════════════════════╗
+║ 🔍 BÚSQUEDA INTELIGENTE - RESUMEN
+╠════════════════════════════════════════════════════════════╣
+║ ✅ Analizadas anteriormente: ${data.analyzed_count || 0}
+║ ⏳ Nuevas siendo analizadas: ${data.pending_count || 0}
+║ 📊 Total en resultados: ${data.resultados?.length || 0}
+╚════════════════════════════════════════════════════════════╝
+          `);
+        } else {
+          // 🆕 Cargar análisis existentes en la BD para los resultados encontrados
+          if (data.resultados && data.resultados.length > 0) {
+            try {
+              const ids = data.resultados
+                .map(r => r.ID_Portafolio || r.id_del_portafolio)
+                .filter(Boolean);
               
-              if (existingRes.ok) {
-                const existingData = await existingRes.json();
-                console.log('[SEARCH] Análisis existentes cargados:', Object.keys(existingData.data || {}).length);
-                // El hook useAutoAnalysis usará esta información
+              if (ids.length > 0) {
+                const existingRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analysis/batch/existing`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ ids })
+                });
+                
+                if (existingRes.ok) {
+                  const existingData = await existingRes.json();
+                  console.log('[SEARCH] Análisis existentes cargados:', Object.keys(existingData.data || {}).length);
+                  // El hook useAutoAnalysis usará esta información
+                }
               }
+            } catch (err) {
+              console.warn('[SEARCH] Error cargando análisis existentes:', err.message);
+              // No es crítico si falla
             }
-          } catch (err) {
-            console.warn('[SEARCH] Error cargando análisis existentes:', err.message);
-            // No es crítico si falla
           }
         }
       } catch (err) {
@@ -185,6 +206,11 @@ export function useSearchResults(initialLimit = 21) {
         return;
       }
 
+      // 🔧 LIMPIAR resultados previos cuando inicia búsqueda nueva
+      setResultados([]);
+      setOffset(0);
+      console.log("[BUSCAR] 🔄 Limpiando resultados previos, iniciando búsqueda nueva...");
+
       // Fecha obligatoria: "Presentación de Ofertas" mes actual (BD actualizada)
       const { finalFechaRecDesde, finalFechaRecHasta } = getFinalDateRange(fechaRecDesde, fechaRecHasta);
 
@@ -207,7 +233,7 @@ export function useSearchResults(initialLimit = 21) {
 
       setLastQuery(baseParams);
       setIsFromCache(false); // Marcar que ahora tenemos una búsqueda nueva, no del cache
-      console.log("[BUSCAR] Buscando solo en BD con cached_only=true");
+      console.log("[BUSCAR] Buscando desde BD o SECOP según disponibilidad");
       await fetchBuscar(baseParams);
     },
     [fetchBuscar, initialLimit]
@@ -250,6 +276,7 @@ export function useSearchResults(initialLimit = 21) {
       setError(null);
       
       try {
+        // Paginación conserva los mismos filtros
         const p = { ...lastQuery, offset: newOffset, limit };
         const params = new URLSearchParams(p);
         const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`);
@@ -259,14 +286,31 @@ export function useSearchResults(initialLimit = 21) {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        setResultados(data.resultados || []);
+        // 🔧 FIX: ACUMULAR en lugar de REEMPLAZAR
+        // Esto permite que useAutoAnalysis analice todas las licitaciones sin perder las anteriores
+        setResultados(prev => {
+          const newResultados = data.resultados || [];
+          if (!prev || prev.length === 0) {
+            // Primera página
+            console.log(`[SEARCH] 📄 Página 1: ${newResultados.length} licitaciones`);
+            return newResultados;
+          }
+          
+          // Páginas siguientes: acumular sin duplicados
+          const existingIds = new Set(prev.map(r => r.ID_Portafolio || r.id_del_portafolio));
+          const unique = newResultados.filter(r => !existingIds.has(r.ID_Portafolio || r.id_del_portafolio));
+          
+          console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: +${unique.length} licitaciones (total: ${prev.length + unique.length})`);
+          return [...prev, ...unique];
+        });
+        
         setTotal(data.total || 0);
         setOffset(newOffset);
         setLimit(data.limit || limit);
       } catch (err) {
         console.error("Error en goPage:", err);
         setError(err.message || "Error al cargar la página");
-        setResultados([]);
+        // 🔧 NO limpiar resultados en error, mantener los que ya tenemos
       } finally {
         setLoading(false);
       }

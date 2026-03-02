@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import API_BASE from '../config/api.js';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 export const useBatchAnalysisStatus = (idPortafolio) => {
   const [status, setStatus] = useState(null);
@@ -23,7 +24,7 @@ export const useBatchAnalysisStatus = (idPortafolio) => {
 
       try {
         const response = await fetch(
-          `${API_BASE}/analysis/batch/status/${idPortafolio}`,
+          `${API_BASE}/analysis/batch/status/${encodeURIComponent(idPortafolio)}`,
           {
             credentials: 'include',
             headers: {
@@ -42,8 +43,12 @@ export const useBatchAnalysisStatus = (idPortafolio) => {
         
         setStatus(data);
       } catch (err) {
-        console.error(`[BATCH-STATUS] Error consultando estado:`, err);
-        setError(err.message);
+        console.error(`[BATCH-STATUS] Error consultando estado para ${idPortafolio}:`, err);
+        let errorMsg = err.message;
+        if (err.message.includes('Failed to fetch')) {
+          errorMsg = `Conexión rechazada. Backend en ${API_BASE} no responde.`;
+        }
+        setError(errorMsg);
         setStatus(null);
       } finally {
         setLoading(false);
