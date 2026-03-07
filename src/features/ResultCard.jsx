@@ -142,7 +142,9 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           const requisitos = analysisStatus.requisitos || {};
           const source = getSourceText();
           
-          const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
+          // 🔧 Buscar indicadores en ambas ubicaciones (matrices e indicadores_financieros)
+          const matricesObj = requisitos.matrices || requisitos.indicadores_financieros || {};
+          const hasMatrices = Object.keys(matricesObj).length > 0;
           const hasIndicadores = requisitos.indicadores_financieros && Object.keys(requisitos.indicadores_financieros).length > 0;
           const hasUNSPSC = requisitos.codigos_unspsc && requisitos.codigos_unspsc.length > 0;
           const hasExperiencia = requisitos.experiencia_requerida && requisitos.experiencia_requerida.experiencia_requerida;
@@ -270,28 +272,137 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
       )}
 
       {/* Detalles del análisis - Mostrar indicadores encontrados */}
-      {analysisStatus?.estado === 'completado' && analysisStatus?.requisitos && (
+      {analysisStatus?.estado === 'completado' && (analysisStatus?.requisitos || item?.requisitos_extraidos) && (
         <section className="result-card-analysis-details">
-          {/* Mostrar matrices con indicadores financieros - SIEMPRE visible si existen */}
-          {analysisStatus.requisitos.matrices && Object.keys(analysisStatus.requisitos.matrices).length > 0 && (
-            <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">💰 Indicadores Financieros Encontrados:</h4>
-              <div className="result-card-analysis-indicators">
-                {Object.entries(analysisStatus.requisitos.matrices).map(([matrizTipo, indicadores]) => (
-                  <div key={matrizTipo} className="result-card-matriz-group">
-                    {matrizTipo !== 'general' && (
-                      <span className="result-card-matriz-label">{matrizTipo}:</span>
-                    )}
-                    {Object.entries(indicadores).map(([nombre, valor]) => (
-                      <span key={nombre} className="result-card-indicator-badge" title={`${nombre}: ${valor}`}>
+          {/* Mostrar matrices con indicadores financieros - AGRUPADOS HORIZONTALES */}
+          {/* 🔧 Buscar en TODAS las posibles ubicaciones de indicadores - desde analysisStatus O directamente del item */}
+          {(() => {
+            let matricesData = null;
+            
+            // 🔧 Función recursiva para buscar todos los indicadores en la estructura JSON
+            const findAllIndicators = (obj, depth = 0) => {
+              if (depth > 10) return {}; // Prevenir infinite loops
+              if (!obj || typeof obj !== 'object') return {};
+              
+              let found = {};
+              
+              // Buscar en propiedades conocidas
+              const indicatorKeys = ['matrices', 'indicadores_financieros', 'razon', 'detalles'];
+              
+              for (const key of indicatorKeys) {
+                if (obj[key]) {
+                  const val = obj[key];
+                  
+                  // Si es un objeto con miPYME/no_miPYME, extraer
+                  if ((key === 'indicadores_financieros' || key === 'matrices') && 
+                      typeof val === 'object' && (val.miPYME || val.no_miPYME)) {
+                    ['miPYME', 'no_miPYME'].forEach(tipo => {
+                      if (val[tipo] && typeof val[tipo] === 'object') {
+                        Object.assign(found, val[tipo]);
+                      }
+                    });
+                  }
+                  
+                  // Si tiene una propiedad .matrices dentro
+                  else if (val.matrices && typeof val.matrices === 'object') {
+                    const matrices = val.matrices;
+                    if (matrices.miPYME || matrices.no_miPYME) {
+                      ['miPYME', 'no_miPYME'].forEach(tipo => {
+                        if (matrices[tipo] && typeof matrices[tipo] === 'object') {
+                          Object.assign(found, matrices[tipo]);
+                        }
+                      });
+                    } else {
+                      Object.assign(found, matrices);
+                    }
+                  }
+                  
+                  // 🔧 MEJORADO: Si es un objeto con propiedades que contienen indicadores (como razon)
+                  else if (typeof val === 'object' && Object.keys(val).length > 0) {
+                    // Detectar si este objeto contiene indicadores
+                    const indicatorEntries = Object.entries(val).filter(([k, v]) => {
+                      // Un indicador es un objeto con 'requerido', 'cumple' o valores numéricos
+                      return typeof v === 'object' && v !== null && 
+                             (v.requerido !== undefined || v.cumple !== undefined || v.usuario !== undefined);
+                    });
+                    
+                    if (indicatorEntries.length > 0) {
+                      // Este objeto contiene indicadores, agregarlos a found
+                      indicatorEntries.forEach(([name, indicator]) => {
+                        found[name] = indicator;
+                      });
+                    } else {
+                      // Si no son indicadores directos, verificar si es un contenedor
+                      const isIndicator = Object.values(val).some(v => 
+                        (typeof v === 'object' && (v.requerido !== undefined || v.cumple !== undefined)) ||
+                        /^[0-9\.,\s><=]+/.test(String(v))
+                      );
+                      if (isIndicator) {
+                        Object.assign(found, val);
+                      }
+                    }
+                  }
+                }
+              }
+              
+              // Si no encontramos nada, buscar recursivamente en sub-objetos
+              if (Object.keys(found).length === 0) {
+                for (const [k, v] of Object.entries(obj)) {
+                  if (typeof v === 'object' && v !== null && k !== '_analysisStatus') {
+                    const recursive = findAllIndicators(v, depth + 1);
+                    if (Object.keys(recursive).length > 0) {
+                      Object.assign(found, recursive);
+                      break; // Tomar el primer conjunto encontrado
+                    }
+                  }
+                }
+              }
+              
+              return found;
+            };
+            
+            // Opción A: Desde analysisStatus.requisitos
+            const req = analysisStatus?.requisitos || {};
+            matricesData = findAllIndicators(req);
+            
+            // Opción B: Si no encontramos en analysisStatus, buscar en item.requisitos_extraidos (datos crudos)
+            if ((!matricesData || Object.keys(matricesData).length === 0) && item?.requisitos_extraidos) {
+              matricesData = findAllIndicators(item.requisitos_extraidos);
+            }
+            
+            console.log('[ResultCard] 🔍 Búsqueda exhaustiva de indicadores:', { 
+              matricesData, 
+              hasReq: !!req, 
+              hasRawReq: !!item?.requisitos_extraidos,
+              rawReqKeys: item?.requisitos_extraidos ? Object.keys(item.requisitos_extraidos) : [],
+              razonField: item?.requisitos_extraidos?.razon,
+              razonKeys: item?.requisitos_extraidos?.razon ? Object.keys(item.requisitos_extraidos.razon) : []
+            });
+            
+            return matricesData && Object.keys(matricesData).length > 0 ? (
+              <div className="result-card-analysis-section">
+                <h4 className="result-card-analysis-title">💰 Indicadores Financieros Encontrados:</h4>
+                <div className="result-card-analysis-indicators">
+                  {(() => {
+                    const allIndicators = [];
+                    Object.entries(matricesData).forEach(([nombre, valor]) => {
+                      if (typeof valor === 'object' && valor !== null && valor.requerido) {
+                        allIndicators.push({ nombre, valor: valor.requerido });
+                      } else if (typeof valor !== 'object' && valor !== null) {
+                        allIndicators.push({ nombre, valor: String(valor) });
+                      }
+                    });
+                    
+                    return allIndicators.length > 0 ? allIndicators.map(({ nombre, valor }, idx) => (
+                      <span key={idx} className="result-card-indicator-badge" title={`${nombre}: ${valor}`}>
                         {nombre.replace(/_/g, ' ')}: <strong>{valor}</strong>
                       </span>
-                    ))}
-                  </div>
-                ))}
+                    )) : null;
+                  })()}
+                </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
 
           {/* Mostrar códigos UNSPSC */}
           {analysisStatus.requisitos.codigos_unspsc && analysisStatus.requisitos.codigos_unspsc.length > 0 && (
@@ -331,7 +442,23 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                   typeof analysisStatus.detalles === 'string' 
                     ? JSON.parse(analysisStatus.detalles) 
                     : analysisStatus.detalles
-                ).slice(0, 4).map(([key, val]) => (
+                )
+                  .filter(([key]) => {
+                    // 🔧 Filtrar para NO mostrar claves que ya se mostraron en secciones anteriores
+                    const lowerKey = key.toLowerCase();
+                    // Excluir indicadores financieros (ya están en sección anterior)
+                    const isIndicador = lowerKey.includes('cobertura') || 
+                                        lowerKey.includes('endeudamiento') ||
+                                        lowerKey.includes('liquidez') ||
+                                        lowerKey.includes('rentabilidad') ||
+                                        lowerKey.includes('matriculado') ||
+                                        lowerKey.includes('experiencia');
+                    // Excluir UNSPSC (ya están en sección anterior)
+                    const isUnspsc = lowerKey.includes('unspsc') || lowerKey.includes('categoria');
+                    return !isIndicador && !isUnspsc;
+                  })
+                  .slice(0, 4)
+                  .map(([key, val]) => (
                   <div key={key} className="result-card-analysis-item">
                     <span className={`result-card-analysis-icon ${val.cumple ? 'match' : 'no-match'}`}>
                       {val.cumple ? '✓' : '✗'}

@@ -36,7 +36,7 @@ export default function App() {
         estado: 'completado', 
         cumple: true, 
         porcentaje: item.score || 0, 
-        requisitos: item.requisitos_extraidos || {} 
+        requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
       };
     }
     
@@ -46,7 +46,7 @@ export default function App() {
         estado: 'completado', 
         cumple: item.cumple, 
         porcentaje: item.porcentaje_cumplimiento || 0, 
-        requisitos: item.requisitos_extraidos || {} 
+        requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
       };
     }
     
@@ -56,11 +56,70 @@ export default function App() {
         estado: 'completado', 
         cumple: item.cumple, 
         porcentaje: item.porcentaje_cumplimiento || 0, 
-        requisitos: item.requisitos_extraidos || {} 
+        requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
       };
     }
     
     return null;
+  };
+
+  // 🔧 NUEVA: Normalizar estructura de requisitos extraídos
+  // Algunos vienen como indicadores_financieros, otros como matrices
+  // Esta función las unifica en un formato que ResultCard espera
+  const normalizeRequisitos = (requisitos) => {
+    if (!requisitos || typeof requisitos !== 'object') return {};
+    
+    const normalized = { ...requisitos };
+    
+    // 🔧 Buscar indicadores en TODAS las posibles ubicaciones
+    let foundIndicators = null;
+    
+    // Intento 1: indicadores_financieros.matrices.miPYME/no_miPYME (nueva estructura)
+    if (requisitos.indicadores_financieros?.matrices) {
+      const matrices = requisitos.indicadores_financieros.matrices;
+      if (matrices.miPYME || matrices.no_miPYME) {
+        foundIndicators = {};
+        ['miPYME', 'no_miPYME'].forEach(tipo => {
+          if (matrices[tipo] && typeof matrices[tipo] === 'object') {
+            Object.assign(foundIndicators, matrices[tipo]);
+          }
+        });
+        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.matrices.miPYME/no_miPYME');
+      } else {
+        foundIndicators = matrices;
+        console.log('[APP] 🔧 Usando indicadores_financieros.matrices');
+      }
+    }
+    
+    // Intento 2: indicadores_financieros con estructura anidada directa (miPYME, no_miPYME)
+    if (!foundIndicators && requisitos.indicadores_financieros && typeof requisitos.indicadores_financieros === 'object') {
+      const indFin = requisitos.indicadores_financieros;
+      if (indFin.miPYME || indFin.no_miPYME) {
+        foundIndicators = {};
+        ['miPYME', 'no_miPYME'].forEach(tipo => {
+          if (indFin[tipo] && typeof indFin[tipo] === 'object') {
+            Object.assign(foundIndicators, indFin[tipo]);
+          }
+        });
+        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.miPYME/no_miPYME');
+      } else {
+        foundIndicators = indFin;
+        console.log('[APP] 🔧 Usando indicadores_financieros directamente');
+      }
+    }
+    
+    // Intento 3: matrices (estructura tradicional)
+    if (!foundIndicators && requisitos.matrices) {
+      foundIndicators = requisitos.matrices;
+      console.log('[APP] 🔧 Usando matrices directamente');
+    }
+    
+    // Asignar los indicadores encontrados a matrices
+    if (foundIndicators && Object.keys(foundIndicators).length > 0) {
+      normalized.matrices = foundIndicators;
+    }
+    
+    return normalized;
   };
 
   const normalizeFromDB = (item) => {
@@ -226,8 +285,13 @@ export default function App() {
     }
     
     console.log('[APP] ✅ TOTAL COMBINADO:', combined.length, '(SECOP + BD sin duplicados)');
-    if (combined.length === 0) {
-      console.warn('[APP] ⚠️ WARNING: memoizedResults está vacío!');
+    
+    // 🆕 MEJORADO: Warning solo si hay datos de BD pero no se combinan (error real)
+    // No advertir si está vacío en el estado inicial (antes de cargar de BD)
+    if (combined.length === 0 && (matchedLicitaciones?.length > 0 || analyzedLicitaciones?.length > 0)) {
+      console.warn('[APP] ⚠️ WARNING: Datos en BD pero memoizedResults vacío (posible error de normalizacion)');
+    } else if (combined.length === 0) {
+      console.log('[APP] ℹ️ INFO: Sin resultados aún (estado inicial o búsqueda sin resultados)');
     }
     return combined;
   }, [resultados, matchedLicitaciones, analyzedLicitaciones, discardedIds]);
@@ -313,7 +377,7 @@ export default function App() {
       if (data.ok && data.palabras_clave) {
         // Dividir palabras clave y mostrar
         const palabrasArray = data.palabras_clave.split(',').map(p => p.trim()).filter(p => p);
-        console.log('[APP] ✅ Preferencias encontradas:', {
+        console.log('[APP]  Preferencias encontradas:', {
           total: palabrasArray.length,
           palabras: palabrasArray
         });
