@@ -202,6 +202,23 @@
   margin-bottom: 1rem;
 }
 
+.preferences-financial-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.preferences-financial-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.2rem;
+}
+
+.preferences-financial-full {
+  grid-column: 1 / -1;
+}
+
 @media (min-width: 768px) {
   .preferences-financial-grid {
     grid-template-columns: 1fr 1fr;
@@ -493,6 +510,10 @@
     border-color: rgba(255, 255, 255, 0.1);
   }
 
+  .preferences-financial-label {
+    color: #b0b9c1;
+  }
+
   .preferences-financial-grid .preferences-input {
     background-color: #1a2d30;
     border-color: rgba(255, 255, 255, 0.15);
@@ -655,6 +676,10 @@
 :root[data-theme="light"] .preferences-financial-grid {
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   border-color: #e5e7eb;
+}
+
+:root[data-theme="light"] .preferences-financial-label {
+  color: #374151;
 }
 
 :root[data-theme="light"] .preferences-financial-grid .preferences-input {
@@ -821,6 +846,10 @@
 :root[data-theme="dark"] .preferences-financial-grid {
   background: linear-gradient(135deg, #1a2d30 0%, #0f1e21 100%);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .preferences-financial-label {
+  color: #b0b9c1;
 }
 
 :root[data-theme="dark"] .preferences-financial-grid .preferences-input {

@@ -2,6 +2,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const LIVE_AUTO_ANALYSIS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  String(import.meta.env.VITE_ENABLE_LIVE_AUTO_ANALYSIS ?? 'true').toLowerCase()
+);
 
 /**
  * 🔧 NUEVO: Guarda TODOS los análisis completados (independientemente de si cumplen o no)
@@ -447,6 +450,10 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
 
   // 🆕 TRIGGER: Disparar análisis batch para licitaciones nuevas
   useEffect(() => {
+    if (!LIVE_AUTO_ANALYSIS_ENABLED) {
+      return;
+    }
+
     if (!licitaciones || licitaciones.length === 0 || triggerFailedRef.current) {
       return;
     }
@@ -479,30 +486,48 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
       return;
     }
 
-    // OPTIMIZACION PARA CPANEL: Procesar UNA licitacion a la vez en lugar de batch
-    // Esto reduce carga en el servidor
-    const primeraNuevaLicitacion = licitaciones.find(lic => 
-      newIds.includes(lic.ID_Portafolio || lic.id_del_portafolio)
-    );
-    
-    if (!primeraNuevaLicitacion) return;
-    
-    console.log(`[AUTO_ANALYSIS] Disparando analisis individual para 1 licitacion`);
+    // Procesar lote acotado para no saturar el backend y evitar dejar IDs sin iniciar.
+    const MAX_TRIGGER_PER_RUN = 10;
+    const idsToTrigger = newIds.slice(0, MAX_TRIGGER_PER_RUN);
 
-    // Preparar payload con 1 SOLA licitacion (individual mode)
-    const payload = [{
-      id: primeraNuevaLicitacion.ID_Portafolio || primeraNuevaLicitacion.id_del_portafolio,
-      nombre: primeraNuevaLicitacion.Nombre || primeraNuevaLicitacion.nombre_del_procedimiento || 'Sin nombre',
-      documentos: prepararDocumentos(primeraNuevaLicitacion)
-    }];
+    const payload = idsToTrigger
+      .map((id) => {
+        // 🔒 Protección: asegurar que licitaciones existe y es array
+        if (!licitaciones || !Array.isArray(licitaciones)) {
+          console.warn(`[AUTO_ANALYSIS] ⚠️ licitaciones no es array válido:`, licitaciones);
+          return null;
+        }
+        
+        const lic = licitaciones.find(item => (item.ID_Portafolio || item.id_del_portafolio) === id);
+        if (!lic) {
+          console.warn(`[AUTO_ANALYSIS] ⚠️ No encontrada licitación ${id}`);
+          return null;
+        }
+        
+        try {
+          return {
+            id,
+            nombre: lic.Nombre || lic.nombre_del_procedimiento || 'Sin nombre',
+            documentos: prepararDocumentos(lic)
+          };
+        } catch (error) {
+          console.error(`[AUTO_ANALYSIS] ❌ Error preparando payload para ${id}:`, error);
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    if (payload.length === 0) return;
+
+    console.log(`[AUTO_ANALYSIS] Disparando analisis para ${payload.length} licitaciones nuevas`);
 
     // Disparar trigger para 1 sola licitacion
     triggerBatchAnalysis(payload)
       .then(result => {
         if (result.ok) {
-          console.log(`[AUTO_ANALYSIS] Trigger exitoso para 1 licitacion`);
-          // Marcar como trigereada
-          lastTriggerRef.current = [...lastTriggerRef.current, payload[0].id];
+          console.log(`[AUTO_ANALYSIS] Trigger exitoso para ${payload.length} licitaciones`);
+          // Marcar todas como triggereadas
+          lastTriggerRef.current = [...lastTriggerRef.current, ...payload.map(p => p.id)];
           triggerFailedRef.current = false;
         }
       })
@@ -514,6 +539,11 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
 
   // Polling para chequear estado del análisis
   useEffect(() => {
+    if (!LIVE_AUTO_ANALYSIS_ENABLED) {
+      setIsPolling(false);
+      return;
+    }
+
     if (!licitaciones || licitaciones.length === 0) return;
 
     const ids = licitaciones
@@ -724,7 +754,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
 
   return {
     analysisStatus,
-    isPolling,
+    isPolling: LIVE_AUTO_ANALYSIS_ENABLED ? isPolling : false,
     pageIndex: 0,
     allResultados,
     // 🆕 Información adicional para debugging

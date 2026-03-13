@@ -511,87 +511,114 @@ export default function Preferences({ unlocked = true }) {
           </p>
 
           <div className="preferences-financial-grid">
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Indicador de liquidez (ej. 5.13)"
-              value={indicadorLiquidez}
-              onChange={(e) => setIndicadorLiquidez(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Capacidad de pagar obligaciones a corto plazo"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Nivel de endeudamiento (ej. 0.42)"
-              value={nivelEndeudamiento}
-              onChange={(e) => setNivelEndeudamiento(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Proporción de deuda respecto al patrimonio"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Razón de cobertura de intereses (ej. 16.26)"
-              value={razonCoberturaIntereses}
-              onChange={(e) => setRazonCoberturaIntereses(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Capacidad de pagar intereses"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="ROE - Rentabilidad patrimonio (ej. 0.14)"
-              value={rentabilidadPatrimonio}
-              onChange={(e) => setRentabilidadPatrimonio(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Rentabilidad del capital invertido"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="ROA - Rentabilidad activo (ej. 0.08)"
-              value={rentabilidadActivo}
-              onChange={(e) => setRentabilidadActivo(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Rentabilidad de los activos totales"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Cap. de deudas corto plazo (ej. 1.50)"
-              value={capacidadDeudasCortoPlazo}
-              onChange={(e) => setCapacidadDeudasCortoPlazo(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Límite de capacidad de deuda a corto plazo"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Porcentaje de acreedores (ej. 0.60)"
-              value={porcentajeAcreedores}
-              onChange={(e) => setPorcentajeAcreedores(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Proporción máxima de acreedores"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input"
-              placeholder="Retribución riesgo propiedad (ej. 0.10)"
-              value={retribucionRiesgoPropiedad}
-              onChange={(e) => setRetribucionRiesgoPropiedad(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Retorno mínimo esperado del riesgo"
-            />
-            <input
-              type="number" step="any"
-              className="preferences-input preferences-grid-full"
-              placeholder="Capacidad de generar ganancias (ej. 0.05)"
-              value={capacidadGenerarGanancias}
-              onChange={(e) => setCapacidadGenerarGanancias(e.target.value)}
-              disabled={!isActive || savingFin}
-              title="Capacidad mínima de generar ganancias"
-            />
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Indicador de liquidez</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 5.13"
+                value={indicadorLiquidez}
+                onChange={(e) => setIndicadorLiquidez(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Capacidad de pagar obligaciones a corto plazo"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Nivel de endeudamiento</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.42"
+                value={nivelEndeudamiento}
+                onChange={(e) => setNivelEndeudamiento(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Proporción de deuda respecto al patrimonio"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Razón de cobertura de intereses</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 16.26"
+                value={razonCoberturaIntereses}
+                onChange={(e) => setRazonCoberturaIntereses(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Capacidad de pagar intereses"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">ROE - Rentabilidad patrimonio</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.14"
+                value={rentabilidadPatrimonio}
+                onChange={(e) => setRentabilidadPatrimonio(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Rentabilidad del capital invertido"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">ROA - Rentabilidad activo</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.08"
+                value={rentabilidadActivo}
+                onChange={(e) => setRentabilidadActivo(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Rentabilidad de los activos totales"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Cap. de deudas corto plazo</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 1.50"
+                value={capacidadDeudasCortoPlazo}
+                onChange={(e) => setCapacidadDeudasCortoPlazo(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Límite de capacidad de deuda a corto plazo"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Porcentaje de acreedores</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.60"
+                value={porcentajeAcreedores}
+                onChange={(e) => setPorcentajeAcreedores(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Proporción máxima de acreedores"
+              />
+            </div>
+            <div className="preferences-financial-item">
+              <label className="preferences-financial-label">Retribución riesgo propiedad</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.10"
+                value={retribucionRiesgoPropiedad}
+                onChange={(e) => setRetribucionRiesgoPropiedad(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Retorno mínimo esperado del riesgo"
+              />
+            </div>
+            <div className="preferences-financial-item preferences-financial-full">
+              <label className="preferences-financial-label">Capacidad de generar ganancias</label>
+              <input
+                type="number" step="any"
+                className="preferences-input"
+                placeholder="ej. 0.05"
+                value={capacidadGenerarGanancias}
+                onChange={(e) => setCapacidadGenerarGanancias(e.target.value)}
+                disabled={!isActive || savingFin}
+                title="Capacidad mínima de generar ganancias"
+              />
+            </div>
           </div>
 
           <div className="preferences-button-group preferences-grid-full">
@@ -612,8 +639,8 @@ export default function Preferences({ unlocked = true }) {
         </div>
       </div>
 
-      {/* Estadísticas de Caché de Análisis */}
-      {email && (
+      {/* Estadísticas de Caché de Análisis - Solo en desarrollo */}
+      {email && process.env.NODE_ENV === 'development' && (
         <div className="preferences-section">
           <h3 className="preferences-section-title">📊 Caché de Análisis</h3>
           <div className="preferences-form">

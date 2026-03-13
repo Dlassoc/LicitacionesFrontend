@@ -93,7 +93,9 @@ export function useSearchResults(initialLimit = 21) {
 
       try {
         const params = new URLSearchParams(paramsObj);
-        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`);
+        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`, {
+          credentials: 'include',
+        });
 
         if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
 
@@ -279,7 +281,9 @@ export function useSearchResults(initialLimit = 21) {
         // Paginación conserva los mismos filtros
         const p = { ...lastQuery, offset: newOffset, limit };
         const params = new URLSearchParams(p);
-        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`);
+        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`, {
+          credentials: 'include',
+        });
 
         if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
 

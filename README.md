@@ -32,12 +32,15 @@ Este proyecto usa Vite, por lo que las variables deben iniciar con `VITE_`.
 
 ```env
 VITE_API_BASE_URL=https://backendlicitaciones.emergente.com.co
+VITE_ENABLE_LIVE_AUTO_ANALYSIS=false
 # VITE_API_BASE_URL=http://localhost:5000
+# VITE_ENABLE_LIVE_AUTO_ANALYSIS=true
 ```
 
 Variable usada:
 
 - `VITE_API_BASE_URL`: URL base del backend.
+- `VITE_ENABLE_LIVE_AUTO_ANALYSIS`: habilita (`true`) o deshabilita (`false`) el autoanalisis en vivo desde frontend. Si esta en `false`, el analisis queda solo para procesos programados (ej. 4 AM).
 
 ## Scripts disponibles
 

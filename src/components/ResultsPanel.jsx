@@ -204,6 +204,7 @@ export default function ResultsPanel({
   const hasResults = resultados && resultados.length > 0;
   const hasCategorizedResults = cumple.length > 0 || noCumple.length > 0 || sinAnalizar.length > 0;
   const showResults = hasResults || hasCategorizedResults || lastQuery;
+  const loadedCount = Array.isArray(resultados) ? resultados.length : 0;
 
   // Componente para renderizar una sección de resultados COLAPSABLE
   const renderResultadosSeccion = (items, titulo, contador, sectionKey) => {
@@ -258,10 +259,7 @@ export default function ResultsPanel({
               : loading && resultados && resultados.length > 0
               ? `Cargando… • Mostrando ${resultados.length} de la base de datos`
               : lastQuery
-              ? `Total: ${total.toLocaleString("es-CO")} • Mostrando ${Math.min(
-                  limit,
-                  Math.max(0, total - offset)
-                )} • Desde ${total === 0 ? 0 : offset + 1}`
+              ? `Total: ${total.toLocaleString("es-CO")} • Cargadas: ${loadedCount.toLocaleString("es-CO")} • Página ${Math.floor(offset / limit) + 1}`
               : hasResults
               ? `${resultados.length} licitaciones encontradas en la base de datos`
               : "Sin resultados"
@@ -270,15 +268,7 @@ export default function ResultsPanel({
           
           {/* 🆕 Información de análisis automático */}
           {isPolling && (
-            <div className="rp-analysis-info" style={{
-              fontSize: '0.85rem',
-              color: '#666',
-              marginTop: '8px',
-              padding: '8px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '4px',
-              borderLeft: '3px solid #0066cc'
-            }}>
+            <div className="rp-analysis-info">
               <div>🔍 <strong>Análisis en progreso:</strong></div>
               <div>
                 • Total a analizar: <strong>{allResultados.length}</strong> licitaciones
@@ -289,11 +279,11 @@ export default function ResultsPanel({
               <div>
                 • Query: <strong>{typeof lastQuery === 'string' ? lastQuery : lastQuery?.termino || 'automática'}</strong>
               </div>
-              <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ddd' }}>
+              <div className="rp-analysis-divider">
                 ✅ {resumen?.completados || 0} • 🔄 {resumen?.enProceso || 0} • ⏳ {resumen?.noIniciados || 0} • 💾 {resumen?.cumpliendo || 0} guardadas
               </div>
               {paginationStatus?.esUltimaPagina && (
-                <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ddd', color: '#d32f2f', fontWeight: 'bold' }}>
+                <div className="rp-analysis-warning">
                   🏁 Última página - El análisis se detendrá cuando todos completen
                 </div>
               )}
@@ -313,7 +303,7 @@ export default function ResultsPanel({
           <div className="rp-body">
             {/* 🆕 Banner cuando estamos mostrando licitaciones aptas guardadas */}
             {showingMatched && (
-              <div className="rp-info-banner" style={{backgroundColor: '#e8f5e9', borderColor: '#4caf50'}}>
+              <div className="rp-info-banner rp-info-banner-matched">
                 <span className="rp-info-text">
                   ✅ Mostrando <strong>{resultados.length} licitaciones</strong> que detectamos como aptas para ti. Realiza una búsqueda para ver más opciones.
                 </span>
@@ -351,19 +341,8 @@ export default function ResultsPanel({
 
             {/* 🆕 Indicador de carga cuando ya hay items de BD pero SECOP sigue buscando */}
             {loading && resultados && resultados.length > 0 && (
-              <div className="rp-loading-inline" style={{
-                padding: '10px 16px',
-                backgroundColor: '#e3f2fd',
-                borderRadius: '8px',
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '0.9rem',
-                color: '#1565c0',
-                borderLeft: '3px solid #1976d2'
-              }}>
-                <span className="rp-analyzing-spinner" style={{ width: '16px', height: '16px' }}></span>
+              <div className="rp-loading-inline">
+                <span className="rp-analyzing-spinner rp-analyzing-spinner-sm"></span>
                 Buscando más licitaciones en SECOP… Mostrando {resultados.length} de la base de datos.
               </div>
             )}

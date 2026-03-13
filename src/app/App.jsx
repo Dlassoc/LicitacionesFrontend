@@ -325,6 +325,8 @@ export default function App() {
   const handleBuscar = async (...args) => {
     setSearching(true);
     setFromAutoPreferences(false); // Limpiar flag cuando busca manualmente
+    const termino = typeof args[0] === 'string' ? args[0].trim() : '';
+    setPreferredKeywords(termino ? termino.split(',').map(p => p.trim()).filter(Boolean) : null);
     try {
       await buscar(...args);
     } finally {
@@ -452,17 +454,6 @@ export default function App() {
       }
     }
   }, [resultados, ready, user, loadAnalyzed]);
-  
-  // 📦 Cargar licitaciones ANALIZADAS desde BD local cuando hay una búsqueda activa (SIEMPRE, no solo como fallback)
-  // 🆕 CAMBIO: Se ejecuta cada vez que hay una palabra clave activa, combinándose con MATCHED
-  useEffect(() => {
-    if (ready && user && lastQuery && lastQuery.palabras_clave) {
-      // 🔧 NO limpiar - dejar que memoizedResults maneje el merge sin parpadeo
-      console.log(`[APP] 📦 Cargando licitaciones analizadas por palabra clave: "${lastQuery.palabras_clave}"`);
-      // 🆕 Cargar por palabra clave SIEMPRE que haya búsqueda activa
-      loadAnalyzed(false, lastQuery.palabras_clave);
-    }
-  }, [ready, user, lastQuery, loadAnalyzed]);
   
   // 📦 Cargar licitaciones APTAS (MATCHED) filtrando por palabra clave
   // 🆕 Se ejecuta cuando hay búsqueda activa para mostrar solo los aptos relevantes
