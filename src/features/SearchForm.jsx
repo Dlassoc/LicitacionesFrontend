@@ -56,7 +56,31 @@ export default function SearchForm({ onBuscar, onClear }) {
   const loadFormData = () => {
     try {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : {};
+      if (!saved) return {};
+
+      const parsed = JSON.parse(saved);
+      if (parsed && !parsed._defaultsMigratedV2) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const yearStart = `${new Date().getFullYear()}-01-01`;
+
+        const migrated = {
+          ...parsed,
+          _defaultsMigratedV2: true,
+        };
+
+        // Limpia defaults legacy aplicados automáticamente en versiones anteriores.
+        if (migrated.fase === "Presentación de Ofertas") migrated.fase = "";
+        if (migrated.estado === "Abierto") migrated.estado = "";
+        if (migrated.fechaRecDesde === yearStart && migrated.fechaRecHasta === todayStr) {
+          migrated.fechaRecDesde = "";
+          migrated.fechaRecHasta = "";
+        }
+
+        localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(migrated));
+        return migrated;
+      }
+
+      return parsed;
     } catch {
       return {};
     }
@@ -74,8 +98,8 @@ export default function SearchForm({ onBuscar, onClear }) {
   const [departamento, setDepartamento] = useState(savedData.departamento || "");
   const [ciudad, setCiudad] = useState(savedData.ciudad || "");
   const [ciudadesFiltradas, setCiudadesFiltradas] = useState([]);
-  const [fase, setFase] = useState(savedData.fase || "Presentación de Ofertas");
-  const [estado, setEstado] = useState(savedData.estado || "Abierto");
+  const [fase, setFase] = useState(savedData.fase || "");
+  const [estado, setEstado] = useState(savedData.estado || "");
 
   // Guardar formulario en localStorage cuando cambien los valores
   useEffect(() => {
@@ -138,8 +162,8 @@ export default function SearchForm({ onBuscar, onClear }) {
     setDepartamento("");
     setCiudad("");
     setCiudadesFiltradas([]);
-    setFase("Presentación de Ofertas");
-    setEstado("Abierto");
+    setFase("");
+    setEstado("");
     
     // Limpiar también del localStorage
     try {
@@ -236,8 +260,8 @@ export default function SearchForm({ onBuscar, onClear }) {
             onChange={(e) => setFase(e.target.value)}
             className="search-form-select"
           >
-            <option value="Presentación de Ofertas">Presentación de Ofertas</option>
             <option value="">Todas las Fases</option>
+            <option value="Presentación de Ofertas">Presentación de Ofertas</option>
           </select>
         </div>
 
@@ -248,8 +272,8 @@ export default function SearchForm({ onBuscar, onClear }) {
             onChange={(e) => setEstado(e.target.value)}
             className="search-form-select"
           >
-            <option value="Abierto">Abierto</option>
             <option value="">Todos los Estados</option>
+            <option value="Abierto">Abierto</option>
           </select>
         </div>
 

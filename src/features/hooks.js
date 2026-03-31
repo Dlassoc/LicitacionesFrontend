@@ -290,23 +290,11 @@ export function useSearchResults(initialLimit = 21) {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        // 🔧 FIX: ACUMULAR en lugar de REEMPLAZAR
-        // Esto permite que useAutoAnalysis analice todas las licitaciones sin perder las anteriores
-        setResultados(prev => {
-          const newResultados = data.resultados || [];
-          if (!prev || prev.length === 0) {
-            // Primera página
-            console.log(`[SEARCH] 📄 Página 1: ${newResultados.length} licitaciones`);
-            return newResultados;
-          }
-          
-          // Páginas siguientes: acumular sin duplicados
-          const existingIds = new Set(prev.map(r => r.ID_Portafolio || r.id_del_portafolio));
-          const unique = newResultados.filter(r => !existingIds.has(r.ID_Portafolio || r.id_del_portafolio));
-          
-          console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: +${unique.length} licitaciones (total: ${prev.length + unique.length})`);
-          return [...prev, ...unique];
-        });
+        // Mostrar la página actual sin arrastrar resultados anteriores.
+        // useAutoAnalysis ya acumula internamente allResultados para métricas/progreso.
+        const newResultados = data.resultados || [];
+        setResultados(newResultados);
+        console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: ${newResultados.length} licitaciones`);
         
         setTotal(data.total || 0);
         setOffset(newOffset);

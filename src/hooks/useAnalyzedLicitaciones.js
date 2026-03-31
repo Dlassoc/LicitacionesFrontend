@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import API_BASE_URL from '../config/api';
 
 /**
@@ -16,8 +16,11 @@ export const useAnalyzedLicitaciones = () => {
   const [analyzedLicitaciones, setAnalyzedLicitaciones] = useState([]);
   const [loadingAnalyzed, setLoadingAnalyzed] = useState(false);
   const [errorAnalyzed, setErrorAnalyzed] = useState(null);
+  const latestRequestRef = useRef(0);
 
   const loadAnalyzed = useCallback(async (onlyAptas = false, searchQueryOrIds = null) => {
+    const requestId = ++latestRequestRef.current;
+
     try {
       setLoadingAnalyzed(true);
       setErrorAnalyzed(null);
@@ -35,8 +38,10 @@ export const useAnalyzedLicitaciones = () => {
       // 🆕 Si no hay IDs ni palabra clave, no cargar
       if (ids.length === 0 && !searchQuery) {
         console.log(`[ANALYZED] ℹ️ Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
-        setAnalyzedLicitaciones([]);
-        setLoadingAnalyzed(false);
+        if (requestId === latestRequestRef.current) {
+          setAnalyzedLicitaciones([]);
+          setLoadingAnalyzed(false);
+        }
         return;
       }
 
@@ -84,16 +89,46 @@ export const useAnalyzedLicitaciones = () => {
       const data = await response.json();
 
       if (data.ok && Array.isArray(data.licitaciones)) {
+        if (requestId !== latestRequestRef.current) {
+          console.log(`[ANALYZED] ⏭️ Respuesta obsoleta ignorada (requestId=${requestId})`);
+          return [];
+        }
+
+        const hasPersistedEvidence = (lic) => {
+          const requisitos = lic?.requisitos_extraidos;
+          const detalles = lic?.detalles;
+          const hasRequisitos =
+            requisitos && typeof requisitos === 'object' && Object.keys(requisitos).length > 0;
+          const hasDetalles =
+            detalles && typeof detalles === 'object' && Object.keys(detalles).length > 0;
+          const hasCumple = lic?.cumple !== undefined && lic?.cumple !== null;
+          const hasScore =
+            lic?.porcentaje !== undefined && lic?.porcentaje !== null;
+
+          return hasRequisitos || hasDetalles || hasCumple || hasScore;
+        };
+
+        const terminalStates = new Set(['completado', 'sin_documentos', 'error']);
+
+        // Incluir terminales y también registros con evidencia persistida (compatibilidad con datos legacy).
+        const analyzedRows = data.licitaciones.filter((lic) => {
+          const estado = String(lic?.estado || '').toLowerCase();
+          return terminalStates.has(estado) || hasPersistedEvidence(lic);
+        });
+
         // 🆕 Normalizar datos: convertir cumple a booleano/null
-        const normalized = data.licitaciones.map(lic => {
+        const normalized = analyzedRows.map(lic => {
           let cumple_normalized = lic.cumple;
+          const estado = String(lic?.estado || '').toLowerCase();
+          const normalizedEstado = terminalStates.has(estado)
+            ? estado
+            : (hasPersistedEvidence(lic) ? 'completado' : estado || 'no_iniciado');
           
-          // Si cumple es un número, convertir a booleano
+          // Si cumple es un número, convertir a booleano.
+          // En MySQL TINYINT(1): 1=true y 0=false (no debe tratarse como null).
           if (typeof cumple_normalized === 'number') {
             if (cumple_normalized > 0) {
               cumple_normalized = true;
-            } else if (cumple_normalized === 0) {
-              cumple_normalized = null; // 0 = sin analizar
             } else {
               cumple_normalized = false;
             }
@@ -101,6 +136,8 @@ export const useAnalyzedLicitaciones = () => {
           
           return {
             ...lic,
+            estado: normalizedEstado,
+            _estado_original: lic?.estado,
             cumple: cumple_normalized
           };
         });
@@ -140,6 +177,11 @@ export const useAnalyzedLicitaciones = () => {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (error) {
+      if (requestId !== latestRequestRef.current) {
+        console.log(`[ANALYZED] ⏭️ Error obsoleto ignorado (requestId=${requestId}):`, error.message);
+        return [];
+      }
+
       console.error(`
 ╔════════════════════════════════════════════════════════════╗
 ║ ❌ ERROR CARGANDO LICITACIONES ANALIZADAS
@@ -151,7 +193,9 @@ export const useAnalyzedLicitaciones = () => {
       setAnalyzedLicitaciones([]);
       return [];
     } finally {
-      setLoadingAnalyzed(false);
+      if (requestId === latestRequestRef.current) {
+        setLoadingAnalyzed(false);
+      }
     }
   }, []);
 

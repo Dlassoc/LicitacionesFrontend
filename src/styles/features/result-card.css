@@ -471,6 +471,18 @@
   color: #1e1b4b;
 }
 
+.result-card-indicator-badge-match {
+  background-color: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.result-card-indicator-badge-no-match {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
 /* Códigos UNSPSC */
 .result-card-unspsc-list {
   display: flex;

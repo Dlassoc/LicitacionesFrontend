@@ -68,6 +68,19 @@ const formatCOP = (val) => {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
 };
 
+const normalizeCumpleValue = (raw) => {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'number') return raw > 0;
+  if (typeof raw === 'string') {
+    const v = raw.trim().toLowerCase();
+    if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
+    if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
+    if (!v) return null;
+  }
+  return null;
+};
+
 // 🔧 RE-HABILITADO: memo() con comparador manual para props correcamente
 const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus, onDiscard }) {
   const [isHiding, setIsHiding] = useState(false);
@@ -118,10 +131,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
         );
       
       case 'completado':
-        // 🔧 Normalizar cumple: puede ser boolean o número
-        const cumpleBool = typeof analysisStatus.cumple === 'number' 
-          ? analysisStatus.cumple > 0  // Si es número: true si > 0
-          : analysisStatus.cumple;      // Si es boolean: usa directo
+        const cumpleBool = normalizeCumpleValue(analysisStatus.cumple);
         
         const porcentaje = analysisStatus.porcentaje || 0;
         
@@ -174,8 +184,17 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
       
       case 'error':
         return (
-          <span className="result-card-badge-analysis result-card-badge-error">
-            ⚠️ Error
+          <span 
+            className="result-card-badge-analysis result-card-badge-error"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Reintentar análisis automáticamente (no requiere click)
+              if (onClick) onClick();
+            }}
+            title="Reintentando automáticamente..."
+            style={{ cursor: 'pointer' }}
+          >
+            Error
           </span>
         );
       
@@ -295,8 +314,8 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                   
                   // Si es un objeto con miPYME/no_miPYME, extraer
                   if ((key === 'indicadores_financieros' || key === 'matrices') && 
-                      typeof val === 'object' && (val.miPYME || val.no_miPYME)) {
-                    ['miPYME', 'no_miPYME'].forEach(tipo => {
+                      typeof val === 'object' && (val.miPYME || val.no_miPYME || val.mipyme || val.no_mipyme)) {
+                    ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
                       if (val[tipo] && typeof val[tipo] === 'object') {
                         Object.assign(found, val[tipo]);
                       }
@@ -306,8 +325,8 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                   // Si tiene una propiedad .matrices dentro
                   else if (val.matrices && typeof val.matrices === 'object') {
                     const matrices = val.matrices;
-                    if (matrices.miPYME || matrices.no_miPYME) {
-                      ['miPYME', 'no_miPYME'].forEach(tipo => {
+                    if (matrices.miPYME || matrices.no_miPYME || matrices.mipyme || matrices.no_mipyme) {
+                      ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
                         if (matrices[tipo] && typeof matrices[tipo] === 'object') {
                           Object.assign(found, matrices[tipo]);
                         }
@@ -381,23 +400,74 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
             
             return matricesData && Object.keys(matricesData).length > 0 ? (
               <div className="result-card-analysis-section">
-                <h4 className="result-card-analysis-title">💰 Indicadores Financieros Encontrados:</h4>
+                <h4 className="result-card-analysis-title">Indicadores Financieros - Comparativa:</h4>
                 <div className="result-card-analysis-indicators">
                   {(() => {
-                    const allIndicators = [];
+                    const allComparisons = [];
                     Object.entries(matricesData).forEach(([nombre, valor]) => {
-                      if (typeof valor === 'object' && valor !== null && valor.requerido) {
-                        allIndicators.push({ nombre, valor: valor.requerido });
-                      } else if (typeof valor !== 'object' && valor !== null) {
-                        allIndicators.push({ nombre, valor: String(valor) });
+                      let requerido = null;
+                      if (typeof valor === 'object' && valor !== null && valor.requerido !== undefined) {
+                        requerido = valor.requerido;
+                      } else if (typeof valor !== 'object') {
+                        requerido = valor;
                       }
+                      
+                      allComparisons.push({ nombre, requerido });
                     });
                     
-                    return allIndicators.length > 0 ? allIndicators.map(({ nombre, valor }, idx) => (
-                      <span key={idx} className="result-card-indicator-badge" title={`${nombre}: ${valor}`}>
-                        {nombre.replace(/_/g, ' ')}: <strong>{valor}</strong>
-                      </span>
-                    )) : null;
+                    // Buscar valores del usuario en detalles (con matching canonico)
+                    const userValues = {};
+                    if (analysisStatus?.detalles) {
+                      const detalles = typeof analysisStatus.detalles === 'string' 
+                        ? JSON.parse(analysisStatus.detalles) 
+                        : analysisStatus.detalles;
+                      
+                      Object.entries(detalles).forEach(([key, val]) => {
+                        if (typeof val === 'object' && val.usuario !== undefined) {
+                          userValues[key] = val.usuario;
+                        }
+                      });
+                    }
+
+                    const userValuesIndex = buildIndex(userValues);
+
+                    const compareUserVsRequired = (userRaw, reqRaw) => {
+                      if (userRaw === 'N/D' || userRaw === null || userRaw === undefined) return false;
+
+                      const userNum = parseFloat(String(userRaw).replace(',', '.'));
+                      if (Number.isNaN(userNum)) return false;
+
+                      const reqText = String(reqRaw ?? '').trim();
+                      const match = reqText.match(/(>=|≤|<=|≥|>|<|=)?\s*(-?\d+(?:[.,]\d+)?)/);
+                      if (!match) return false;
+
+                      const op = match[1] || '>=';
+                      const reqNum = parseFloat(match[2].replace(',', '.'));
+                      if (Number.isNaN(reqNum)) return false;
+
+                      if (op === '>=' || op === '≥') return userNum >= reqNum - 0.001;
+                      if (op === '>') return userNum > reqNum - 0.001;
+                      if (op === '<=' || op === '≤') return userNum <= reqNum + 0.001;
+                      if (op === '<') return userNum < reqNum + 0.001;
+                      if (op === '=') return Math.abs(userNum - reqNum) <= 0.001;
+                      return false;
+                    };
+                    
+                    return allComparisons.map(({ nombre, requerido }, idx) => {
+                      const userVal = userValues[nombre] ?? userValuesIndex.get(canon(nombre)) ?? 'N/D';
+                      const cumple = compareUserVsRequired(userVal, requerido);
+                      const requeridoText = requerido === null || requerido === undefined ? 'N/D' : String(requerido);
+                      
+                      return (
+                        <span
+                          key={idx}
+                          className={`result-card-indicator-badge ${cumple ? 'result-card-indicator-badge-match' : 'result-card-indicator-badge-no-match'}`}
+                          title={`${nombre}: requerido ${requeridoText} | perfil ${userVal}`}
+                        >
+                          {nombre.replace(/_/g, ' ')}: <strong>{requeridoText}</strong> | Tu perfil: <strong>{userVal}</strong> {cumple ? '✅' : '❌'}
+                        </span>
+                      );
+                    });
                   })()}
                 </div>
               </div>
@@ -432,7 +502,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           )}
 
           {/* Mostrar comparación con perfil si cumple es true/false */}
-          {analysisStatus.cumple !== null && analysisStatus.detalles && (
+          {normalizeCumpleValue(analysisStatus.cumple) !== null && analysisStatus.detalles && (
             <div className="result-card-analysis-section">
               <h4 className="result-card-analysis-title">
                 {analysisStatus.cumple ? '✅ Cumplimiento del perfil:' : '❌ Requisitos no cumplidos:'}
@@ -455,7 +525,9 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                                         lowerKey.includes('experiencia');
                     // Excluir UNSPSC (ya están en sección anterior)
                     const isUnspsc = lowerKey.includes('unspsc') || lowerKey.includes('categoria');
-                    return !isIndicador && !isUnspsc;
+                    // Excluir campos innecesarios
+                    const isUnnecessary = lowerKey === 'mensaje' || lowerKey === 'regla';
+                    return !isIndicador && !isUnspsc && !isUnnecessary;
                   })
                   .slice(0, 4)
                   .map(([key, val]) => (

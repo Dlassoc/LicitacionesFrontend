@@ -28,35 +28,59 @@ export default function App() {
   const { analyzedLicitaciones, loadingAnalyzed, errorAnalyzed, loadAnalyzed, clearAnalyzed } = useAnalyzedLicitaciones();  // 📦 NUEVO
   const { analysisStatus, isPolling, allResultados, resumen, paginationStatus } = useAutoAnalysis(resultados, { lastQuery, total, limit, offset }, goPage);  // 🆕 AUTO-ANÁLISIS + destructurar allResultados, resumen, paginationStatus
 
+  const normalizeCumpleValue = (raw) => {
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw === 'boolean') return raw;
+    if (typeof raw === 'number') return raw > 0;
+    if (typeof raw === 'string') {
+      const v = raw.trim().toLowerCase();
+      if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
+      if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
+      if (!v) return null;
+    }
+    return null;
+  };
+
   // 🔧 Helper: Crear analysisStatus normalizado ANTES de useMemo
   const createAnalysisStatus = (item, isMatched, isAnalyzed) => {
-    // Si es apta (matched), siempre completado con cumple=true
-    if (isMatched) {
+    const estado = String(item?.estado || '').toLowerCase();
+    const requisitos = item?.requisitos_extraidos;
+    const detalles = item?.detalles;
+    const hasRequisitos = requisitos && typeof requisitos === 'object' && Object.keys(requisitos).length > 0;
+    const hasDetalles = detalles && typeof detalles === 'object' && Object.keys(detalles).length > 0;
+    const hasEvidence = hasRequisitos || hasDetalles || item?.cumple !== undefined;
+    const terminalStates = new Set(['completado', 'sin_documentos', 'error']);
+    const isFinalLike = terminalStates.has(estado) || (isAnalyzed && hasEvidence);
+
+    // Si es analizado y tiene cumple, mostrar resultado (sin depender de campo estado)
+    if (isAnalyzed && isFinalLike) {
       return { 
-        estado: 'completado', 
-        cumple: true, 
-        porcentaje: item.score || 0, 
-        requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
+        estado: terminalStates.has(estado) ? estado : 'completado', 
+        cumple: normalizeCumpleValue(item.cumple), 
+        porcentaje: item.porcentaje_cumplimiento || 0, 
+        requisitos: normalizeRequisitos(item.requisitos_extraidos || {}),
+        detalles: item.detalles || {}
       };
     }
-    
-    // Si es analizado y tiene cumple, mostrar resultado (sin depender de campo estado)
-    if (isAnalyzed && item.cumple !== undefined) {
-      return { 
-        estado: 'completado', 
-        cumple: item.cumple, 
-        porcentaje: item.porcentaje_cumplimiento || 0, 
+
+    // Si es apta (matched), siempre completado con cumple=true
+    if (isMatched) {
+      return {
+        estado: 'completado',
+        cumple: true,
+        porcentaje: item.score || 0,
         requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
       };
     }
     
     // Fallback para datos antiguos o en progreso
-    if (item.from_cache && item.cumple !== undefined) {
+    if (item.from_cache && isFinalLike) {
       return { 
-        estado: 'completado', 
-        cumple: item.cumple, 
+        estado: terminalStates.has(estado) ? estado : 'completado', 
+        cumple: normalizeCumpleValue(item.cumple), 
         porcentaje: item.porcentaje_cumplimiento || 0, 
-        requisitos: normalizeRequisitos(item.requisitos_extraidos || {})
+        requisitos: normalizeRequisitos(item.requisitos_extraidos || {}),
+        detalles: item.detalles || {}
       };
     }
     
@@ -77,14 +101,14 @@ export default function App() {
     // Intento 1: indicadores_financieros.matrices.miPYME/no_miPYME (nueva estructura)
     if (requisitos.indicadores_financieros?.matrices) {
       const matrices = requisitos.indicadores_financieros.matrices;
-      if (matrices.miPYME || matrices.no_miPYME) {
+      if (matrices.miPYME || matrices.no_miPYME || matrices.mipyme || matrices.no_mipyme) {
         foundIndicators = {};
-        ['miPYME', 'no_miPYME'].forEach(tipo => {
+        ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
           if (matrices[tipo] && typeof matrices[tipo] === 'object') {
             Object.assign(foundIndicators, matrices[tipo]);
           }
         });
-        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.matrices.miPYME/no_miPYME');
+        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.matrices (miPYME/mipyme)');
       } else {
         foundIndicators = matrices;
         console.log('[APP] 🔧 Usando indicadores_financieros.matrices');
@@ -94,14 +118,14 @@ export default function App() {
     // Intento 2: indicadores_financieros con estructura anidada directa (miPYME, no_miPYME)
     if (!foundIndicators && requisitos.indicadores_financieros && typeof requisitos.indicadores_financieros === 'object') {
       const indFin = requisitos.indicadores_financieros;
-      if (indFin.miPYME || indFin.no_miPYME) {
+      if (indFin.miPYME || indFin.no_miPYME || indFin.mipyme || indFin.no_mipyme) {
         foundIndicators = {};
-        ['miPYME', 'no_miPYME'].forEach(tipo => {
+        ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
           if (indFin[tipo] && typeof indFin[tipo] === 'object') {
             Object.assign(foundIndicators, indFin[tipo]);
           }
         });
-        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.miPYME/no_miPYME');
+        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros (miPYME/mipyme)');
       } else {
         foundIndicators = indFin;
         console.log('[APP] 🔧 Usando indicadores_financieros directamente');
@@ -122,11 +146,21 @@ export default function App() {
     return normalized;
   };
 
-  const normalizeFromDB = (item) => {
+  const normalizeFromDB = (item, sourceTag = 'UNKNOWN') => {
     if (!item) return item;
-    const isMatched = item.score !== undefined && item.score !== null && item.referencia;
+    const isMatched = sourceTag === 'MATCHED';
     // 🔧 MEJORADO: Detectar como analizado simplemente si tiene campo cumple definido (true, false o null)
-    const isAnalyzed = (item.id_portafolio || item.ID_Portafolio) && (item.cumple !== undefined);
+    const estado = String(item?.estado || '').toLowerCase();
+    const requisitos = item?.requisitos_extraidos;
+    const detalles = item?.detalles;
+    const hasRequisitos = requisitos && typeof requisitos === 'object' && Object.keys(requisitos).length > 0;
+    const hasDetalles = detalles && typeof detalles === 'object' && Object.keys(detalles).length > 0;
+    const hasEvidence = hasRequisitos || hasDetalles || item?.cumple !== undefined;
+    const terminalStates = new Set(['completado', 'sin_documentos', 'error']);
+    const isAnalyzed = sourceTag === 'ANALYZED' || (
+      (item.id_portafolio || item.ID_Portafolio) &&
+      (terminalStates.has(estado) || hasEvidence)
+    );
     const id_portafolio = item.id_portafolio || item.ID_Portafolio || (isMatched ? item.referencia : item.id);
     let referencia = id_portafolio;
     try {
@@ -161,9 +195,13 @@ export default function App() {
   // MEMOIZAR: Calcular resultados filtrados SOLO cuando las dependencias cambien realmente
   // Esto evita que se recree el array en cada render, causando flickering en categorizacion
   const memoizedResults = useMemo(() => {
+    const baseSecopResults = allResultados && allResultados.length > 0 ? allResultados : resultados;
+
     console.log('[APP] ============================================');
     console.log('[APP] 🔄 Recalculando memoizedResults...');
-    console.log('[APP] - resultados (SECOP):', resultados?.length || 0);
+    console.log('[APP] - resultados (SECOP base):', baseSecopResults?.length || 0);
+    console.log('[APP] - resultados (SECOP página):', resultados?.length || 0);
+    console.log('[APP] - resultados acumulados:', allResultados?.length || 0);
     console.log('[APP] - matchedLicitaciones:', matchedLicitaciones?.length || 0);
     console.log('[APP] - analyzedLicitaciones:', analyzedLicitaciones?.length || 0);
     console.log('[APP] ============================================');
@@ -176,6 +214,12 @@ export default function App() {
       merged.from_cache = true;
       merged._fromMatched = existingItem._fromMatched || cacheItem._fromMatched;
       merged._fromAnalyzed = existingItem._fromAnalyzed || cacheItem._fromAnalyzed;
+
+      // Si llega un análisis explícito desde BD y es no-cumple, no mantener
+      // bandera histórica de matched para evitar clasificación incorrecta.
+      if (sourceTag === 'ANALYZED' && normalizeCumpleValue(cacheItem.cumple) === false) {
+        merged._fromMatched = false;
+      }
 
       if (cacheItem.requisitos_extraidos && Object.keys(cacheItem.requisitos_extraidos).length > 0) {
         merged.requisitos_extraidos = cacheItem.requisitos_extraidos;
@@ -208,7 +252,7 @@ export default function App() {
     };
 
     const addOrMergeFromDB = (item, sourceTag) => {
-      const normalized = normalizeFromDB(item);
+      const normalized = normalizeFromDB(item, sourceTag);
       if (!normalized) return false;
 
       normalized.from_cache = true;
@@ -232,8 +276,8 @@ export default function App() {
     };
     
     // 🆕 PASO 1: Agregar resultados de SECOP NORMALIZADOS (si hay)
-    if (resultados && Array.isArray(resultados) && resultados.length > 0) {
-      resultados.forEach(r => {
+    if (baseSecopResults && Array.isArray(baseSecopResults) && baseSecopResults.length > 0) {
+      baseSecopResults.forEach(r => {
         const id = r.ID_Portafolio || r.id_del_portafolio || r.id_portafolio;
         if (!isDiscarded(id)) {
           // 🔧 Normalizar campos de ID AQUÍ antes de agregar
@@ -294,7 +338,7 @@ export default function App() {
       console.log('[APP] ℹ️ INFO: Sin resultados aún (estado inicial o búsqueda sin resultados)');
     }
     return combined;
-  }, [resultados, matchedLicitaciones, analyzedLicitaciones, discardedIds]);
+  }, [resultados, allResultados, matchedLicitaciones, analyzedLicitaciones, discardedIds]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -307,6 +351,7 @@ export default function App() {
   const [showingMatched, setShowingMatched] = useState(false); // 🆕 Flag para saber si estamos mostrando licitaciones aptas
   const hasInitialized = useRef(false); // 🆕 Flag para ejecutar auto-búsqueda solo UNA VEZ
   const queryStringRef = useRef(""); // 🔧 FIX: Mantener lastQuery estable durante paginación automática
+  const lastAnalyzedIdsKeyRef = useRef(""); // Evita recargar análisis con el mismo set de IDs
   
   // 🔧 FIX: Actualizar queryStringRef cuando `lastQuery` proveniente del hook cambia
   // Esto impide que se recalcule dinámicamente durante paginación automática
@@ -314,6 +359,8 @@ export default function App() {
     if (lastQuery && typeof lastQuery === 'object') {
       // Es una búsqueda real (objeto con parámetros)
       queryStringRef.current = JSON.stringify(lastQuery);
+      // Nueva búsqueda: permitir recargar análisis previos para el nuevo set de IDs
+      lastAnalyzedIdsKeyRef.current = "";
       console.log('[APP] 🔍 Nueva búsqueda registrada:', queryStringRef.current);
     } else if (!lastQuery && (analyzedLicitaciones?.length > 0 || matchedLicitaciones?.length > 0)) {
       // No hay búsqueda en curso pero hay datos de BD
@@ -441,19 +488,33 @@ export default function App() {
   // Esto permite mostrar análisis existentes instántáneamente sin esperar re-análisis
   // 🔧 MEJORADO: Ahora intenta cargar TODOS los análisis previos (no solo los aptos)
   useEffect(() => {
-    if (ready && user && resultados && resultados.length > 0) {
+    const baseSecopResults = allResultados && allResultados.length > 0 ? allResultados : resultados;
+
+    if (!baseSecopResults || baseSecopResults.length === 0) {
+      // Cuando no hay resultados visibles (limpiar/nueva búsqueda), liberar dedupe para próximos IDs.
+      lastAnalyzedIdsKeyRef.current = "";
+      return;
+    }
+
+    if (ready && user && baseSecopResults && baseSecopResults.length > 0) {
       // Extraer IDs de los resultados
-      const ids = resultados
+      const ids = baseSecopResults
         .map(r => r.ID_Portafolio || r.id_del_portafolio)
         .filter(Boolean);
       
       if (ids.length > 0) {
+        const idsKey = Array.from(new Set(ids)).sort().join(',');
+        if (lastAnalyzedIdsKeyRef.current === idsKey) {
+          return;
+        }
+        lastAnalyzedIdsKeyRef.current = idsKey;
+
         console.log(`[APP] 📦 Buscando análisis PREVIOS para ${ids.length} licitaciones de SECOP...`);
         // 🔧 CAMBIO: Cargar TODOS los análisis previos (completados), no solo los aptos
         loadAnalyzed(false, ids);  // false = no filtrar solo aptos, traer TODOS los completados
       }
     }
-  }, [resultados, ready, user, loadAnalyzed]);
+  }, [resultados, allResultados, ready, user, loadAnalyzed]);
   
   // 📦 Cargar licitaciones APTAS (MATCHED) filtrando por palabra clave
   // 🆕 Se ejecuta cuando hay búsqueda activa para mostrar solo los aptos relevantes
