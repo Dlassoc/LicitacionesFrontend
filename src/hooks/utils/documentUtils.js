@@ -133,7 +133,7 @@ export const buildDownloadUrl = (url) => {
       return `${API_BASE}/secop/download${q ? `?${q}` : ""}`;
     }
   } catch (e) {
-    console.error(`❌ [BUILD_URL] Error parseando URL: ${e.message}`);
+    console.error(` [BUILD_URL] Error parseando URL: ${e.message}`);
   }
   return url;
 };
@@ -224,7 +224,7 @@ export const downloadFile = async (url, filename, signal = null) => {
 
     throw lastError || new Error(`Error descargando ${filename} después de ${maxRetries} intentos`);
   } catch (e) {
-    console.error(`❌ [DOWNLOAD] Error: ${e.message}`);
+    console.error(` [DOWNLOAD] Error: ${e.message}`);
     throw e;
   }
 };

@@ -75,7 +75,7 @@ export function useMatchedLicitaciones() {
       if (data.ok && Array.isArray(data.licitaciones)) {
         console.log(`
 ╔════════════════════════════════════════════════════════════╗
-║ ✅ LICITACIONES APTAS CARGADAS EXITOSAMENTE
+║ LICITACIONES APTAS CARGADAS EXITOSAMENTE
 ╠════════════════════════════════════════════════════════════╣
 ║ 📊 Total: ${data.licitaciones.length} licitaciones que CUMPLEN
 ║ 💰 Indicadores guardados: SÍ (en requisitos_extraidos)
@@ -96,7 +96,7 @@ export function useMatchedLicitaciones() {
     } catch (error) {
       console.error(`
 ╔════════════════════════════════════════════════════════════╗
-║ ❌ ERROR CARGANDO LICITACIONES APTAS
+║  ERROR CARGANDO LICITACIONES APTAS
 ╠════════════════════════════════════════════════════════════╣
 ║ Error: ${error.message}
 ╚════════════════════════════════════════════════════════════╝

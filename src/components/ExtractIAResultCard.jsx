@@ -11,7 +11,7 @@ export default function ExtractIAResultCard({ item, isExpanded, onToggle }) {
         <div className="extract-ia-result-card-error-content">
           <div className="extract-ia-result-card-error-flex">
             <p className="extract-ia-result-card-error-title">{archivo}</p>
-            <p className="extract-ia-result-card-error-message">❌ {error}</p>
+            <p className="extract-ia-result-card-error-message"> {error}</p>
           </div>
         </div>
       </div>

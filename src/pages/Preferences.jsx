@@ -140,7 +140,7 @@ export default function Preferences({ unlocked = true }) {
         console.log('[PREFERENCES] ✅ Indicadores cargados correctamente');
       }
     } catch (err) {
-      console.error('[PREFERENCES] ❌ Error cargando indicadores:', err);
+      console.error('[PREFERENCES]  Error cargando indicadores:', err);
     }
   }, []);
 
@@ -191,10 +191,10 @@ export default function Preferences({ unlocked = true }) {
         // Recargar estadísticas
         await loadCacheStats();
       } else {
-        setMsgCache(`❌ Error: ${data?.error || 'Error desconocido'}`);
+        setMsgCache(` Error: ${data?.error || 'Error desconocido'}`);
       }
     } catch (e) {
-      setMsgCache(`❌ Error al limpiar caché: ${e.message}`);
+      setMsgCache(` Error al limpiar caché: ${e.message}`);
     } finally {
       setClearingCache(false);
     }
@@ -689,7 +689,7 @@ export default function Preferences({ unlocked = true }) {
                 </div>
 
                 {msgCache && (
-                  <p className={`preferences-status-message preferences-grid-full ${msgCache.includes("❌") ? "preferences-status-error" : "preferences-status-success"}`}>
+                  <p className={`preferences-status-message preferences-grid-full ${msgCache.includes("") ? "preferences-status-error" : "preferences-status-success"}`}>
                     {msgCache}
                   </p>
                 )}

@@ -158,14 +158,14 @@ export const useAnalyzedLicitaciones = () => {
         const sinAnalizar = normalized.filter(l => l.cumple === null).length;
 
         console.log(`║ ✅ Cumplen requisitos: ${cumplen}`);
-        console.log(`║ ❌ No cumplen: ${noCumplen}`);
+        console.log(`║  No cumplen: ${noCumplen}`);
         console.log(`║ ⏳ Sin analizar: ${sinAnalizar}`);
         console.log(`╚════════════════════════════════════════════════════════════╝
         `);
 
         // Log detallado
         normalized.forEach((lic, idx) => {
-          const status = lic.cumple === true ? '✅' : lic.cumple === false ? '❌' : '⏳';
+          const status = lic.cumple === true ? '✅' : lic.cumple === false ? '' : '⏳';
           const porcentaje = lic.porcentaje ? ` (${lic.porcentaje.toFixed(0)}%)` : '';
           const id = lic.id_portafolio || lic.id || '';
           console.log(`[ANALYZED] [${idx + 1}] ${status} ${id}${porcentaje}`);
@@ -184,7 +184,7 @@ export const useAnalyzedLicitaciones = () => {
 
       console.error(`
 ╔════════════════════════════════════════════════════════════╗
-║ ❌ ERROR CARGANDO LICITACIONES ANALIZADAS
+║  ERROR CARGANDO LICITACIONES ANALIZADAS
 ╠════════════════════════════════════════════════════════════╣
 ║ Error: ${error.message}
 ╚════════════════════════════════════════════════════════════╝

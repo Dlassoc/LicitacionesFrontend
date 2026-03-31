@@ -270,19 +270,19 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           <div className="result-card-dates-grid">
             {fechaPublicacion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📅 Publicación:</span>
+                <span className="result-card-date-label"> Publicación:</span>
                 <span className="result-card-date-value">{fechaPublicacion}</span>
               </div>
             )}
             {fechaManifestacion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📢 Manifestación:</span>
+                <span className="result-card-date-label">Manifestación:</span>
                 <span className="result-card-date-value">{fechaManifestacion}</span>
               </div>
             )}
             {fechaRecepcion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📬 Recepción:</span>
+                <span className="result-card-date-label"> Recepción:</span>
                 <span className="result-card-date-value">{fechaRecepcion}</span>
               </div>
             )}
@@ -312,31 +312,18 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                 if (obj[key]) {
                   const val = obj[key];
                   
-                  // Si es un objeto con miPYME/no_miPYME, extraer
-                  if ((key === 'indicadores_financieros' || key === 'matrices') && 
-                      typeof val === 'object' && (val.miPYME || val.no_miPYME || val.mipyme || val.no_mipyme)) {
-                    ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
-                      if (val[tipo] && typeof val[tipo] === 'object') {
-                        Object.assign(found, val[tipo]);
-                      }
-                    });
+                  // Si es un objeto con indicadores, extraer directamente
+                  if ((key === 'indicadores_financieros' || key === 'matrices') && typeof val === 'object') {
+                    Object.assign(found, val);
                   }
                   
                   // Si tiene una propiedad .matrices dentro
                   else if (val.matrices && typeof val.matrices === 'object') {
                     const matrices = val.matrices;
-                    if (matrices.miPYME || matrices.no_miPYME || matrices.mipyme || matrices.no_mipyme) {
-                      ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
-                        if (matrices[tipo] && typeof matrices[tipo] === 'object') {
-                          Object.assign(found, matrices[tipo]);
-                        }
-                      });
-                    } else {
-                      Object.assign(found, matrices);
-                    }
+                    Object.assign(found, matrices);
                   }
                   
-                  // 🔧 MEJORADO: Si es un objeto con propiedades que contienen indicadores (como razon)
+                  // Si es un objeto con propiedades que contienen indicadores (como razon)
                   else if (typeof val === 'object' && Object.keys(val).length > 0) {
                     // Detectar si este objeto contiene indicadores
                     const indicatorEntries = Object.entries(val).filter(([k, v]) => {
@@ -400,7 +387,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
             
             return matricesData && Object.keys(matricesData).length > 0 ? (
               <div className="result-card-analysis-section">
-                <h4 className="result-card-analysis-title">Indicadores Financieros - Comparativa:</h4>
+                <h4 className="result-card-analysis-title">Indicadores Financieros:</h4>
                 <div className="result-card-analysis-indicators">
                   {(() => {
                     const allComparisons = [];
@@ -464,7 +451,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                           className={`result-card-indicator-badge ${cumple ? 'result-card-indicator-badge-match' : 'result-card-indicator-badge-no-match'}`}
                           title={`${nombre}: requerido ${requeridoText} | perfil ${userVal}`}
                         >
-                          {nombre.replace(/_/g, ' ')}: <strong>{requeridoText}</strong> | Tu perfil: <strong>{userVal}</strong> {cumple ? '✅' : '❌'}
+                          {nombre.replace(/_/g, ' ')}: <strong>{requeridoText}</strong>  
                         </span>
                       );
                     });
@@ -477,7 +464,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           {/* Mostrar códigos UNSPSC */}
           {analysisStatus.requisitos.codigos_unspsc && analysisStatus.requisitos.codigos_unspsc.length > 0 && (
             <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">🏷️ Códigos UNSPSC:</h4>
+              <h4 className="result-card-analysis-title">Códigos UNSPSC:</h4>
               <div className="result-card-unspsc-list">
                 {analysisStatus.requisitos.codigos_unspsc.slice(0, 5).map((codigo, idx) => (
                   <span key={idx} className="result-card-unspsc-badge">{codigo}</span>
@@ -505,7 +492,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           {normalizeCumpleValue(analysisStatus.cumple) !== null && analysisStatus.detalles && (
             <div className="result-card-analysis-section">
               <h4 className="result-card-analysis-title">
-                {analysisStatus.cumple ? '✅ Cumplimiento del perfil:' : '❌ Requisitos no cumplidos:'}
+                {analysisStatus.cumple ? ' Cumplimiento del perfil:' : 'Requisitos no cumplidos:'}
               </h4>
               <div className="result-card-analysis-items">
                 {Object.entries(

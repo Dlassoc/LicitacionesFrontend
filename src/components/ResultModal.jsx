@@ -146,7 +146,7 @@ function secopFingerprint(u) {
 }
 
 const docKey = (d) => {
-  // ✅ PRIORIDAD: El TITULO es el identificador más confiable
+  //  PRIORIDAD: El TITULO es el identificador más confiable
   // Si dos registros tienen el mismo título normalizador, son el MISMO documento
   const t = normWs(d?.titulo);
   if (t) return `titulo:${t}`;
@@ -387,7 +387,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
     };
   }, [open, onClose]);
 
-  // Función wrapper para iniciar análisis - ✅ SIMPLIFICADO para usar análisis local
+  // Función wrapper para iniciar análisis -  SIMPLIFICADO para usar análisis local
   const handleAnalyze = useCallback(() => {
     console.log('🎬 handleAnalyze llamado', {
       docsLength: docs.length,
@@ -406,7 +406,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
     // REMOVIDO: analyze() se dispara desde el effect principal abajo para evitar duplicados
   }, [docs.length, analyzing, analyzed, docsLoading]);
 
-  // ✅ CORREGIDO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
+  //  CORREGIDO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
   // Este effect SOLO se ejecuta cuando cambia idPortafolio
   useEffect(() => {
 
@@ -417,7 +417,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
     }
   }, [idPortafolio, cancel]);
 
-  // ✅ PRINCIPAL: Iniciar análisis INMEDIATAMENTE si ya hay documentos descargados
+  //  PRINCIPAL: Iniciar análisis INMEDIATAMENTE si ya hay documentos descargados
   // Este effect se ejecuta SOLO UNA VEZ cuando los documentos están listos
   const analysisStartedRef = useRef(false);
   
@@ -459,7 +459,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
       return;
     }
     
-    // ✅ NUEVO: Si ya existe análisis batch completado, usarlo en lugar de analizar localmente
+    //  NUEVO: Si ya existe análisis batch completado, usarlo en lugar de analizar localmente
     if (batchStatus && batchStatus.estado === 'completado' && !batchLoading) {
 
       // El análisis batch ya se mostrará en la sección de análisis
@@ -472,7 +472,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
       return;
     }
     
-    console.log('✅ [READY] Documentos listos, iniciando análisis automático...', {
+    console.log(' [READY] Documentos listos, iniciando análisis automático...', {
       docsLength: docs.length,
       docsLoading,
       analyzing,
@@ -490,7 +490,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
     analyze();
   }, [open, docs.length, docsLoading, analyzing, analyzed, idPortafolio, analyze, batchStatus, batchLoading]);
 
-  // ✅ OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
+  //  OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
   useEffect(() => {
     if (!open || !idPortafolio) {
       return; // No cargar si modal está cerrado o no hay idPortafolio
@@ -560,7 +560,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
         // 3) Mostrar sólo los que tienen URL descargable
         const withUrl = deduped.filter((d) => !!d.url);
         
-        // ✅ DEBUG: Mostrar qué documentos se perdieron por falta de URL
+        //  DEBUG: Mostrar qué documentos se perdieron por falta de URL
         const sinUrl = deduped.filter((d) => !d.url);
         if (sinUrl.length > 0) {
 
@@ -570,7 +570,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
         // 4) Etiquetado y orden
         const tagged = tagFinancialIndicatorDocs(withUrl);
 
-        // ✅ CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
+        //  CAMBIO: Mensaje claro - estos son PRE-filtrados (el selector IA filtrará después)
 
         if (!abort) {
           setDocs(tagged);
@@ -655,7 +655,7 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
           />
 
           {/* ====== Descargas asociadas (dmgg-8hin) ====== */}
-          {/* ✅ CAMBIO: Usar docs (ahora serán analizados localmente) */}
+          {/*  CAMBIO: Usar docs (ahora serán analizados localmente) */}
           <DownloadsSection 
             docs={docs}
             docsLoading={docsLoading} 

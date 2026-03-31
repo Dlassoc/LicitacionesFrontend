@@ -54,7 +54,7 @@ function ResultError({ item }) {
       <div className={`file-header ${isSkipped ? 'error' : ''}`}>
         <div>
           <div className="file-name">
-            {isSkipped ? '⏭️' : '❌'} {item.archivo}
+            {isSkipped ? '⏭️' : ''} {item.archivo}
           </div>
         </div>
         <div className="file-badge">

@@ -188,7 +188,7 @@ async function saveMatchedLicitacion(licitacion, analysisData) {
   } catch (error) {
     console.error(`
 ╔════════════════════════════════════════════════════════════╗
-║ ❌ ERROR GUARDANDO LICITACIÓN EN BD
+║  ERROR GUARDANDO LICITACIÓN EN BD
 ╠════════════════════════════════════════════════════════════╣
 ║ 🆔 ID: ${licitacion?.ID_Portafolio || licitacion?.id_del_portafolio}
 ║ ⚠️  Error: ${error.message}
@@ -541,8 +541,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
   useEffect(() => {
     console.log(`[AUTO_ANALYSIS] 📄 Offset cambió a: ${paginationInfo?.offset || 0} - Limpiando trigger cache para nueva página`);
     lastTriggerRef.current = [];  // ✅ Resetear para que dispare trigger en nueva página
-    // ❌ NO resetear analysisStatus - acumular análisis de todas las páginas
-    // ❌ NO resetear allResultados - acumular resultados de todas las páginas
+    //  NO resetear analysisStatus - acumular análisis de todas las páginas
+    //  NO resetear allResultados - acumular resultados de todas las páginas
     setIsPolling(false);           // Detener polling anterior (reiniciará si hay nuevos IDs)
   }, [paginationInfo?.offset]);
 
@@ -657,7 +657,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
             documentos: prepararDocumentos(lic)
           };
         } catch (error) {
-          console.error(`[AUTO_ANALYSIS] ❌ Error preparando payload para ${id}:`, error);
+          console.error(`[AUTO_ANALYSIS]  Error preparando payload para ${id}:`, error);
           return null;
         }
       })
@@ -856,7 +856,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
               console.log(`[AUTO_ANALYSIS] 📭 SIN DOCUMENTOS: ${id}`);
             } else if (estado === 'error') {
               terminalErrorCount++;
-              console.log(`[AUTO_ANALYSIS] ❌ ERROR: ${id} - ${data.error_message || 'sin detalle'}`);
+              console.log(`[AUTO_ANALYSIS]  ERROR: ${id} - ${data.error_message || 'sin detalle'}`);
             }
 
             setAnalysisStatus(prev => {
@@ -927,11 +927,11 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           
           // Diferencia entre tipos de errores
           if (error.message.includes('Failed to fetch')) {
-            console.error(`[AUTO_ANALYSIS] ❌ Error de red para ${id}: Backend en ${API_BASE} no responde. ¿Está ejecutándose?`, error);
+            console.error(`[AUTO_ANALYSIS]  Error de red para ${id}: Backend en ${API_BASE} no responde. ¿Está ejecutándose?`, error);
           } else if (error instanceof SyntaxError) {
-            console.error(`[AUTO_ANALYSIS] ❌ Respuesta JSON inválida para ${id}:`, error.message);
+            console.error(`[AUTO_ANALYSIS]  Respuesta JSON inválida para ${id}:`, error.message);
           } else {
-            console.error(`[AUTO_ANALYSIS] ❌ Error chequeando ${id}:`, error.message);
+            console.error(`[AUTO_ANALYSIS]  Error chequeando ${id}:`, error.message);
           }
         }
       }
@@ -1037,8 +1037,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           
           // 🆕 NO resetear estado aquí - dejar que la siguiente página cargue naturalmente
           // El hook detectará nuevas licitaciones y disparará nuevo trigger
-          // setAnalysisStatus({});  // ❌ REMOVIDO - causaba que volviera a página 1
-          // setAllResultados([]);   // ❌ REMOVIDO - causaba que volviera a página 1
+          // setAnalysisStatus({});  //  REMOVIDO - causaba que volviera a página 1
+          // setAllResultados([]);   //  REMOVIDO - causaba que volviera a página 1
           setIsPolling(false);
           if (intervalRef.current) clearInterval(intervalRef.current);
         }

@@ -247,7 +247,7 @@ export default function ResultsPanel({
       
       // Saltar descartados
       if (isDiscarded && typeof isDiscarded === 'function' && isDiscarded(idPortafolio)) {
-        debugLog(`[RESULTS_PANEL] ❌ DESCARTADA`);
+        debugLog(`[RESULTS_PANEL]  DESCARTADA`);
         return;
       }
       
@@ -264,7 +264,7 @@ export default function ResultsPanel({
           debugLog(`[RESULTS_PANEL] ✅ CUMPLE | ${status.porcentaje || 0}%`);
           c.push(item);
         } else if (cumpleValue === false) {
-          debugLog(`[RESULTS_PANEL] ❌ NO CUMPLE | ${status.porcentaje || 0}%`);
+          debugLog(`[RESULTS_PANEL]  NO CUMPLE | ${status.porcentaje || 0}%`);
           nc.push(item);
         } else if (status.estado === 'sin_documentos') {
           debugLog(`[RESULTS_PANEL] 📄 SIN DOCUMENTOS`);
@@ -279,11 +279,11 @@ export default function ResultsPanel({
               debugLog(`[RESULTS_PANEL] ✅ CUMPLE (indicadores concuerdan con usuario)`);
               c.push(item);
             } else if (cumpleValue === false) {
-              debugLog(`[RESULTS_PANEL] ❌ NO CUMPLE (indicadores NO concuerdan)`);
+              debugLog(`[RESULTS_PANEL]  NO CUMPLE (indicadores NO concuerdan)`);
               nc.push(item);
             } else {
               // Tiene indicadores pero cumple está en null → tratar como NO CUMPLE
-              debugLog(`[RESULTS_PANEL] ❌ NO CUMPLE (indicadores sin evaluación claro)`);
+              debugLog(`[RESULTS_PANEL]  NO CUMPLE (indicadores sin evaluación claro)`);
               nc.push(item);
             }
           } else if (isBasePropiaByExperience(status)) {

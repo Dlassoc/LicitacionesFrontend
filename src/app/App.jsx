@@ -95,50 +95,29 @@ export default function App() {
     
     const normalized = { ...requisitos };
     
-    // 🔧 Buscar indicadores en TODAS las posibles ubicaciones
+    // Buscar indicadores en las posibles ubicaciones
     let foundIndicators = null;
     
-    // Intento 1: indicadores_financieros.matrices.miPYME/no_miPYME (nueva estructura)
-    if (requisitos.indicadores_financieros?.matrices) {
-      const matrices = requisitos.indicadores_financieros.matrices;
-      if (matrices.miPYME || matrices.no_miPYME || matrices.mipyme || matrices.no_mipyme) {
-        foundIndicators = {};
-        ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
-          if (matrices[tipo] && typeof matrices[tipo] === 'object') {
-            Object.assign(foundIndicators, matrices[tipo]);
-          }
-        });
-        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros.matrices (miPYME/mipyme)');
-      } else {
-        foundIndicators = matrices;
-        console.log('[APP] 🔧 Usando indicadores_financieros.matrices');
-      }
+    // Primera opción: indicadores_financieros.matrices
+    if (requisitos.indicadores_financieros?.matrices && typeof requisitos.indicadores_financieros.matrices === 'object') {
+      foundIndicators = requisitos.indicadores_financieros.matrices;
     }
     
-    // Intento 2: indicadores_financieros con estructura anidada directa (miPYME, no_miPYME)
+    // Segunda opción: indicadores_financieros directo
     if (!foundIndicators && requisitos.indicadores_financieros && typeof requisitos.indicadores_financieros === 'object') {
       const indFin = requisitos.indicadores_financieros;
-      if (indFin.miPYME || indFin.no_miPYME || indFin.mipyme || indFin.no_mipyme) {
-        foundIndicators = {};
-        ['miPYME', 'no_miPYME', 'mipyme', 'no_mipyme'].forEach(tipo => {
-          if (indFin[tipo] && typeof indFin[tipo] === 'object') {
-            Object.assign(foundIndicators, indFin[tipo]);
-          }
-        });
-        console.log('[APP] 🔧 Extrayendo indicadores de indicadores_financieros (miPYME/mipyme)');
-      } else {
+      // Si no es una estructura de metadatos, usarlo directamente
+      if (!indFin.id_portafolio && !indFin.created_at) {
         foundIndicators = indFin;
-        console.log('[APP] 🔧 Usando indicadores_financieros directamente');
       }
     }
     
-    // Intento 3: matrices (estructura tradicional)
-    if (!foundIndicators && requisitos.matrices) {
+    // Tercera opción: matrices directo
+    if (!foundIndicators && requisitos.matrices && typeof requisitos.matrices === 'object') {
       foundIndicators = requisitos.matrices;
-      console.log('[APP] 🔧 Usando matrices directamente');
     }
     
-    // Asignar los indicadores encontrados a matrices
+    // Asignar los indicadores encontrados
     if (foundIndicators && Object.keys(foundIndicators).length > 0) {
       normalized.matrices = foundIndicators;
     }
@@ -228,11 +207,11 @@ export default function App() {
       // 🔧 CRÍTICO: Copiar o recrear _analysisStatus
       if (cacheItem._analysisStatus) {
         merged._analysisStatus = cacheItem._analysisStatus;
-        console.log(`[APP] ✅ _analysisStatus copiado desde BD:`, cacheItem._analysisStatus);
+        console.log(`[APP] _analysisStatus copiado desde BD:`, cacheItem._analysisStatus);
       } else if (cacheItem.cumple !== undefined) {
         // Si no hay _analysisStatus pero sí hay cumple, recrearlo
         merged._analysisStatus = createAnalysisStatus(cacheItem, false, true);
-        console.log(`[APP] ✅ _analysisStatus recreado desde cumple:`, merged._analysisStatus);
+        console.log(`[APP] _analysisStatus recreado desde cumple:`, merged._analysisStatus);
       }
 
       if (cacheItem.score !== undefined && cacheItem.score !== null) {
@@ -328,7 +307,7 @@ export default function App() {
       }
     }
     
-    console.log('[APP] ✅ TOTAL COMBINADO:', combined.length, '(SECOP + BD sin duplicados)');
+    console.log('[APP] TOTAL COMBINADO:', combined.length, '(SECOP + BD sin duplicados)');
     
     // 🆕 MEJORADO: Warning solo si hay datos de BD pero no se combinan (error real)
     // No advertir si está vacío en el estado inicial (antes de cargar de BD)
@@ -461,10 +440,10 @@ export default function App() {
         );
         setSearching(false);
       } else {
-        console.log('[APP] ❌ No hay preferencias guardadas. Mostrando pantalla vacía.');
+        console.log('[APP]  No hay preferencias guardadas. Mostrando pantalla vacía.');
       }
     } catch (error) {
-      console.error('[APP] ❌ Error cargando preferencias:', error);
+      console.error('[APP]  Error cargando preferencias:', error);
     }
   }, [limpiar, buscar]);
 
@@ -476,10 +455,10 @@ export default function App() {
     }
   }, [ready, user]); // ⚠️ NO incluir loadDiscarded para evitar loops
   
-  // ✅ NUEVO: Cargar licitaciones aptas (que CUMPLEN) al iniciar
+  // NUEVO: Cargar licitaciones aptas (que CUMPLEN) al iniciar
   useEffect(() => {
     if (ready && user) {
-      console.log('[APP] ✅ Cargando licitaciones aptas que CUMPLEN requisitos...');
+      console.log('[APP] Cargando licitaciones aptas que CUMPLEN requisitos...');
       loadMatched();
     }
   }, [ready, user]); // ⚠️ NO incluir loadMatched para evitar loops
@@ -528,7 +507,7 @@ export default function App() {
     // 🔧 FUERZA LOG CUANDO LLEGAN DATOS DE BD
   useEffect(() => {
     if (analyzedLicitaciones.length > 0) {
-      console.log(`[APP] ✅ DATOS DE BD CARGADOS - Analyzed: ${analyzedLicitaciones.length}, Matched: ${matchedLicitaciones.length}`);
+      console.log(`[APP] DATOS DE BD CARGADOS - Analyzed: ${analyzedLicitaciones.length}, Matched: ${matchedLicitaciones.length}`);
       console.log(`[APP] 🎯 memoizedResults ahora tiene ${memoizedResults?.length || 0} items`);
     }
   }, [analyzedLicitaciones.length, matchedLicitaciones.length, memoizedResults?.length]);
@@ -538,7 +517,7 @@ export default function App() {
   useEffect(() => {
     if (!ready || !user || hasInitialized.current) return;
     
-    hasInitialized.current = true; // ✅ Marca que ya se ejecutó
+    hasInitialized.current = true; // Marca que ya se ejecutó
     
     const searchParams = new URLSearchParams(location.search);
     const q = searchParams.get('q');
@@ -548,8 +527,8 @@ export default function App() {
     console.log('[APP] ⚡ Iniciando App.jsx - checking URL params:', { q, departamento, ciudad });
     
     if (q) {
-      // ✅ Si hay parámetros en URL, es que viene desde guardar preferencias
-      console.log('[APP] ✅ Auto-búsqueda desde preferencias guardadas:', { q, departamento, ciudad });
+      // Si hay parámetros en URL, es que viene desde guardar preferencias
+      console.log('[APP] Auto-búsqueda desde preferencias guardadas:', { q, departamento, ciudad });
       
       // IMPORTANTE: Limpiar el caché primero para NO mostrar última búsqueda
       console.log('[APP] Limpiando caché de búsqueda anterior...');
@@ -561,7 +540,7 @@ export default function App() {
         departamento: departamento || undefined,
         ciudad: ciudad || undefined
       };
-      console.log('[APP] ✅ Parámetros de búsqueda:', searchQuery);
+      console.log('[APP] Parámetros de búsqueda:', searchQuery);
       
       // 🆕 Guardar palabras clave preferidas para filtrar resultados después
       const palabrasArray = q.split(',').map(p => p.trim()).filter(p => p);

@@ -47,7 +47,7 @@ export function useDiscardedLicitaciones() {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (err) {
-      console.error('[DISCARDED] ❌ Error cargando descartadas:', err);
+      console.error('[DISCARDED]  Error cargando descartadas:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -97,7 +97,7 @@ export function useDiscardedLicitaciones() {
         return true;
       }
     } catch (err) {
-      console.error('[DISCARDED] ❌ Error descartando:', err);
+      console.error('[DISCARDED]  Error descartando:', err);
     }
     return false;
   }, []);
@@ -139,7 +139,7 @@ export function useDiscardedLicitaciones() {
         return true;
       }
     } catch (err) {
-      console.error('[DISCARDED] ❌ Error restaurando:', err);
+      console.error('[DISCARDED]  Error restaurando:', err);
     }
     return false;
   }, []);
