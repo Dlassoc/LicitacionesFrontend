@@ -487,50 +487,6 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
               </p>
             </div>
           )}
-
-          {/* Mostrar comparación con perfil si cumple es true/false */}
-          {normalizeCumpleValue(analysisStatus.cumple) !== null && analysisStatus.detalles && (
-            <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">
-                {analysisStatus.cumple ? ' Cumplimiento del perfil:' : 'Requisitos no cumplidos:'}
-              </h4>
-              <div className="result-card-analysis-items">
-                {Object.entries(
-                  typeof analysisStatus.detalles === 'string' 
-                    ? JSON.parse(analysisStatus.detalles) 
-                    : analysisStatus.detalles
-                )
-                  .filter(([key]) => {
-                    // 🔧 Filtrar para NO mostrar claves que ya se mostraron en secciones anteriores
-                    const lowerKey = key.toLowerCase();
-                    // Excluir indicadores financieros (ya están en sección anterior)
-                    const isIndicador = lowerKey.includes('cobertura') || 
-                                        lowerKey.includes('endeudamiento') ||
-                                        lowerKey.includes('liquidez') ||
-                                        lowerKey.includes('rentabilidad') ||
-                                        lowerKey.includes('matriculado') ||
-                                        lowerKey.includes('experiencia');
-                    // Excluir UNSPSC (ya están en sección anterior)
-                    const isUnspsc = lowerKey.includes('unspsc') || lowerKey.includes('categoria');
-                    // Excluir campos innecesarios
-                    const isUnnecessary = lowerKey === 'mensaje' || lowerKey === 'regla';
-                    return !isIndicador && !isUnspsc && !isUnnecessary;
-                  })
-                  .slice(0, 4)
-                  .map(([key, val]) => (
-                  <div key={key} className="result-card-analysis-item">
-                    <span className={`result-card-analysis-icon ${val.cumple ? 'match' : 'no-match'}`}>
-                      {val.cumple ? '✓' : '✗'}
-                    </span>
-                    <span className="result-card-analysis-label">{key}:</span>
-                    <span className="result-card-analysis-value">
-                      {val.usuario !== null ? val.usuario : 'N/D'} vs {val.requerido}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       )}
 

@@ -128,51 +128,7 @@ export default function ResultsPanel({
     sinRequisitos: true // 🆕 NEUTRAL visible - evita sensación de "no clasificada"
   });
 
-  // 🔧 Estado para recalculation de cumple
-  const [isRecalculating, setIsRecalculating] = useState(false);
-  const [recalcMessage, setRecalcMessage] = useState(null);
 
-  const handleRecalculateCumple = async () => {
-    setIsRecalculating(true);
-    setRecalcMessage(null);
-
-    try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE}/analysis/recalculate/recalculate-cumple`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setRecalcMessage({
-          type: 'error',
-          text: data.error || 'Error en recalculation'
-        });
-        return;
-      }
-
-      setRecalcMessage({
-        type: 'success',
-        text: `✅ Recalculados ${data.updated} de ${data.total} análisis`
-      });
-
-      // Force re-render para actualizar categorías
-      setForceUpdateKey(prev => prev + 1);
-
-      // Auto-clear mensaje después de 5 segundos
-      setTimeout(() => setRecalcMessage(null), 5000);
-    } catch (error) {
-      setRecalcMessage({
-        type: 'error',
-        text: 'Error de conexión: ' + error.message
-      });
-    } finally {
-      setIsRecalculating(false);
-    }
-  };
 
   // 🔧 DEBOUNCE analysisStatus: evitar que se recategoritce en cada polling (cada 10 segundos)
   // Usar una versión "estabilizada" que solo cambie cuando sea importante
@@ -421,43 +377,7 @@ export default function ResultsPanel({
               : "Sin resultados"
             }
           </div>
-          
-          {/* 🆕 Grupo de botón + mensaje de recalculation */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
-            {/* 🆕 Botón para recalcular cumple basado en preferencias */}
-            <button
-              onClick={handleRecalculateCumple}
-              disabled={isRecalculating || !hasResults}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: '600',
-                border: '1px solid #e5e7eb',
-                borderRadius: '4px',
-                background: isRecalculating ? '#f3f4f6' : '#fff',
-                color: isRecalculating ? '#9ca3af' : '#374151',
-                cursor: isRecalculating ? 'not-allowed' : 'pointer',
-                opacity: isRecalculating ? 0.6 : 1,
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-              title="Recalcular cumple basado en preferencias actuales"
-            >
-              {isRecalculating ? '⟳ Recalculando...' : '🔄 Recalcular'}
-            </button>
-            
-            {/* 🆕 Mensaje de recalculation */}
-            {recalcMessage && (
-              <div style={{
-                fontSize: '12px',
-                fontWeight: '500',
-                color: recalcMessage.type === 'error' ? '#dc2626' : '#059669',
-                whiteSpace: 'nowrap'
-              }}>
-                {recalcMessage.text}
-              </div>
-            )}
-          </div>
+
           
           {/* 🔧 DESACTIVADO: Información de análisis automático - Ya no se muestra */}
           {/* {isPolling && (

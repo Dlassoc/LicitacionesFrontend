@@ -26,10 +26,10 @@
   gap: 20px;
 
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(240, 244, 247, 0.98);
   padding: 24px 32px;
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 20px 45px rgba(2,6,23,0.12);
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 20px 45px rgba(2,6,23,0.15);
 }
 
 /* Logo a la izquierda */
@@ -59,7 +59,7 @@
 .splash-text {
   font-size: 1rem;
   line-height: 1;        /* para que quede centrado con el spinner */
-  color: #334155;
+  color: #000000;
   font-weight: 500;
   letter-spacing: .2px;
 }
