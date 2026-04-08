@@ -1,6 +1,5 @@
 // src/components/ResultModal.jsx
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useLocalDocumentAnalysis } from "../hooks/useLocalDocumentAnalysis.js";
+import React, { useEffect, useMemo, useState } from "react";
 import { useBatchAnalysisStatus } from "../hooks/useBatchAnalysisStatus.js";
 import API_BASE_URL from "../config/api.js";
 import ModalHeader from "./modal/ModalHeader.jsx";
@@ -340,38 +339,16 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
   }, [open, idPortafolio, analysisStatus]);
 
   // Consultar si ya existe análisis batch completado
-  const { status: batchStatus, loading: batchLoading } = useBatchAnalysisStatus(idPortafolio);
+  const { status: batchStatus } = useBatchAnalysisStatus(idPortafolio);
 
-  // Análisis automático LOCAL de indicadores financieros
-  // Se analizarán TODOS los documentos sin necesidad de IA
-  const { analyzing, analyzed, results, error: analysisError, analyze, cancel, progress } = useLocalDocumentAnalysis(
-    docs, // Todos los documentos descargados
-    idPortafolio
-  );
+  const isBatchProcessing = batchStatus?.estado === "pendiente" || batchStatus?.estado === "procesando";
+  const batchCompleted = batchStatus?.estado === "completado";
+  const batchErrored = batchStatus?.estado === "error";
 
-  // Cancelar y resetear cuando cambia el idPortafolio (IMPORTANTE para evitar mezcla de datos)
-  useEffect(() => {
-    if (open && idPortafolio) {
-
-      cancel?.();
-    }
-  }, [idPortafolio, open, cancel]);
-
-  // Rastrear si el modal fue abierto antes para detectar cierre
-  const wasOpenRef = useRef(false);
-
-  // Cancelar análisis SOLO cuando el modal se cierre (transición de true a false)
-  useEffect(() => {
-    if (open) {
-      // Modal se abrió
-      wasOpenRef.current = true;
-    } else if (wasOpenRef.current) {
-      // Modal se cerró después de estar abierto
-
-      cancel?.();
-      wasOpenRef.current = false;
-    }
-  }, [open, cancel]);
+  const analyzing = previousAnalysis?.hasRealData ? false : isBatchProcessing;
+  const analyzed = previousAnalysis?.hasRealData ? true : batchCompleted;
+  const analysisError = previousAnalysis?.hasRealData ? null : (batchErrored ? batchStatus.error_message : null);
+  const analysisResults = previousAnalysis || (batchCompleted ? batchStatus : null);
 
   // Bloquear scroll y ESC cuando el modal está abierto
   useEffect(() => {
@@ -386,109 +363,6 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
-
-  // Función wrapper para iniciar análisis -  SIMPLIFICADO para usar análisis local
-  const handleAnalyze = useCallback(() => {
-    console.log('🎬 handleAnalyze llamado', {
-      docsLength: docs.length,
-      docsLoading,
-      analyzing,
-      analyzed: !!analyzed,
-    });
-    
-    // Si no hay documentos, no hacer nada
-    if (docs.length === 0) {
-
-      return;
-    }
-    
-
-    // REMOVIDO: analyze() se dispara desde el effect principal abajo para evitar duplicados
-  }, [docs.length, analyzing, analyzed, docsLoading]);
-
-  //  CORREGIDO: Limpiar estado de análisis cuando cambia el idPortafolio (cambio de licitación)
-  // Este effect SOLO se ejecuta cuando cambia idPortafolio
-  useEffect(() => {
-
-    // Cancelar análisis anterior si existe y resetear para forzar uno nuevo
-    if (analyzed) {
-
-      cancel?.();
-    }
-  }, [idPortafolio, cancel]);
-
-  //  PRINCIPAL: Iniciar análisis INMEDIATAMENTE si ya hay documentos descargados
-  // Este effect se ejecuta SOLO UNA VEZ cuando los documentos están listos
-  const analysisStartedRef = useRef(false);
-  
-  useEffect(() => {
-    // Reset cuando cambia el portafolio o se abre un nuevo modal
-    if (idPortafolio !== analysisStartedRef.current) {
-      analysisStartedRef.current = false;
-    }
-
-    // Guards para no analizar
-    if (!open) {
-
-      return;
-    }
-    
-    if (docs.length === 0) {
-
-      return;
-    }
-    
-    if (docsLoading) {
-
-      return;
-    }
-    
-    if (analyzing) {
-
-      return;
-    }
-    
-    if (analyzed) {
-
-      return;
-    }
-    
-    // Si ya iniciamos análisis para este portafolio, no iniciar nuevamente
-    if (analysisStartedRef.current === idPortafolio) {
-
-      return;
-    }
-    
-    //  NUEVO: Si ya existe análisis batch completado, usarlo en lugar de analizar localmente
-    if (batchStatus && batchStatus.estado === 'completado' && !batchLoading) {
-
-      // El análisis batch ya se mostrará en la sección de análisis
-      return;
-    }
-    
-    // Si hay análisis batch en proceso, esperar
-    if (batchStatus && (batchStatus.estado === 'pendiente' || batchStatus.estado === 'procesando')) {
-
-      return;
-    }
-    
-    console.log(' [READY] Documentos listos, iniciando análisis automático...', {
-      docsLength: docs.length,
-      docsLoading,
-      analyzing,
-      analyzed: !!analyzed,
-      idPortafolio,
-      batchStatus: batchStatus?.estado,
-    });
-    
-
-    
-    // Marcar como iniciado para este portafolio
-    analysisStartedRef.current = idPortafolio;
-    
-    // Llamar analyze
-    analyze();
-  }, [open, docs.length, docsLoading, analyzing, analyzed, idPortafolio, analyze, batchStatus, batchLoading]);
 
   //  OPTIMIZADO: Cargar documentos de Socrata INMEDIATAMENTE al abrir modal
   useEffect(() => {
@@ -670,13 +544,13 @@ export default function ResultModal({ open, item, onClose, analysisStatus = {} }
           {/* Si ya existe análisis previo, usarlo directamente sin re-analizar */}
           <AnalysisSection 
             docWithIndicators={docs.length > 0 || previousAnalysis !== null}
-            analyzing={previousAnalysis?.hasRealData ? false : (analyzing || (batchStatus?.estado === 'procesando'))}
-            analyzed={previousAnalysis?.hasRealData ? true : (analyzed || (batchStatus?.estado === 'completado'))}
-            analysisError={previousAnalysis?.hasRealData ? null : (analysisError || (batchStatus?.estado === 'error' ? batchStatus.error_message : null))}
-            analysisResults={previousAnalysis || (batchStatus?.estado === 'completado' ? batchStatus : results)}
-            analyze={handleAnalyze}
-            isBatchAnalysis={previousAnalysis?.hasRealData ? true : (batchStatus?.estado === 'completado' ? true : false)}
-            skipDownload={previousAnalysis?.hasRealData === true}
+            analyzing={analyzing}
+            analyzed={analyzed}
+            analysisError={analysisError}
+            analysisResults={analysisResults}
+            analyze={() => {}}
+            isBatchAnalysis={previousAnalysis?.hasRealData ? true : batchCompleted}
+            skipDownload={true}
           />
 
           {/* Footer */}
