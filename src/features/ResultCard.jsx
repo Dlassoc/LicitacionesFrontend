@@ -499,16 +499,10 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
   // Comparador manual: re-render solo si item o analysisStatus cambian significativamente
   if (prevProps.item?.ID_Portafolio !== nextProps.item?.ID_Portafolio) return false;
   if (prevProps.item?.id_del_portafolio !== nextProps.item?.id_del_portafolio) return false;
-  // Comparar analysisStatus por referencia (si cambió, es un nuevo objeto)
-  if (prevProps.analysisStatus !== nextProps.analysisStatus) {
-    // Pero las properties internas son las mismas
-    if (prevProps.analysisStatus?.cumple === nextProps.analysisStatus?.cumple &&
-        prevProps.analysisStatus?.estado === nextProps.analysisStatus?.estado) {
-      return true; // Props iguales, no renderizar
-    }
-    return false; // Props distintas, sí renderizar
-  }
-  return true; // Props iguales, no renderizar
+  // IMPORTANTE: cuando cambia analysisStatus, aunque cumpla/estado sean iguales,
+  // pueden haber llegado requisitos/detalles nuevos (indicadores) y hay que re-renderizar.
+  if (prevProps.analysisStatus !== nextProps.analysisStatus) return false;
+  return true;
 });
 
 export default ResultCard;

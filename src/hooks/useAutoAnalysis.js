@@ -578,9 +578,11 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     const newIds = ids.filter(id => {
       const status = analysisStatusRef.current[id];
       const estado = String(status?.estado || '').toLowerCase();
+      const isRetryableError = estado === 'error' || estado === 'pendiente_reintento';
       const hasKnownStatus = Boolean(status && estado);
-      const hasFinalStatus = TERMINAL_STATES.has(estado);
+      const hasFinalStatus = TERMINAL_STATES.has(estado) && !isRetryableError;
       const alreadyTriggered = lastTriggerRef.current.includes(id);
+      const effectiveTriggered = isRetryableError ? false : alreadyTriggered;
       const noDocsBlocked = noDocsBlockedIdsRef.current.has(id);
 
       if (noDocsBlocked) {
@@ -589,7 +591,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
       }
 
       // Si ya tenemos estado persistido para ese ID, no volver a sembrar trigger al recargar sesión.
-      if (hasKnownStatus && estado !== 'no_iniciado') {
+      if (hasKnownStatus && estado !== 'no_iniciado' && !isRetryableError) {
         console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - estado existente en BD/polling: ${estado}`);
         return false;
       }
@@ -598,32 +600,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
         console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - ya tiene estado terminal: ${estado}`);
       }
 
-      return !alreadyTriggered && !hasFinalStatus;
+      return !effectiveTriggered && !hasFinalStatus;
     });
-    
-    // 🔧 NUEVO: Identificar licitaciones con error para reintentarlas automáticamente
-    const errorIds = ids.filter(id => {
-      const status = analysisStatusRef.current[id];
-      const estado = String(status?.estado || '').toLowerCase();
-      return estado === 'error';
-    });
-
-    if (errorIds.length > 0) {
-      console.log(`[AUTO_ANALYSIS] 🔄 Detectadas ${errorIds.length} licitaciones con error - reintentando automáticamente...`);
-      errorIds.forEach(id => {
-        // Limpiarel estado de error para permitir reintento
-        const status = analysisStatusRef.current[id];
-        if (status) {
-          status.estado = 'pendiente_reintento';
-          setAnalysisStatus(prev => ({
-            ...prev,
-            [id]: status
-          }));
-        }
-        // Remover del trigger cache para permitir reintento
-        lastTriggerRef.current = lastTriggerRef.current.filter(triggeredId => triggeredId !== id);
-      });
-    }
     
     if (newIds.length === 0) {
       console.log('[AUTO_ANALYSIS] ✅ Todos los IDs ya tienen análisis o fueron triggereados');

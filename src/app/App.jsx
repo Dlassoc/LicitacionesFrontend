@@ -592,7 +592,7 @@ export default function App() {
       <Header chips={chips} onBuscar={handleBuscar} onLimpiar={limpiar} />
 
       {ready && user && (
-        <WelcomeToast text={`Bienvenido de nuevo, ${user.name || user.email} 👋`} />
+        <WelcomeToast text={`Bienvenido de nuevo, ${user.name || user.email} `} />
       )}
 
       {toast && (
