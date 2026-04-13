@@ -1,10 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { API_ENDPOINTS } from "../config/api.js";
-import API_BASE_URL from "../config/api.js";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api.js";
 import { getFinalDateRange } from "../utils/dateHelpers.js";
 
-// Asegurar que API_BASE tenga siempre un valor válido
-const API_BASE = import.meta.env.VITE_API_BASE || API_BASE_URL || "http://localhost:5000";
+const API_BASE = API_BASE_URL;
 
 // Claves para localStorage
 const STORAGE_KEYS = {
@@ -290,23 +288,49 @@ export function useSearchResults(initialLimit = 21) {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        // 🔧 FIX: ACUMULAR en lugar de REEMPLAZAR
-        // Esto permite que useAutoAnalysis analice todas las licitaciones sin perder las anteriores
-        setResultados(prev => {
-          const newResultados = data.resultados || [];
-          if (!prev || prev.length === 0) {
-            // Primera página
-            console.log(`[SEARCH] 📄 Página 1: ${newResultados.length} licitaciones`);
-            return newResultados;
+        // Fallback visual: si el offset solicitado cae en pagina vacia,
+        // volver automaticamente a la ultima pagina valida.
+        const pageResults = data.resultados || [];
+        const backendTotal = Number(data.total || 0);
+        const backendLimit = Number(data.limit || limit || initialLimit);
+        if (pageResults.length === 0 && backendTotal > 0 && newOffset > 0 && backendLimit > 0) {
+          const maxValidOffset = Math.floor((backendTotal - 1) / backendLimit) * backendLimit;
+          if (newOffset !== maxValidOffset) {
+            console.warn(
+              `[SEARCH] Offset fuera de rango (${newOffset}). ` +
+              `Redirigiendo a última página válida (${maxValidOffset}).`
+            );
+
+            const fallbackParams = new URLSearchParams({
+              ...lastQuery,
+              offset: String(maxValidOffset),
+              limit: String(backendLimit),
+            });
+            const fallbackRes = await fetch(`${API_ENDPOINTS.SEARCH}?${fallbackParams.toString()}`, {
+              credentials: 'include',
+            });
+
+            if (!fallbackRes.ok) {
+              throw new Error(`Error ${fallbackRes.status}: no se pudo cargar la última página válida`);
+            }
+
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData.error) throw new Error(fallbackData.error);
+
+            const fallbackResultados = fallbackData.resultados || [];
+            setResultados(fallbackResultados);
+            setTotal(fallbackData.total || backendTotal);
+            setOffset(maxValidOffset);
+            setLimit(fallbackData.limit || backendLimit);
+            return;
           }
-          
-          // Páginas siguientes: acumular sin duplicados
-          const existingIds = new Set(prev.map(r => r.ID_Portafolio || r.id_del_portafolio));
-          const unique = newResultados.filter(r => !existingIds.has(r.ID_Portafolio || r.id_del_portafolio));
-          
-          console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: +${unique.length} licitaciones (total: ${prev.length + unique.length})`);
-          return [...prev, ...unique];
-        });
+        }
+
+        // Mostrar la página actual sin arrastrar resultados anteriores.
+        // useAutoAnalysis ya acumula internamente allResultados para métricas/progreso.
+        const newResultados = pageResults;
+        setResultados(newResultados);
+        console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: ${newResultados.length} licitaciones`);
         
         setTotal(data.total || 0);
         setOffset(newOffset);

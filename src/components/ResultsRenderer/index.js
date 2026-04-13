@@ -4,4 +4,4 @@
  */
 
 export { default as ResultsRenderer } from "./ResultsRenderer.jsx";
-export { default as ResultCard } from "./ResultCard.jsx";
+export { default as ResultCard } from "./ExtractionResultCard.jsx";

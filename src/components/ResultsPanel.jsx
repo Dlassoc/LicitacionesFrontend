@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
+import { normalizeCumpleValue } from "../utils/commonHelpers.js";
 import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
@@ -19,9 +20,81 @@ export default function ResultsPanel({
   resumen = {},  // 🆕 Recibir resumen con contadores
   paginationStatus = {}  // 🆕 Recibir información de paginación
 }) {
-  console.log('[RESULTS_PANEL] 📥 PROPS RECIBIDAS - resultados:', resultados?.length || 0, 'items');
-  console.log('[RESULTS_PANEL] 📥 tipos:', typeof resultados, Array.isArray(resultados) ? 'es array' : 'NO es array');
-  console.log('[RESULTS_PANEL] 📥 loading:', loading, 'error:', !!error);
+  const DEBUG_RESULTS_PANEL = ['1', 'true', 'yes', 'on'].includes(
+    String(import.meta.env.VITE_DEBUG_RESULTS_PANEL ?? 'false').toLowerCase()
+  );
+  const debugLog = (...args) => {
+    if (DEBUG_RESULTS_PANEL) console.log(...args);
+  };
+
+  const hasFinancialIndicators = (requisitos = {}) => {
+    const indicadoresFin = requisitos.indicadores_financieros;
+    const matrices = requisitos.matrices || indicadoresFin?.matrices;
+
+    if (matrices && typeof matrices === 'object' && Object.keys(matrices).length > 0) {
+      return true;
+    }
+
+    if (indicadoresFin && typeof indicadoresFin === 'object') {
+      const keys = Object.keys(indicadoresFin).filter((k) => k !== 'matrices');
+      return keys.length > 0;
+    }
+
+    return false;
+  };
+
+  const hasExperienceEvidence = (requisitos = {}) => {
+    const experiencia = requisitos.experiencia_requerida;
+    if (!experiencia) return false;
+
+    if (typeof experiencia === 'string') {
+      return experiencia.trim().length > 0;
+    }
+
+    if (typeof experiencia === 'object') {
+      const texto = experiencia.experiencia_requerida || experiencia.texto || experiencia.descripcion;
+      if (typeof texto === 'string' && texto.trim().length > 0) {
+        return true;
+      }
+      return Object.keys(experiencia).length > 0;
+    }
+
+    return Boolean(experiencia);
+  };
+
+  const hasUNSPSCCodes = (requisitos = {}) => {
+    return Array.isArray(requisitos?.codigos_unspsc) && requisitos.codigos_unspsc.length > 0;
+  };
+
+  const hasNonFinancialEvidence = (requisitos = {}) => {
+    const hasUnspsc = hasUNSPSCCodes(requisitos);
+    const hasAnyTextualDetails =
+      typeof requisitos?.descripcion === 'string' ||
+      typeof requisitos?.observaciones === 'string';
+    return hasUnspsc || hasAnyTextualDetails;
+  };
+
+  const isBasePropiaByExperience = (status) => {
+    if (!status || typeof status !== 'object') return false;
+
+    const requisitos = status.requisitos && typeof status.requisitos === 'object' ? status.requisitos : {};
+    const detalles = status.detalles && typeof status.detalles === 'object' ? status.detalles : {};
+
+    if (detalles.regla === 'base_propia_experiencia') {
+      return true;
+    }
+
+    const hasExp = hasExperienceEvidence(requisitos);
+    const hasIndicators = hasFinancialIndicators(requisitos);
+    const hasUnspsc = hasUNSPSCCodes(requisitos);
+    
+    // 🔧 CRÍTICO: Si tiene UNSPSC O experiencia (sin indicadores financieros), contar como CUMPLE
+    return (hasExp || hasUnspsc) && !hasIndicators;
+  };
+
+  debugLog('[RESULTS_PANEL] 📥 PROPS RECIBIDAS - resultados:', resultados?.length || 0, 'items');
+  debugLog('[RESULTS_PANEL] 📥 tipos:', typeof resultados, Array.isArray(resultados) ? 'es array' : 'NO es array');
+  debugLog('[RESULTS_PANEL] 📥 loading:', loading, 'error:', !!error);
   
   // 🔧 FUERZA RE-RENDER cuando llegan nuevos resultados
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
@@ -29,7 +102,7 @@ export default function ResultsPanel({
   useEffect(() => {
     if (resultados && resultados.length > 0) {
       setForceUpdateKey(prev => prev + 1);
-      console.log('[RESULTS_PANEL] 🔄 NUEVA DATA DETECTADA - Forzando re-categorización, items:', resultados.length);
+      debugLog('[RESULTS_PANEL] 🔄 NUEVA DATA DETECTADA - Forzando re-categorización, items:', resultados.length);
     }
   }, [resultados?.length]); // Solo trigger cuando cantidad cambia
   
@@ -37,9 +110,13 @@ export default function ResultsPanel({
   const [showOnlyMatching, setShowOnlyMatching] = useState(false); // 🆕 Mostrar solo coincidencias (desactivado por defecto)
   const [expandedSections, setExpandedSections] = useState({
     cumple: true,       // 🆕 VISIBLE por defecto - Licitaciones que el usuario PUEDE aplicar
-    noCumple: false,    // 🆕 OCULTO por defecto - Licitaciones que el usuario NO puede aplicar
-    sinAnalizar: true   // 🆕 VISIBLE por defecto - Licitaciones en análisis (mientras se procesan)
+    noCumple: true,     // 🆕 VISIBLE por defecto - Licitaciones que el usuario NO puede aplicar
+    sinDocumentos: true, // 🆕 VISIBLE por defecto - licitaciones sin documentos para evaluar
+    sinAnalizar: true,  // 🆕 VISIBLE por defecto - Licitaciones en análisis (mientras se procesan)
+    sinRequisitos: true // 🆕 NEUTRAL visible - evita sensación de "no clasificada"
   });
+
+
 
   // 🔧 DEBOUNCE analysisStatus: evitar que se recategoritce en cada polling (cada 10 segundos)
   // Usar una versión "estabilizada" que solo cambie cuando sea importante
@@ -58,7 +135,7 @@ export default function ResultsPanel({
     // pero no ralentiza licitaciones que se completan esporádicamente
     debounceTimerRef.current = setTimeout(() => {
       setStableAnalysisStatus(analysisStatus);
-      console.log('[RESULTS_PANEL] 🔄 analysisStatus actualizado (debounced 100ms)');
+      debugLog('[RESULTS_PANEL] 🔄 analysisStatus actualizado (debounced 100ms)');
     }, 100);
 
     return () => {
@@ -82,7 +159,7 @@ export default function ResultsPanel({
     if (item.cumple !== undefined) {
       return {
         estado: 'completado',
-        cumple: item.cumple,
+        cumple: normalizeCumpleValue(item.cumple),
         porcentaje: item.porcentaje_cumplimiento || 0,
         requisitos: item.requisitos_extraidos || {}
       };
@@ -99,62 +176,82 @@ export default function ResultsPanel({
   };
 
   // Categorizar resultados por cumplimiento
-  const { cumple, noCumple, sinAnalizar } = useMemo(() => {
-    console.log(`[RESULTS_PANEL] Categorizando ${resultados?.length || 0} resultados... (key: ${forceUpdateKey})`);
+  const { cumple, noCumple, sinDocumentos, sinAnalizar, sinRequisitos } = useMemo(() => {
+    debugLog(`[RESULTS_PANEL] Categorizando ${resultados?.length || 0} resultados... (key: ${forceUpdateKey})`);
     
     const c = [];
     const nc = [];
+    const sd = [];
     const sa = [];
+    const sr = [];
 
     resultados?.forEach((item, itemIdx) => {
       const idPortafolio = item.ID_Portafolio || item.id_del_portafolio || item.referencia;
-      console.log(`[RESULTS_PANEL] [${itemIdx}] ${idPortafolio} | from_cache=${item.from_cache} | _fromMatched=${item._fromMatched} | _fromAnalyzed=${item._fromAnalyzed}`);
+      debugLog(`[RESULTS_PANEL] [${itemIdx}] ${idPortafolio} | from_cache=${item.from_cache} | _fromMatched=${item._fromMatched} | _fromAnalyzed=${item._fromAnalyzed}`);
       
       // Saltar descartados
       if (isDiscarded && typeof isDiscarded === 'function' && isDiscarded(idPortafolio)) {
-        console.log(`[RESULTS_PANEL] ❌ DESCARTADA`);
+        debugLog(`[RESULTS_PANEL]  DESCARTADA`);
         return;
       }
       
       // Obtener status del item (desde BD o desde polling)
       const status = getStatusForItem(idPortafolio, item);
       
-      // Categorizar basado en:
-      // 1. Si es MATCHED → CUMPLE (por definición)
-      // 2. Si es ANALYZED/CACHE → usar su cumple
-      // 3. Si está en polling → usar status actual
-      
-      if (item._fromMatched === true) {
-        console.log(`[RESULTS_PANEL] ✅ MATCHED → CUMPLE`);
-        c.push(item);
-        return;
-      }
+      // Categorizar basado en status consolidado (BD/polling). Evita que
+      // un match histórico pise un veredicto más reciente de no-cumple.
 
       if (status) {
-        if (status.cumple === true) {
-          console.log(`[RESULTS_PANEL] ✅ CUMPLE | ${status.porcentaje || 0}%`);
+        const cumpleValue = normalizeCumpleValue(status.cumple);
+
+        if (cumpleValue === true) {
+          debugLog(`[RESULTS_PANEL] ✅ CUMPLE | ${status.porcentaje || 0}%`);
           c.push(item);
-        } else if (status.cumple === false) {
-          console.log(`[RESULTS_PANEL] ❌ NO CUMPLE | ${status.porcentaje || 0}%`);
+        } else if (cumpleValue === false) {
+          debugLog(`[RESULTS_PANEL]  NO CUMPLE | ${status.porcentaje || 0}%`);
           nc.push(item);
+        } else if (status.estado === 'sin_documentos') {
+          debugLog(`[RESULTS_PANEL] 📄 SIN DOCUMENTOS`);
+          sd.push(item);
         } else if (status.estado === 'completado') {
-          // Completado pero cumple=null → no encontró requisitos
-          console.log(`[RESULTS_PANEL] ❌ COMPLETADO SIN REQUISITOS → NO CUMPLE`);
-          nc.push(item);
+          const requisitos = status.requisitos && typeof status.requisitos === 'object' ? status.requisitos : {};
+          const hasIndicators = hasFinancialIndicators(requisitos);
+
+          if (hasIndicators) {
+            // Hay indicadores financieros → el backend evalúa si concuerdan con usuario
+            if (cumpleValue === true) {
+              debugLog(`[RESULTS_PANEL] ✅ CUMPLE (indicadores concuerdan con usuario)`);
+              c.push(item);
+            } else if (cumpleValue === false) {
+              debugLog(`[RESULTS_PANEL]  NO CUMPLE (indicadores NO concuerdan)`);
+              nc.push(item);
+            } else {
+              // Tiene indicadores pero cumple está en null → tratar como NO CUMPLE
+              debugLog(`[RESULTS_PANEL]  NO CUMPLE (indicadores sin evaluación claro)`);
+              nc.push(item);
+            }
+          } else if (isBasePropiaByExperience(status)) {
+            debugLog(`[RESULTS_PANEL] ✅ CUMPLE (base propia experiencia)`);
+            c.push(item);
+          } else {
+            // Completado pero sin veredicto financiero explícito
+            debugLog(`[RESULTS_PANEL] ℹ️ COMPLETADO SIN VEREDICTO FINANCIERO`);
+            sr.push(item);
+          }
         } else {
           // En proceso
-          console.log(`[RESULTS_PANEL] ⏳ EN ANÁLISIS (estado=${status.estado})`);
+          debugLog(`[RESULTS_PANEL] ⏳ EN ANÁLISIS (estado=${status.estado})`);
           sa.push(item);
         }
       } else {
         // Sin status → sin analizar
-        console.log(`[RESULTS_PANEL] ⏳ SIN ANALIZAR`);
+        debugLog(`[RESULTS_PANEL] ⏳ SIN ANALIZAR`);
         sa.push(item);
       }
     });
 
-    console.log(`[RESULTS_PANEL] 📊 FINAL: cumple=${c.length}, noCumple=${nc.length}, sinAnalizar=${sa.length}`);
-    return { cumple: c, noCumple: nc, sinAnalizar: sa };
+    debugLog(`[RESULTS_PANEL] 📊 FINAL: cumple=${c.length}, noCumple=${nc.length}, sinDocumentos=${sd.length}, sinAnalizar=${sa.length}, sinRequisitos=${sr.length}`);
+    return { cumple: c, noCumple: nc, sinDocumentos: sd, sinAnalizar: sa, sinRequisitos: sr };
   }, [resultados, analysisStatus, discardedIds, isDiscarded, forceUpdateKey]);
 
   // Función helper para verificar si un item coincide con palabras clave
@@ -181,6 +278,9 @@ export default function ResultsPanel({
       case 'no-cumple':
         items = noCumple;
         break;
+      case 'sin-documentos':
+        items = sinDocumentos;
+        break;
       default:
         items = resultados || [];  // Usar resultados en lugar de allResultados
     }
@@ -198,11 +298,11 @@ export default function ResultsPanel({
     }
     
     return items;
-  }, [filterCategory, cumple, noCumple, resultados, showOnlyMatching, preferredKeywords]);
+  }, [filterCategory, cumple, noCumple, sinDocumentos, resultados, showOnlyMatching, preferredKeywords]);
 
   // 🆕 ARREGLO: Mostrar si hay resultados categorizados O si hay datos crudos, NO solo si hay lastQuery
   const hasResults = resultados && resultados.length > 0;
-  const hasCategorizedResults = cumple.length > 0 || noCumple.length > 0 || sinAnalizar.length > 0;
+  const hasCategorizedResults = cumple.length > 0 || noCumple.length > 0 || sinDocumentos.length > 0 || sinAnalizar.length > 0 || sinRequisitos.length > 0;
   const showResults = hasResults || hasCategorizedResults || lastQuery;
   const loadedCount = Array.isArray(resultados) ? resultados.length : 0;
 
@@ -265,30 +365,14 @@ export default function ResultsPanel({
               : "Sin resultados"
             }
           </div>
+
           
-          {/* 🆕 Información de análisis automático */}
-          {isPolling && (
+          {/* 🔧 DESACTIVADO: Información de análisis automático - Ya no se muestra */}
+          {/* {isPolling && (
             <div className="rp-analysis-info">
-              <div>🔍 <strong>Análisis en progreso:</strong></div>
-              <div>
-                • Total a analizar: <strong>{allResultados.length}</strong> licitaciones
-              </div>
-              <div>
-                • Página <strong>{paginationStatus?.currentPage || 1}/{paginationStatus?.totalPages || 1}</strong>
-              </div>
-              <div>
-                • Query: <strong>{typeof lastQuery === 'string' ? lastQuery : lastQuery?.termino || 'automática'}</strong>
-              </div>
-              <div className="rp-analysis-divider">
-                ✅ {resumen?.completados || 0} • 🔄 {resumen?.enProceso || 0} • ⏳ {resumen?.noIniciados || 0} • 💾 {resumen?.cumpliendo || 0} guardadas
-              </div>
-              {paginationStatus?.esUltimaPagina && (
-                <div className="rp-analysis-warning">
-                  🏁 Última página - El análisis se detendrá cuando todos completen
-                </div>
-              )}
+              ... (removido)
             </div>
-          )}
+          )} */}
         </div>
         
         {/* Indicador de análisis en progreso */}
@@ -375,19 +459,25 @@ export default function ResultsPanel({
                     className={`rp-filter-btn ${filterCategory === 'all' ? 'active' : ''}`}
                     onClick={() => setFilterCategory('all')}
                   >
-                    <span className="rp-filter-icon">📊</span> Todos ({allResultados.length})
+                    Todos ({allResultados.length})
                   </button>
                   <button
                     className={`rp-filter-btn ${filterCategory === 'cumple' ? 'active' : ''}`}
                     onClick={() => setFilterCategory('cumple')}
                   >
-                    <span className="rp-filter-icon">✅</span> Cumple ({cumple.length})
+                    Cumple ({cumple.length})
                   </button>
                   <button
                     className={`rp-filter-btn ${filterCategory === 'no-cumple' ? 'active' : ''}`}
                     onClick={() => setFilterCategory('no-cumple')}
                   >
-                    <span className="rp-filter-icon">❌</span> No Cumple ({noCumple.length})
+                    No Cumple ({noCumple.length})
+                  </button>
+                  <button
+                    className={`rp-filter-btn ${filterCategory === 'sin-documentos' ? 'active' : ''}`}
+                    onClick={() => setFilterCategory('sin-documentos')}
+                  >
+                    Sin documentos ({sinDocumentos.length})
                   </button>
                 </div>
 
@@ -396,7 +486,9 @@ export default function ResultsPanel({
                   <div className="rp-all-categories">
                     {renderResultadosSeccion(cumple, 'CUMPLE REQUISITOS', cumple.length, 'cumple')}
                     {renderResultadosSeccion(noCumple, 'NO CUMPLE REQUISITOS', noCumple.length, 'noCumple')}
-                    {renderResultadosSeccion(sinAnalizar, 'Sin requisitos', sinAnalizar.length, 'sinAnalizar')}
+                    {renderResultadosSeccion(sinDocumentos, 'SIN DOCUMENTOS', sinDocumentos.length, 'sinDocumentos')}
+                    {renderResultadosSeccion(sinRequisitos, 'ANÁLISIS SIN REQUISITOS', sinRequisitos.length, 'sinRequisitos')}
+                    {renderResultadosSeccion(sinAnalizar, 'EN ANÁLISIS', sinAnalizar.length, 'sinAnalizar')}
                   </div>
                 )}
 
@@ -445,6 +537,31 @@ export default function ResultsPanel({
                     ) : (
                       <div className="rp-empty" style={{ gridColumn: '1 / -1' }}>
                         No hay licitaciones que no cumplan los requisitos en esta página.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {filterCategory === 'sin-documentos' && (
+                  <div className="rp-grid">
+                    {sinDocumentos.length > 0 ? (
+                      sinDocumentos.map((item, idx) => {
+                        const idPortafolio = item.ID_Portafolio || item.id_del_portafolio;
+                        const itemAnalysisStatus = getStatusForItem(idPortafolio, item);
+
+                        return (
+                          <ResultCard
+                            key={`${item.Referencia_del_proceso || "ref"}-${idx}`}
+                            item={item}
+                            onClick={() => onItemClick(item)}
+                            analysisStatus={itemAnalysisStatus}
+                            onDiscard={onDiscard}
+                          />
+                        );
+                      })
+                    ) : (
+                      <div className="rp-empty" style={{ gridColumn: '1 / -1' }}>
+                        No hay licitaciones sin documentos en esta página.
                       </div>
                     )}
                   </div>

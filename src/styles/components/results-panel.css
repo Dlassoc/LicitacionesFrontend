@@ -197,7 +197,8 @@
 
 .rp-category-filters {
   @apply flex gap-2 mb-4 p-3 rounded-lg border flex-wrap;
-  background: var(--filter-bg-light);
+  background:   #b4f7fe;
+  opacity: 70%;
   border-color: var(--filter-border-light);
   color: var(--panel-text);
 }

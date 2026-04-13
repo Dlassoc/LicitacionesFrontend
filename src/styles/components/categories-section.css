@@ -9,8 +9,8 @@
 
 .categories-section-box {
   border-radius: 0.5rem;
-  border: 1px solid #c7d2e0;
-  background-color: rgba(224, 231, 255, 0.5);
+  border: 1px solid #000000;
+  background-color: rgba(0, 102, 255, 0.8);
   padding: 1.25rem;
 }
 
@@ -64,7 +64,7 @@
 
 .categories-section-text {
   font-size: 0.875rem;
-  color: #4f46e5;
+  color: #000000;
 }
 
 /* ============================= DARKMODE ============================= */

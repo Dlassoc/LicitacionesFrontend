@@ -10,14 +10,14 @@
 
   :root {
     /* fondo de la página principal (main) */
-    --main-gradient: linear-gradient(180deg, #F6F9FC 0%, #EEF2F7 100%);
+    --main-gradient: linear-gradient(180deg, #E8ECEF 0%, #D9DFE5 100%);
     /* interior del ResultsPanel */
-    --panel-inner-bg: #ffffff;
-    --panel-border: #E5E7EB;
-    --panel-text-muted: #64748B;
+    --panel-inner-bg: #F5F7FA;
+    --panel-border: #CBD5E1;
+    --panel-text-muted: #1F2937;
     --panel-error: #DC2626;
     --panel-button: #27C5CE;
-    --panel-button-text: #0F172A;
+    --panel-button-text: #000000;
   }
   
   .dark {

@@ -3,6 +3,30 @@
  */
 
 /**
+ * Normaliza valores de "cumple" de múltiples formatos (bool, number, string) a true/false/null
+ */
+export const normalizeCumpleValue = (raw) => {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'number') return raw > 0;
+  if (typeof raw === 'string') {
+    const v = raw.trim().toLowerCase();
+    if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
+    if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
+    if (!v) return null;
+  }
+  return null;
+};
+
+/**
+ * Normaliza ID de licitación a string limpio
+ */
+export const normalizeLicitacionId = (raw) => {
+  if (raw === null || raw === undefined) return '';
+  return typeof raw === 'string' ? raw.trim() : String(raw).trim();
+};
+
+/**
  * Normaliza y renderiza valores generales
  */
 export const renderVal = (v) => {
@@ -49,3 +73,6 @@ export const prettyKey = (k) =>
    .replace(/([A-Z])/g, " $1")
    .replace(/\s+/g, " ")
    .trim();
+
+/** Valida formato de email básico */
+export const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

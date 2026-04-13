@@ -1,10 +1,35 @@
 // src/hooks/useAutoAnalysis.js
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { normalizeCumpleValue, normalizeLicitacionId } from '../utils/commonHelpers.js';
+import API_BASE_URL from '../config/api.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const API_BASE = API_BASE_URL;
 const LIVE_AUTO_ANALYSIS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
   String(import.meta.env.VITE_ENABLE_LIVE_AUTO_ANALYSIS ?? 'true').toLowerCase()
 );
+
+function hasMeaningfulAnalysisEvidence(data) {
+  if (!data || typeof data !== 'object') return false;
+
+  const requisitos = data.requisitos_extraidos && typeof data.requisitos_extraidos === 'object'
+    ? data.requisitos_extraidos
+    : (data.requisitos && typeof data.requisitos === 'object' ? data.requisitos : {});
+  const detalles = data.detalles && typeof data.detalles === 'object' ? data.detalles : {};
+
+  const hasCumple = data.cumple !== undefined && data.cumple !== null;
+  const hasDetalles = Object.keys(detalles).length > 0;
+
+  const hasMatrices = requisitos.matrices && Object.keys(requisitos.matrices).length > 0;
+  const hasIndicadores =
+    requisitos.indicadores_financieros &&
+    typeof requisitos.indicadores_financieros === 'object' &&
+    Object.keys(requisitos.indicadores_financieros).length > 0;
+  const hasUNSPSC = Array.isArray(requisitos.codigos_unspsc) && requisitos.codigos_unspsc.length > 0;
+  const experienciaTexto = requisitos.experiencia_requerida?.experiencia_requerida;
+  const hasExperiencia = typeof experienciaTexto === 'string' && experienciaTexto.trim().length > 0;
+
+  return hasCumple || hasDetalles || hasMatrices || hasIndicadores || hasUNSPSC || hasExperiencia;
+}
 
 /**
  * 🔧 NUEVO: Guarda TODOS los análisis completados (independientemente de si cumplen o no)
@@ -24,6 +49,7 @@ async function saveAnalyzedLicitacion(licitacion, analysisData) {
       departamento: licitacion.Departamento || licitacion.departamento || '',
       ciudad: licitacion.Ciudad || licitacion.ciudad || '',
       estado_licitacion: licitacion.Estado || licitacion.estado_del_procedimiento || '',
+      estado_analisis: analysisData?.estado_analisis || analysisData?.estado || 'completado',
       fecha_publicacion: licitacion.Fecha_publicacion || licitacion.fecha_de_publicacion_del || '',
       enlace: licitacion.URL_Proceso || licitacion.enlace || '',
       porcentaje_cumplimiento: percentage,
@@ -32,7 +58,9 @@ async function saveAnalyzedLicitacion(licitacion, analysisData) {
       requisitos_extraidos: analysisData.requisitos_extraidos || analysisData.requisitos || {}
     };
 
-    console.log(`[AUTO_ANALYSIS] 💾 Guardando en licitaciones_analisis: ${idPortafolio}, cumple=${payload.cumple}`);
+    console.log(
+      `[AUTO_ANALYSIS] 💾 Guardando en licitaciones_analisis: ${idPortafolio}, estado=${payload.estado_analisis}, cumple=${payload.cumple}`
+    );
     
     const response = await fetch(`${API_BASE}/saved/analyzed`, {
       method: 'POST',
@@ -144,7 +172,7 @@ async function saveMatchedLicitacion(licitacion, analysisData) {
   } catch (error) {
     console.error(`
 ╔════════════════════════════════════════════════════════════╗
-║ ❌ ERROR GUARDANDO LICITACIÓN EN BD
+║  ERROR GUARDANDO LICITACIÓN EN BD
 ╠════════════════════════════════════════════════════════════╣
 ║ 🆔 ID: ${licitacion?.ID_Portafolio || licitacion?.id_del_portafolio}
 ║ ⚠️  Error: ${error.message}
@@ -253,7 +281,8 @@ function prepararDocumentos(licitacion) {
 async function triggerBatchAnalysis(payload) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 🆕 Aumentado a 30 segundos
+    const TRIGGER_TIMEOUT_MS = 45000; // Backend valida/siembra en BD; en lotes grandes puede tardar >30s
+    const timeoutId = setTimeout(() => controller.abort(), TRIGGER_TIMEOUT_MS);
 
     const response = await fetch(`${API_BASE}/analysis/batch/trigger-batch`, {
       method: 'POST',
@@ -280,13 +309,42 @@ async function triggerBatchAnalysis(payload) {
   } catch (error) {
     let userMessage = error.message;
     if (error.name === 'AbortError') {
-      userMessage = 'Timeout: Backend tardó más de 30 segundos (aún procesando)';
+      // Si el cliente corta por timeout, el backend pudo haber recibido el trigger.
+      // No tratamos esto como fallo duro para permitir que el polling continue.
+      userMessage = 'Timeout del trigger: el backend puede seguir procesando en segundo plano';
+      console.info(`[AUTO_ANALYSIS] ℹ️ Trigger con timeout local, continuando con polling:` , userMessage);
+      return {
+        ok: true,
+        timeout: true,
+        message: userMessage,
+      };
     } else if (error.message.includes('Failed to fetch')) {
       userMessage = `No se puede conectar con ${API_BASE}. ¿Está ejecutándose?`;
     }
     
     console.warn(`[AUTO_ANALYSIS] ⚠️ No se pudo disparar trigger:`, userMessage);
     throw new Error(userMessage);
+  }
+}
+
+async function fetchQueueSummary(sampleLimit = 5) {
+  try {
+    const response = await fetch(
+      `${API_BASE}/analysis/batch/queue/summary?sample_limit=${sampleLimit}`,
+      {
+        method: 'GET',
+        credentials: 'include'
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data?.ok ? data : null;
+  } catch {
+    return null;
   }
 }
 
@@ -302,6 +360,8 @@ async function triggerBatchAnalysis(payload) {
  * 6. 🆕 AUTO-PAGINA cuando página actual completada (si no es última)
  */
 export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageComplete = null) {
+  const TERMINAL_STATES = useMemo(() => new Set(['completado', 'sin_documentos', 'error']), []);
+
   const [analysisStatus, setAnalysisStatus] = useState({});
   const [isPolling, setIsPolling] = useState(false);
   const [allResultados, setAllResultados] = useState([]);
@@ -314,9 +374,16 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
   const lastQueryRef = useRef(null);
   const triggerFailedRef = useRef(false); // Evitar spam de errores de trigger
   const savedAptasRef = useRef(new Set()); // 🆕 Evita guardar la misma licitación varias veces
+  const savedAnalyzedRef = useRef(new Map()); // Evita re-guardar el mismo resultado analizado
+  const noDocsBlockedIdsRef = useRef(new Set()); // IDs sin_documentos no deben relanzar autoanalisis
   const analysisStatusRef = useRef({}); // 🆕 Consulta estable dentro de effects
-  const MAX_POLLING_TIME = 10 * 60 * 1000; // 🆕 Aumentado a 10 minutos (análisis puede tardar)
-  const POLLING_INTERVAL = 10000; // 🔧 10 segundos - balance entre responsividad y flickering (WAS 5000/2000)
+  const isLoadingExistingRef = useRef(false); // Bloqueo sincrono para evitar carrera entre effects
+  const existingLoadStateRef = useRef({ key: '', done: false });
+  const pollingTickRef = useRef(0);
+  const lastNoIniciadoRetryRef = useRef({ at: 0, key: '' });
+  const isCheckStatusRunningRef = useRef(false); // Evita solapes de polling
+  const MAX_POLLING_TIME = 5 * 60 * 1000; // Ciclo de watchdog (no detiene polling de forma permanente)
+  const POLLING_INTERVAL = 8000; // Menos carga: polling estable cada 8s
 
   // 🔧 CRÍTICO: Crear una dependencia estable basada en IDs en lugar del array completo
   // Esto evita que el polling se limpie y reinicie cada vez que resultados cambia de referencia
@@ -325,8 +392,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     return licitaciones
       .map(l => {
         const id = l.ID_Portafolio || l.id_del_portafolio;
-        // Asegurar que es string válido
-        return typeof id === 'string' ? id.trim() : String(id).trim();
+        return normalizeLicitacionId(id);
       })
       .filter(id => id && id.length > 0)  // Solo strings no vacíos
       .sort()
@@ -345,6 +411,10 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
       lastTriggerRef.current = [];
       triggerFailedRef.current = false;
       savedAptasRef.current = new Set();
+      savedAnalyzedRef.current = new Map();
+      noDocsBlockedIdsRef.current = new Set();
+      isLoadingExistingRef.current = false;
+      existingLoadStateRef.current = { key: '', done: false };
       
       // 🆕 Log de nueva búsqueda con parámetros
       if (currentQuery) {
@@ -365,13 +435,15 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     const ids = licitaciones
       .map(l => {
         const id = l.ID_Portafolio || l.id_del_portafolio;
-        return typeof id === 'string' ? id.trim() : String(id).trim();
+        return normalizeLicitacionId(id);
       })
       .filter(id => id && id.length > 0);
     
     if (ids.length === 0) return;
 
-    // 🔧 Usar ESTADO (no ref) para bloquear trigger - garantiza re-render
+    existingLoadStateRef.current = { key: licitacionIdsStr, done: false };
+    isLoadingExistingRef.current = true;
+    // Estado visible para UI/logs
     setIsLoadingExisting(true);
     console.log(`[AUTO_ANALYSIS] 🔍 Solicitando análisis previos para ${ids.length} licitaciones:`, ids.slice(0, 3).join(', '), '...');
     
@@ -387,15 +459,24 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           setAnalysisStatus(prev => {
             const updated = { ...prev };
             Object.entries(existingData).forEach(([id, analysis]) => {
-              if (analysis && analysis.estado === 'completado') {
+              const estado = String(analysis?.estado || '').toLowerCase();
+              const hasRequisitos = analysis?.requisitos && typeof analysis.requisitos === 'object' && Object.keys(analysis.requisitos).length > 0;
+              const hasDetalles = analysis?.detalles && typeof analysis.detalles === 'object' && Object.keys(analysis.detalles).length > 0;
+              const hasEvidence = hasRequisitos || hasDetalles || analysis?.cumple !== undefined && analysis?.cumple !== null;
+              const isTerminal = ['completado', 'sin_documentos', 'error'].includes(estado);
+
+              if (analysis && (isTerminal || hasEvidence)) {
                 updated[id] = {
-                  estado: analysis.estado,
-                  cumple: analysis.cumple,
+                  estado: isTerminal ? estado : 'completado',
+                  cumple: normalizeCumpleValue(analysis.cumple),
                   porcentaje_cumplimiento: analysis.porcentaje || 0,
                   detalles: analysis.detalles,
                   requisitos_extraidos: analysis.requisitos
                 };
                 completedIds.push(id);
+                if (estado === 'sin_documentos') {
+                  noDocsBlockedIdsRef.current.add(id);
+                }
                 if (analysis.cumple === true || (typeof analysis.cumple === 'number' && analysis.cumple > 0)) {
                   aptasIds.push(id);
                 }
@@ -420,7 +501,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
         console.error(`[AUTO_ANALYSIS] ⚠️ Error cargando análisis previos:`, err.message);
       })
       .finally(() => {
-        // 🔧 Usar ESTADO para desbloquear trigger
+        existingLoadStateRef.current = { key: licitacionIdsStr, done: true };
+        isLoadingExistingRef.current = false;
         setIsLoadingExisting(false);
         console.log(`[AUTO_ANALYSIS] 🔓 Carga de análisis existentes completada - trigger desbloqueado`);
       });
@@ -443,8 +525,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
   useEffect(() => {
     console.log(`[AUTO_ANALYSIS] 📄 Offset cambió a: ${paginationInfo?.offset || 0} - Limpiando trigger cache para nueva página`);
     lastTriggerRef.current = [];  // ✅ Resetear para que dispare trigger en nueva página
-    // ❌ NO resetear analysisStatus - acumular análisis de todas las páginas
-    // ❌ NO resetear allResultados - acumular resultados de todas las páginas
+    //  NO resetear analysisStatus - acumular análisis de todas las páginas
+    //  NO resetear allResultados - acumular resultados de todas las páginas
     setIsPolling(false);           // Detener polling anterior (reiniciará si hay nuevos IDs)
   }, [paginationInfo?.offset]);
 
@@ -454,31 +536,55 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
       return;
     }
 
-    if (!licitaciones || licitaciones.length === 0 || triggerFailedRef.current) {
+    if (!licitaciones || licitaciones.length === 0) {
       return;
     }
 
-    // 🔧 CRÍTICO: Esperar a que termine la carga de análisis existentes (usar ESTADO)
-    if (isLoadingExisting) {
+    const existingState = existingLoadStateRef.current;
+    const waitingExisting =
+      isLoadingExisting ||
+      isLoadingExistingRef.current ||
+      existingState.key !== licitacionIdsStr ||
+      !existingState.done;
+
+    if (waitingExisting) {
       console.log('[AUTO_ANALYSIS] ⏳ Esperando a que carguen análisis previos antes de disparar trigger');
       return;
     }
 
     const ids = licitaciones
-      .map(l => l.ID_Portafolio || l.id_del_portafolio)
+      .map(l => normalizeLicitacionId(l.ID_Portafolio || l.id_del_portafolio))
       .filter(Boolean);
 
     if (ids.length === 0) return;
 
-    // Detectar IDs nuevos (aun no trigereados Y sin status final en BD)
+    // Detectar IDs nuevos (aun no triggereados y sin estado persistido final).
     const newIds = ids.filter(id => {
       const status = analysisStatusRef.current[id];
-      const hasFinalStatus = status && status.estado === 'completado';
+      const estado = String(status?.estado || '').toLowerCase();
+      const isRetryableError = estado === 'error' || estado === 'pendiente_reintento';
+      const hasKnownStatus = Boolean(status && estado);
+      const hasFinalStatus = TERMINAL_STATES.has(estado) && !isRetryableError;
       const alreadyTriggered = lastTriggerRef.current.includes(id);
-      if (hasFinalStatus) {
-        console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - ya tiene análisis completado`);
+      const effectiveTriggered = isRetryableError ? false : alreadyTriggered;
+      const noDocsBlocked = noDocsBlockedIdsRef.current.has(id);
+
+      if (noDocsBlocked) {
+        console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - bloqueado por estado sin_documentos`);
+        return false;
       }
-      return !alreadyTriggered && !hasFinalStatus;
+
+      // Si ya tenemos estado persistido para ese ID, no volver a sembrar trigger al recargar sesión.
+      if (hasKnownStatus && estado !== 'no_iniciado' && !isRetryableError) {
+        console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - estado existente en BD/polling: ${estado}`);
+        return false;
+      }
+
+      if (hasFinalStatus) {
+        console.log(`[AUTO_ANALYSIS] ⏭️ Saltando ${id} - ya tiene estado terminal: ${estado}`);
+      }
+
+      return !effectiveTriggered && !hasFinalStatus;
     });
     
     if (newIds.length === 0) {
@@ -487,7 +593,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     }
 
     // Procesar lote acotado para no saturar el backend y evitar dejar IDs sin iniciar.
-    const MAX_TRIGGER_PER_RUN = 10;
+    const MAX_TRIGGER_PER_RUN = 12;
     const idsToTrigger = newIds.slice(0, MAX_TRIGGER_PER_RUN);
 
     const payload = idsToTrigger
@@ -498,7 +604,9 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           return null;
         }
         
-        const lic = licitaciones.find(item => (item.ID_Portafolio || item.id_del_portafolio) === id);
+        const lic = licitaciones.find(
+          item => normalizeLicitacionId(item.ID_Portafolio || item.id_del_portafolio) === id
+        );
         if (!lic) {
           console.warn(`[AUTO_ANALYSIS] ⚠️ No encontrada licitación ${id}`);
           return null;
@@ -511,7 +619,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
             documentos: prepararDocumentos(lic)
           };
         } catch (error) {
-          console.error(`[AUTO_ANALYSIS] ❌ Error preparando payload para ${id}:`, error);
+          console.error(`[AUTO_ANALYSIS]  Error preparando payload para ${id}:`, error);
           return null;
         }
       })
@@ -525,7 +633,11 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     triggerBatchAnalysis(payload)
       .then(result => {
         if (result.ok) {
-          console.log(`[AUTO_ANALYSIS] Trigger exitoso para ${payload.length} licitaciones`);
+          if (result.timeout) {
+            console.log(`[AUTO_ANALYSIS] ⏳ Trigger sin confirmacion HTTP (timeout local). Se mantiene polling para ${payload.length} licitaciones`);
+          } else {
+            console.log(`[AUTO_ANALYSIS] Trigger exitoso para ${payload.length} licitaciones`);
+          }
           // Marcar todas como triggereadas
           lastTriggerRef.current = [...lastTriggerRef.current, ...payload.map(p => p.id)];
           triggerFailedRef.current = false;
@@ -535,7 +647,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
         console.warn(`[AUTO_ANALYSIS] Trigger fallido:`, error.message);
         triggerFailedRef.current = true;
       });
-  }, [licitacionIdsStr, paginationInfo?.offset, paginationInfo?.limit, isLoadingExisting]); // 🔧 Añadido isLoadingExisting como dependencia
+  }, [licitacionIdsStr, paginationInfo?.offset, paginationInfo?.limit, isLoadingExisting, TERMINAL_STATES]);
 
   // Polling para chequear estado del análisis
   useEffect(() => {
@@ -575,22 +687,89 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     pollingStartTimeRef.current = Date.now();
 
     const checkStatus = async () => {
-      // Si pasaron 5 minutos, detener
-      if (Date.now() - pollingStartTimeRef.current > MAX_POLLING_TIME) {
-        console.log('[AUTO_ANALYSIS] ⏱️ Timeout de 5 minutos alcanzado, deteniendo polling');
-        setIsPolling(false);
-        if (intervalRef.current) clearInterval(intervalRef.current);
+      if (isCheckStatusRunningRef.current) {
+        console.log('[AUTO_ANALYSIS] ⏭️ Polling anterior aun en curso; se omite este tick para evitar solape');
         return;
+      }
+
+      isCheckStatusRunningRef.current = true;
+
+      try {
+      pollingTickRef.current += 1;
+
+      const hasStatusEvidence = (status) => {
+        if (!status || typeof status !== 'object') return false;
+        const hasCumple = status.cumple !== undefined && status.cumple !== null;
+        const hasRequisitos =
+          status.requisitos &&
+          typeof status.requisitos === 'object' &&
+          Object.keys(status.requisitos).length > 0;
+        const hasDetalles =
+          status.detalles &&
+          typeof status.detalles === 'object' &&
+          Object.keys(status.detalles).length > 0;
+        return hasCumple || hasRequisitos || hasDetalles;
+      };
+
+      const getAnalysisFingerprint = (status) => {
+        const normalized = {
+          estado: status?.estado || null,
+          cumple: normalizeCumpleValue(status?.cumple),
+          porcentaje_cumplimiento:
+            typeof status?.porcentaje_cumplimiento === 'number' ? status.porcentaje_cumplimiento : null,
+          detalles: status?.detalles || {},
+          requisitos_extraidos: status?.requisitos_extraidos || status?.requisitos || {},
+        };
+        return JSON.stringify(normalized);
+      };
+
+      // Soft-timeout: si pasaron 5 minutos y aun hay no terminales,
+      // reinicia la ventana de watchdog pero NO detiene el polling.
+      if (Date.now() - pollingStartTimeRef.current > MAX_POLLING_TIME) {
+        console.log('[AUTO_ANALYSIS] ⏱️ Watchdog 5m alcanzado; se mantiene polling para evitar atasco visual');
+        pollingStartTimeRef.current = Date.now();
       }
 
       let allCompleted = true;
       let completedCount = 0;
       let processingCount = 0;
+      let pendingCount = 0;
       let notInitiatedCount = 0;
+      let terminalNoDocsCount = 0;
+      let terminalErrorCount = 0;
+      const pendingRetryIds = [];
+      const noIniciadoIds = [];
+      const terminalStates = new Set(['completado', 'sin_documentos', 'error']);
 
       // Chequear estado de cada ID
       for (const id of ids) {
         try {
+          const knownStatus = analysisStatusRef.current[id];
+          const knownEstado = knownStatus?.estado;
+          if (knownStatus && terminalStates.has(knownEstado)) {
+            if (knownStatus.estado === 'completado') completedCount++;
+            if (knownStatus.estado === 'sin_documentos') terminalNoDocsCount++;
+            if (knownStatus.estado === 'error') terminalErrorCount++;
+            continue;
+          }
+
+          if (knownStatus && !terminalStates.has(knownEstado)) {
+            // Mantener polling para estados no terminales aunque ya tengan datos parciales.
+            allCompleted = false;
+          }
+
+          // Si el item ya viene desde BD como final, no volver a consultar status en backend.
+          const licitacionLocal = licitaciones.find(
+            (item) => (item.ID_Portafolio || item.id_del_portafolio) === id
+          );
+          const localFinalStatus = licitacionLocal?._analysisStatus;
+          if (localFinalStatus && terminalStates.has(localFinalStatus.estado)) {
+            if (localFinalStatus.estado === 'completado') completedCount++;
+            if (localFinalStatus.estado === 'sin_documentos') terminalNoDocsCount++;
+            if (localFinalStatus.estado === 'error') terminalErrorCount++;
+            continue;
+          }
+
           if (!id) {
             console.warn(`[AUTO_ANALYSIS] ⚠️ ID inválido (vacío o null)`);
             continue;
@@ -602,6 +781,7 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           const response = await fetch(url, { credentials: 'include' });
 
           if (!response.ok) {
+            allCompleted = false;
             console.warn(`[AUTO_ANALYSIS] ⚠️ Status ${response.status} para ${id} - URL: ${url}`);
             continue;
           }
@@ -609,7 +789,13 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           const data = await response.json();
 
           if (data.ok) {
-            const estado = data.estado;
+            const hasPersistedEvidence = hasMeaningfulAnalysisEvidence(data);
+
+            const rawEstado = data.estado;
+            const estado =
+              ['pendiente', 'no_iniciado', 'procesando'].includes(rawEstado) && hasPersistedEvidence
+                ? 'completado'
+                : rawEstado;
             
             // 🆕 Logging más detallado para debug
             if (estado === 'completado') {
@@ -618,15 +804,27 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
             } else if (estado === 'en_proceso' || estado === 'procesando') {
               processingCount++;
               console.log(`[AUTO_ANALYSIS] 🔄 EN PROCESO: ${id}`);
+            } else if (estado === 'pendiente') {
+              pendingCount++;
+              pendingRetryIds.push(id);
+              console.log(`[AUTO_ANALYSIS] 🕒 PENDIENTE: ${id}`);
             } else if (estado === 'no_iniciado') {
               notInitiatedCount++;
+              noIniciadoIds.push(id);
               console.log(`[AUTO_ANALYSIS] ⏳ NO INICIADO: ${id}`);
+            } else if (estado === 'sin_documentos') {
+              terminalNoDocsCount++;
+              noDocsBlockedIdsRef.current.add(id);
+              console.log(`[AUTO_ANALYSIS] 📭 SIN DOCUMENTOS: ${id}`);
+            } else if (estado === 'error') {
+              terminalErrorCount++;
+              console.log(`[AUTO_ANALYSIS]  ERROR: ${id} - ${data.error_message || 'sin detalle'}`);
             }
 
             setAnalysisStatus(prev => {
               const prevStatus = prev[id];
               const prevIsFinal = prevStatus && prevStatus.estado === 'completado' && typeof prevStatus.cumple === 'boolean';
-              const newIsFinal = data.estado === 'completado' && (typeof data.cumple === 'boolean' || typeof data.cumple === 'number');
+              const newIsFinal = estado === 'completado' && (typeof data.cumple === 'boolean' || typeof data.cumple === 'number' || hasPersistedEvidence);
 
               // No sobre-escribir un resultado final con uno parcial
               if (prevIsFinal && !newIsFinal) {
@@ -636,8 +834,9 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
               const updated = {
                 ...prev,
                 [id]: {
-                  estado: data.estado,
-                  cumple: data.cumple,
+                  estado,
+                  estado_original: rawEstado,
+                  cumple: normalizeCumpleValue(data.cumple),
                   porcentaje_cumplimiento: data.porcentaje_cumplimiento,
                   detalles: data.detalles,
                   requisitos: data.requisitos_extraidos
@@ -647,15 +846,27 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
               return updated;
             });
 
-            // 🔧 NUEVO: Guardar TODOS los análisis completados (no solo los aptos)
-            // Esto permite cargar análisis previos sin re-analizar
-            if (data.estado === 'completado') {
-              const licitacion = licitaciones.find(l => (l.ID_Portafolio || l.id_del_portafolio) === id);
+            // Guardar estados terminales para que no se pierdan al paginar.
+            if (terminalStates.has(estado)) {
+              const licitacion = licitacionLocal || licitaciones.find(l => (l.ID_Portafolio || l.id_del_portafolio) === id);
               if (licitacion) {
-                // Guardar en tabla de análisis (todos)
-                saveAnalyzedLicitacion(licitacion, data).catch(() => {
-                  console.warn(`[AUTO_ANALYSIS] ⚠️ Error guardando análisis para ${id}`);
-                });
+                const savePayload = {
+                  ...data,
+                  estado: estado,
+                  estado_analisis: estado,
+                  requisitos_extraidos: data.requisitos_extraidos || {},
+                  detalles: data.detalles || {}
+                };
+                const fingerprint = getAnalysisFingerprint(savePayload);
+                const previousFingerprint = savedAnalyzedRef.current.get(id);
+
+                if (previousFingerprint !== fingerprint) {
+                  savedAnalyzedRef.current.set(id, fingerprint);
+                  saveAnalyzedLicitacion(licitacion, savePayload).catch(() => {
+                    savedAnalyzedRef.current.delete(id);
+                    console.warn(`[AUTO_ANALYSIS] ⚠️ Error guardando análisis para ${id}`);
+                  });
+                }
 
                 // Si cumple, TAMBIÉN guardar como apta
                 const cumpleVerdadero = data.cumple === true || (typeof data.cumple === 'number' && data.cumple > 0);
@@ -668,8 +879,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
               }
             }
 
-            // Si NO está completado, seguir polling
-            if (data.estado !== 'completado') {
+            // Solo seguir polling para estados no terminales.
+            if (!terminalStates.has(estado)) {
               allCompleted = false;
             }
           }
@@ -678,17 +889,84 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           
           // Diferencia entre tipos de errores
           if (error.message.includes('Failed to fetch')) {
-            console.error(`[AUTO_ANALYSIS] ❌ Error de red para ${id}: Backend en ${API_BASE} no responde. ¿Está ejecutándose?`, error);
+            console.error(`[AUTO_ANALYSIS]  Error de red para ${id}: Backend en ${API_BASE} no responde. ¿Está ejecutándose?`, error);
           } else if (error instanceof SyntaxError) {
-            console.error(`[AUTO_ANALYSIS] ❌ Respuesta JSON inválida para ${id}:`, error.message);
+            console.error(`[AUTO_ANALYSIS]  Respuesta JSON inválida para ${id}:`, error.message);
           } else {
-            console.error(`[AUTO_ANALYSIS] ❌ Error chequeando ${id}:`, error.message);
+            console.error(`[AUTO_ANALYSIS]  Error chequeando ${id}:`, error.message);
           }
         }
       }
 
       // 🆕 Log de progreso
-      console.log(`[AUTO_ANALYSIS] 📈 Progreso: ${completedCount} completados, ${processingCount} en proceso, ${notInitiatedCount} no iniciados`);
+      console.log(
+        `[AUTO_ANALYSIS] 📈 Progreso: ${completedCount} completados, ` +
+        `${terminalNoDocsCount} sin_documentos, ${terminalErrorCount} error, ` +
+        `${processingCount} en proceso, ${pendingCount} pendientes, ${notInitiatedCount} no iniciados`
+      );
+
+      // Diagnóstico ligero de cola para detectar atascos en backend.
+      if (pollingTickRef.current % 4 === 0) {
+        const queueSummary = await fetchQueueSummary(5);
+        if (queueSummary) {
+          const counts = queueSummary.counts || {};
+          const pendientes = counts.pendiente ?? 0;
+          const procesando = counts.procesando ?? 0;
+          const completado = counts.completado ?? 0;
+          const sinDocumentos = counts.sin_documentos ?? 0;
+          const error = counts.error ?? 0;
+          console.log(
+            `[AUTO_ANALYSIS] 🧭 Cola backend: ` +
+              `pendiente=${pendientes}, procesando=${procesando}, completado=${completado}, ` +
+              `sin_documentos=${sinDocumentos}, error=${error}, oldest_pending_minutes=${queueSummary.oldest_pending_minutes}`
+          );
+        }
+      }
+
+      // Watchdog: si hay IDs en no_iniciado por varios ciclos, reintentar trigger-batch.
+      const retryCandidates = [...pendingRetryIds, ...noIniciadoIds].filter(
+        (id) => !noDocsBlockedIdsRef.current.has(id)
+      );
+      if (retryCandidates.length > 0) {
+        const retryKey = [...retryCandidates].sort().join(',');
+        const now = Date.now();
+        const MIN_RETRY_INTERVAL_MS = 45000;
+        const canRetryNow =
+          pollingTickRef.current >= 3 &&
+          (now - lastNoIniciadoRetryRef.current.at > MIN_RETRY_INTERVAL_MS ||
+            lastNoIniciadoRetryRef.current.key !== retryKey);
+
+        if (canRetryNow) {
+          const retryIds = retryCandidates.slice(0, 10);
+          const retryPayload = retryIds
+            .map((id) => {
+              const lic = licitaciones.find(
+                (item) => (item.ID_Portafolio || item.id_del_portafolio) === id
+              );
+              if (!lic) return null;
+              return {
+                id,
+                nombre: lic.Nombre || lic.nombre_del_procedimiento || 'Sin nombre',
+                documentos: prepararDocumentos(lic),
+              };
+            })
+            .filter(Boolean);
+
+          if (retryPayload.length > 0) {
+            console.log(
+              `[AUTO_ANALYSIS] ♻️ Reintentando trigger para ${retryPayload.length} IDs pendientes/no_iniciado: ${retryIds.join(', ')}`
+            );
+            try {
+              await triggerBatchAnalysis(retryPayload);
+              lastNoIniciadoRetryRef.current = { at: now, key: retryKey };
+            } catch (retryErr) {
+              console.warn(
+                `[AUTO_ANALYSIS] ⚠️ Reintento de trigger falló para pendientes/no_iniciado: ${retryErr.message}`
+              );
+            }
+          }
+        }
+      }
 
       // Si todos completaron, parar
       if (allCompleted) {
@@ -721,11 +999,14 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
           
           // 🆕 NO resetear estado aquí - dejar que la siguiente página cargue naturalmente
           // El hook detectará nuevas licitaciones y disparará nuevo trigger
-          // setAnalysisStatus({});  // ❌ REMOVIDO - causaba que volviera a página 1
-          // setAllResultados([]);   // ❌ REMOVIDO - causaba que volviera a página 1
+          // setAnalysisStatus({});  //  REMOVIDO - causaba que volviera a página 1
+          // setAllResultados([]);   //  REMOVIDO - causaba que volviera a página 1
           setIsPolling(false);
           if (intervalRef.current) clearInterval(intervalRef.current);
         }
+      }
+      } finally {
+        isCheckStatusRunningRef.current = false;
       }
     };
 
@@ -761,6 +1042,8 @@ export function useAutoAnalysis(licitaciones = [], paginationInfo = {}, onPageCo
     resumen: {
       totalAnalizando: allResultados.length,
       completados: Object.values(analysisStatus).filter(s => s.estado === 'completado').length,
+      sinDocumentos: Object.values(analysisStatus).filter(s => s.estado === 'sin_documentos').length,
+      conError: Object.values(analysisStatus).filter(s => s.estado === 'error').length,
       enProceso: Object.values(analysisStatus).filter(s => s.estado === 'en_proceso' || s.estado === 'procesando').length,
       noIniciados: Object.values(analysisStatus).filter(s => s.estado === 'no_iniciado').length,
       cumpliendo: Object.values(analysisStatus).filter(s => s.cumple === true || (typeof s.cumple === 'number' && s.cumple > 0)).length

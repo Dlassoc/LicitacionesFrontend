@@ -1,138 +1,109 @@
-import { useState, useCallback } from 'react';
-import API_BASE_URL from '../config/api';
+import { useState, useCallback, useRef } from 'react';
+import { apiGet, apiPost } from '../config/httpClient.js';
 
 /**
- * 🆕 Hook para cargar licitaciones ya analizadas desde BD local
- * 
- * Optimización: En lugar de consultar la API de SECOP nuevamente,
- * cargamos las licitaciones que ya analizamos y guardamos en BD.
- * 
- * Esto es útil para:
- * - Cargar resultados instantáneamente al iniciar la aplicación
- * - Evitar consultas innecesarias a la API
- * - Mostrar análisis previos sin esperar
+ * Hook para cargar licitaciones ya analizadas desde BD local.
+ * Carga resultados instantáneamente sin consultar la API de SECOP.
  */
 export const useAnalyzedLicitaciones = () => {
   const [analyzedLicitaciones, setAnalyzedLicitaciones] = useState([]);
   const [loadingAnalyzed, setLoadingAnalyzed] = useState(false);
   const [errorAnalyzed, setErrorAnalyzed] = useState(null);
+  const latestRequestRef = useRef(0);
 
   const loadAnalyzed = useCallback(async (onlyAptas = false, searchQueryOrIds = null) => {
+    const requestId = ++latestRequestRef.current;
+
     try {
       setLoadingAnalyzed(true);
       setErrorAnalyzed(null);
 
-      // 🆕 Aceptar array de IDs o string de palabra clave
       let ids = [];
       let searchQuery = null;
-      
+
       if (Array.isArray(searchQueryOrIds)) {
         ids = searchQueryOrIds;
       } else if (typeof searchQueryOrIds === 'string' && searchQueryOrIds.trim()) {
         searchQuery = searchQueryOrIds.trim();
       }
-      
-      // 🆕 Si no hay IDs ni palabra clave, no cargar
+
       if (ids.length === 0 && !searchQuery) {
-        console.log(`[ANALYZED] ℹ️ Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
-        setAnalyzedLicitaciones([]);
-        setLoadingAnalyzed(false);
+        console.log(`[ANALYZED] Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
+        if (requestId === latestRequestRef.current) {
+          setAnalyzedLicitaciones([]);
+          setLoadingAnalyzed(false);
+        }
         return;
       }
 
-      if (searchQuery) {
-        console.log(`[ANALYZED] 📦 Cargando análisis previos para: "${searchQuery}"`);
-      } else {
-        console.log(`[ANALYZED] 📦 Cargando análisis previos para ${ids.length} IDs específicos`);
-      }
-
-      // 🆕 ENVIAR IDs como POST si los hay, o usar GET con palabra clave
-      let response;
+      let data;
       if (ids.length > 0) {
-        // POST con IDs específicos
-        response = await fetch(`${API_BASE_URL}/saved/analyzed`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            ids,
-            search_query: searchQuery,
-            limit: 100,
-            offset: 0,
-            only_aptas: onlyAptas
-          })
+        data = await apiPost('/saved/analyzed', {
+          ids,
+          search_query: searchQuery,
+          limit: 100,
+          offset: 0,
+          only_aptas: onlyAptas
         });
       } else {
-        // GET con palabra clave
-        const params = new URLSearchParams();
-        params.append('search_query', searchQuery);
-        params.append('limit', 100);
-        params.append('offset', 0);
-        if (onlyAptas) params.append('only_aptas', 'true');
-        
-        response = await fetch(`${API_BASE_URL}/saved/analyzed?${params.toString()}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
+        const params = new URLSearchParams({
+          search_query: searchQuery,
+          limit: 100,
+          offset: 0,
+          ...(onlyAptas && { only_aptas: 'true' })
         });
+        data = await apiGet(`/saved/analyzed?${params.toString()}`);
       }
-
-      if (!response.ok) {
-        throw new Error(`Error en la respuesta: ${response.status}`);
-      }
-
-      const data = await response.json();
 
       if (data.ok && Array.isArray(data.licitaciones)) {
-        // 🆕 Normalizar datos: convertir cumple a booleano/null
-        const normalized = data.licitaciones.map(lic => {
+        if (requestId !== latestRequestRef.current) {
+          console.log(`[ANALYZED] Respuesta obsoleta ignorada (requestId=${requestId})`);
+          return [];
+        }
+
+        const hasPersistedEvidence = (lic) => {
+          const requisitos = lic?.requisitos_extraidos;
+          const detalles = lic?.detalles;
+          const hasRequisitos =
+            requisitos && typeof requisitos === 'object' && Object.keys(requisitos).length > 0;
+          const hasDetalles =
+            detalles && typeof detalles === 'object' && Object.keys(detalles).length > 0;
+          const hasCumple = lic?.cumple !== undefined && lic?.cumple !== null;
+          const hasScore = lic?.porcentaje !== undefined && lic?.porcentaje !== null;
+          return hasRequisitos || hasDetalles || hasCumple || hasScore;
+        };
+
+        const terminalStates = new Set(['completado', 'sin_documentos', 'error']);
+
+        const analyzedRows = data.licitaciones.filter((lic) => {
+          const estado = String(lic?.estado || '').toLowerCase();
+          return terminalStates.has(estado) || hasPersistedEvidence(lic);
+        });
+
+        const normalized = analyzedRows.map(lic => {
           let cumple_normalized = lic.cumple;
-          
-          // Si cumple es un número, convertir a booleano
+          const estado = String(lic?.estado || '').toLowerCase();
+          const normalizedEstado = terminalStates.has(estado)
+            ? estado
+            : (hasPersistedEvidence(lic) ? 'completado' : estado || 'no_iniciado');
+
           if (typeof cumple_normalized === 'number') {
-            if (cumple_normalized > 0) {
-              cumple_normalized = true;
-            } else if (cumple_normalized === 0) {
-              cumple_normalized = null; // 0 = sin analizar
-            } else {
-              cumple_normalized = false;
-            }
+            cumple_normalized = cumple_normalized > 0;
           }
-          
+
           return {
             ...lic,
+            estado: normalizedEstado,
+            _estado_original: lic?.estado,
             cumple: cumple_normalized
           };
         });
 
-        console.log(`
-╔════════════════════════════════════════════════════════════╗
-║ ✅ LICITACIONES ANALIZADAS CARGADAS DE BD LOCAL
-╠════════════════════════════════════════════════════════════╣
-║ 📊 Total encontradas: ${normalized.length}
-║ 💾 Origen: Tabla licitaciones_analisis (BD propia)
-║ ⚡ Velocidad: Instantáneo (sin API)
-╠════════════════════════════════════════════════════════════╣
-        `);
+        console.log(`[ANALYZED] ${normalized.length} licitaciones analizadas cargadas de BD local`);
 
-        // Mostrar desglose
         const cumplen = normalized.filter(l => l.cumple === true).length;
         const noCumplen = normalized.filter(l => l.cumple === false).length;
-        const sinAnalizar = normalized.filter(l => l.cumple === null).length;
-
-        console.log(`║ ✅ Cumplen requisitos: ${cumplen}`);
-        console.log(`║ ❌ No cumplen: ${noCumplen}`);
-        console.log(`║ ⏳ Sin analizar: ${sinAnalizar}`);
-        console.log(`╚════════════════════════════════════════════════════════════╝
-        `);
-
-        // Log detallado
-        normalized.forEach((lic, idx) => {
-          const status = lic.cumple === true ? '✅' : lic.cumple === false ? '❌' : '⏳';
-          const porcentaje = lic.porcentaje ? ` (${lic.porcentaje.toFixed(0)}%)` : '';
-          const id = lic.id_portafolio || lic.id || '';
-          console.log(`[ANALYZED] [${idx + 1}] ${status} ${id}${porcentaje}`);
-        });
+        console.log(`[ANALYZED] Cumplen: ${cumplen} | No cumplen: ${noCumplen} | Otros: ${normalized.length - cumplen - noCumplen}`);
 
         setAnalyzedLicitaciones(normalized);
         return normalized;
@@ -140,18 +111,19 @@ export const useAnalyzedLicitaciones = () => {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (error) {
-      console.error(`
-╔════════════════════════════════════════════════════════════╗
-║ ❌ ERROR CARGANDO LICITACIONES ANALIZADAS
-╠════════════════════════════════════════════════════════════╣
-║ Error: ${error.message}
-╚════════════════════════════════════════════════════════════╝
-      `, error);
+      if (requestId !== latestRequestRef.current) {
+        console.log(`[ANALYZED] Error obsoleto ignorado (requestId=${requestId}):`, error.message);
+        return [];
+      }
+
+      console.error('[ANALYZED] Error cargando licitaciones analizadas:', error);
       setErrorAnalyzed(error.message);
       setAnalyzedLicitaciones([]);
       return [];
     } finally {
-      setLoadingAnalyzed(false);
+      if (requestId === latestRequestRef.current) {
+        setLoadingAnalyzed(false);
+      }
     }
   }, []);
 

@@ -30,8 +30,9 @@ export function getCurrentYearRange() {
 }
 
 /**
- * Obtiene el rango de fechas para búsquedas
- * Usado para establecer un rango por defecto: enero 1 hasta hoy
+ * Obtiene el rango de fechas para búsquedas.
+ * Solo aplica valores por defecto cuando el usuario diligencia uno de los extremos.
+ * Si ambos vienen vacíos, no se envía filtro de recepción.
  * @param {string} fechaRecDesde - Fecha desde (opcional)
  * @param {string} fechaRecHasta - Fecha hasta (opcional)
  * @returns {Object} {finalFechaRecDesde, finalFechaRecHasta}
@@ -39,12 +40,16 @@ export function getCurrentYearRange() {
 export function getFinalDateRange(fechaRecDesde, fechaRecHasta) {
   let finalFechaRecDesde = fechaRecDesde;
   let finalFechaRecHasta = fechaRecHasta;
-  
+
+  // Si ambos extremos están vacíos, no forzar filtro de fechas.
+  if (!finalFechaRecDesde && !finalFechaRecHasta) {
+    return { finalFechaRecDesde: "", finalFechaRecHasta: "" };
+  }
+
   if (!finalFechaRecDesde || !finalFechaRecHasta) {
-    // 🔒 RANGO POR DEFECTO: Enero 1 hasta hoy
     const hoy = new Date();
     const año = hoy.getFullYear();
-    
+
     if (!finalFechaRecDesde) {
       finalFechaRecDesde = `${año}-01-01`;
     }
@@ -52,6 +57,6 @@ export function getFinalDateRange(fechaRecDesde, fechaRecHasta) {
       finalFechaRecHasta = hoy.toISOString().split('T')[0];
     }
   }
-  
+
   return { finalFechaRecDesde, finalFechaRecHasta };
 }

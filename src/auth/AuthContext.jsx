@@ -1,6 +1,6 @@
 // app/auth/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { API_ENDPOINTS } from "../config/api.js";
+import { apiGet, apiPost } from "../config/httpClient.js";
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -9,15 +9,12 @@ export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
 
-  // ============================
-  //   Hidratar sesión (cookie)
-  // ============================
+  // Hidratar sesión (cookie)
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" });
-        if (res.ok) setUser(await res.json());
-        else setUser(null);
+        const data = await apiGet('/auth/me');
+        setUser(data);
       } catch {
         setUser(null);
       } finally {
@@ -26,57 +23,32 @@ export default function AuthProvider({ children }) {
     })();
   }, []);
 
-  // ============================
-  //   Registro de usuario
-  // ============================
+  // Registro de usuario
   async function register({ email, name, password, is_mypyme }) {
-    const res = await fetch(API_ENDPOINTS.REGISTER, {
-      method: "POST",
-      credentials: "include", // importante para usar cookies HttpOnly
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, name, password, is_mypyme }),
-    });
-    if (!res.ok) throw new Error("No se pudo registrar");
-
-    // Obtener sesión actual
-    const me = await (await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" })).json();
+    await apiPost('/auth/register', { email, name, password, is_mypyme });
+    const me = await apiGet('/auth/me');
     setUser(me);
   }
 
-  // ============================
-  //   Inicio de sesión
-  // ============================
+  // Inicio de sesión
   async function login({ email, password }) {
-    const res = await fetch(API_ENDPOINTS.LOGIN, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) throw new Error("No se pudo iniciar sesión");
-
-    const me = await (await fetch(API_ENDPOINTS.AUTH_ME, { credentials: "include" })).json();
+    await apiPost('/auth/login', { email, password });
+    const me = await apiGet('/auth/me');
     setUser(me);
   }
 
-  // ============================
-  //   Cierre de sesión
-  // ============================
+  // Cierre de sesión
   async function logout() {
-    await fetch(API_ENDPOINTS.LOGOUT, { method: "POST", credentials: "include" });
+    await apiPost('/auth/logout');
     setUser(null);
   }
 
-  // ============================
-  //   Actualizar usuario
-  // ============================
+  // Actualizar usuario
   async function updateUser(updatedUser) {
     setUser((prev) => ({ ...prev, ...updatedUser }));
   }
 
-  // ============================
-  //   Contexto global
-  // ============================
+  // Contexto global
   const value = useMemo(() => ({
     user,
     ready,

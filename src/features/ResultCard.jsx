@@ -1,4 +1,5 @@
 import React, { useMemo, memo, useState } from "react";
+import { normalizeCumpleValue } from "../utils/commonHelpers.js";
 import "../styles/features/result-card.css";
 
 /* ========== Helpers de normalización ========== */
@@ -118,10 +119,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
         );
       
       case 'completado':
-        // 🔧 Normalizar cumple: puede ser boolean o número
-        const cumpleBool = typeof analysisStatus.cumple === 'number' 
-          ? analysisStatus.cumple > 0  // Si es número: true si > 0
-          : analysisStatus.cumple;      // Si es boolean: usa directo
+        const cumpleBool = normalizeCumpleValue(analysisStatus.cumple);
         
         const porcentaje = analysisStatus.porcentaje || 0;
         
@@ -174,8 +172,17 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
       
       case 'error':
         return (
-          <span className="result-card-badge-analysis result-card-badge-error">
-            ⚠️ Error
+          <span 
+            className="result-card-badge-analysis result-card-badge-error"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Reintentar análisis automáticamente (no requiere click)
+              if (onClick) onClick();
+            }}
+            title="Reintentando automáticamente..."
+            style={{ cursor: 'pointer' }}
+          >
+            Error
           </span>
         );
       
@@ -251,19 +258,19 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           <div className="result-card-dates-grid">
             {fechaPublicacion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📅 Publicación:</span>
+                <span className="result-card-date-label"> Publicación:</span>
                 <span className="result-card-date-value">{fechaPublicacion}</span>
               </div>
             )}
             {fechaManifestacion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📢 Manifestación:</span>
+                <span className="result-card-date-label">Manifestación:</span>
                 <span className="result-card-date-value">{fechaManifestacion}</span>
               </div>
             )}
             {fechaRecepcion && (
               <div className="result-card-date-item">
-                <span className="result-card-date-label">📬 Recepción:</span>
+                <span className="result-card-date-label"> Recepción:</span>
                 <span className="result-card-date-value">{fechaRecepcion}</span>
               </div>
             )}
@@ -293,31 +300,18 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
                 if (obj[key]) {
                   const val = obj[key];
                   
-                  // Si es un objeto con miPYME/no_miPYME, extraer
-                  if ((key === 'indicadores_financieros' || key === 'matrices') && 
-                      typeof val === 'object' && (val.miPYME || val.no_miPYME)) {
-                    ['miPYME', 'no_miPYME'].forEach(tipo => {
-                      if (val[tipo] && typeof val[tipo] === 'object') {
-                        Object.assign(found, val[tipo]);
-                      }
-                    });
+                  // Si es un objeto con indicadores, extraer directamente
+                  if ((key === 'indicadores_financieros' || key === 'matrices') && typeof val === 'object') {
+                    Object.assign(found, val);
                   }
                   
                   // Si tiene una propiedad .matrices dentro
                   else if (val.matrices && typeof val.matrices === 'object') {
                     const matrices = val.matrices;
-                    if (matrices.miPYME || matrices.no_miPYME) {
-                      ['miPYME', 'no_miPYME'].forEach(tipo => {
-                        if (matrices[tipo] && typeof matrices[tipo] === 'object') {
-                          Object.assign(found, matrices[tipo]);
-                        }
-                      });
-                    } else {
-                      Object.assign(found, matrices);
-                    }
+                    Object.assign(found, matrices);
                   }
                   
-                  // 🔧 MEJORADO: Si es un objeto con propiedades que contienen indicadores (como razon)
+                  // Si es un objeto con propiedades que contienen indicadores (como razon)
                   else if (typeof val === 'object' && Object.keys(val).length > 0) {
                     // Detectar si este objeto contiene indicadores
                     const indicatorEntries = Object.entries(val).filter(([k, v]) => {
@@ -381,23 +375,74 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
             
             return matricesData && Object.keys(matricesData).length > 0 ? (
               <div className="result-card-analysis-section">
-                <h4 className="result-card-analysis-title">💰 Indicadores Financieros Encontrados:</h4>
+                <h4 className="result-card-analysis-title">Indicadores Financieros:</h4>
                 <div className="result-card-analysis-indicators">
                   {(() => {
-                    const allIndicators = [];
+                    const allComparisons = [];
                     Object.entries(matricesData).forEach(([nombre, valor]) => {
-                      if (typeof valor === 'object' && valor !== null && valor.requerido) {
-                        allIndicators.push({ nombre, valor: valor.requerido });
-                      } else if (typeof valor !== 'object' && valor !== null) {
-                        allIndicators.push({ nombre, valor: String(valor) });
+                      let requerido = null;
+                      if (typeof valor === 'object' && valor !== null && valor.requerido !== undefined) {
+                        requerido = valor.requerido;
+                      } else if (typeof valor !== 'object') {
+                        requerido = valor;
                       }
+                      
+                      allComparisons.push({ nombre, requerido });
                     });
                     
-                    return allIndicators.length > 0 ? allIndicators.map(({ nombre, valor }, idx) => (
-                      <span key={idx} className="result-card-indicator-badge" title={`${nombre}: ${valor}`}>
-                        {nombre.replace(/_/g, ' ')}: <strong>{valor}</strong>
-                      </span>
-                    )) : null;
+                    // Buscar valores del usuario en detalles (con matching canonico)
+                    const userValues = {};
+                    if (analysisStatus?.detalles) {
+                      const detalles = typeof analysisStatus.detalles === 'string' 
+                        ? JSON.parse(analysisStatus.detalles) 
+                        : analysisStatus.detalles;
+                      
+                      Object.entries(detalles).forEach(([key, val]) => {
+                        if (typeof val === 'object' && val.usuario !== undefined) {
+                          userValues[key] = val.usuario;
+                        }
+                      });
+                    }
+
+                    const userValuesIndex = buildIndex(userValues);
+
+                    const compareUserVsRequired = (userRaw, reqRaw) => {
+                      if (userRaw === 'N/D' || userRaw === null || userRaw === undefined) return false;
+
+                      const userNum = parseFloat(String(userRaw).replace(',', '.'));
+                      if (Number.isNaN(userNum)) return false;
+
+                      const reqText = String(reqRaw ?? '').trim();
+                      const match = reqText.match(/(>=|≤|<=|≥|>|<|=)?\s*(-?\d+(?:[.,]\d+)?)/);
+                      if (!match) return false;
+
+                      const op = match[1] || '>=';
+                      const reqNum = parseFloat(match[2].replace(',', '.'));
+                      if (Number.isNaN(reqNum)) return false;
+
+                      if (op === '>=' || op === '≥') return userNum >= reqNum - 0.001;
+                      if (op === '>') return userNum > reqNum - 0.001;
+                      if (op === '<=' || op === '≤') return userNum <= reqNum + 0.001;
+                      if (op === '<') return userNum < reqNum + 0.001;
+                      if (op === '=') return Math.abs(userNum - reqNum) <= 0.001;
+                      return false;
+                    };
+                    
+                    return allComparisons.map(({ nombre, requerido }, idx) => {
+                      const userVal = userValues[nombre] ?? userValuesIndex.get(canon(nombre)) ?? 'N/D';
+                      const cumple = compareUserVsRequired(userVal, requerido);
+                      const requeridoText = requerido === null || requerido === undefined ? 'N/D' : String(requerido);
+                      
+                      return (
+                        <span
+                          key={idx}
+                          className={`result-card-indicator-badge ${cumple ? 'result-card-indicator-badge-match' : 'result-card-indicator-badge-no-match'}`}
+                          title={`${nombre}: requerido ${requeridoText} | perfil ${userVal}`}
+                        >
+                          {nombre.replace(/_/g, ' ')}: <strong>{requeridoText}</strong>  
+                        </span>
+                      );
+                    });
                   })()}
                 </div>
               </div>
@@ -407,7 +452,7 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
           {/* Mostrar códigos UNSPSC */}
           {analysisStatus.requisitos.codigos_unspsc && analysisStatus.requisitos.codigos_unspsc.length > 0 && (
             <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">🏷️ Códigos UNSPSC:</h4>
+              <h4 className="result-card-analysis-title">Códigos UNSPSC:</h4>
               <div className="result-card-unspsc-list">
                 {analysisStatus.requisitos.codigos_unspsc.slice(0, 5).map((codigo, idx) => (
                   <span key={idx} className="result-card-unspsc-badge">{codigo}</span>
@@ -430,48 +475,6 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
               </p>
             </div>
           )}
-
-          {/* Mostrar comparación con perfil si cumple es true/false */}
-          {analysisStatus.cumple !== null && analysisStatus.detalles && (
-            <div className="result-card-analysis-section">
-              <h4 className="result-card-analysis-title">
-                {analysisStatus.cumple ? '✅ Cumplimiento del perfil:' : '❌ Requisitos no cumplidos:'}
-              </h4>
-              <div className="result-card-analysis-items">
-                {Object.entries(
-                  typeof analysisStatus.detalles === 'string' 
-                    ? JSON.parse(analysisStatus.detalles) 
-                    : analysisStatus.detalles
-                )
-                  .filter(([key]) => {
-                    // 🔧 Filtrar para NO mostrar claves que ya se mostraron en secciones anteriores
-                    const lowerKey = key.toLowerCase();
-                    // Excluir indicadores financieros (ya están en sección anterior)
-                    const isIndicador = lowerKey.includes('cobertura') || 
-                                        lowerKey.includes('endeudamiento') ||
-                                        lowerKey.includes('liquidez') ||
-                                        lowerKey.includes('rentabilidad') ||
-                                        lowerKey.includes('matriculado') ||
-                                        lowerKey.includes('experiencia');
-                    // Excluir UNSPSC (ya están en sección anterior)
-                    const isUnspsc = lowerKey.includes('unspsc') || lowerKey.includes('categoria');
-                    return !isIndicador && !isUnspsc;
-                  })
-                  .slice(0, 4)
-                  .map(([key, val]) => (
-                  <div key={key} className="result-card-analysis-item">
-                    <span className={`result-card-analysis-icon ${val.cumple ? 'match' : 'no-match'}`}>
-                      {val.cumple ? '✓' : '✗'}
-                    </span>
-                    <span className="result-card-analysis-label">{key}:</span>
-                    <span className="result-card-analysis-value">
-                      {val.usuario !== null ? val.usuario : 'N/D'} vs {val.requerido}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       )}
 
@@ -484,16 +487,10 @@ const ResultCard = memo(function ResultCard({ item = {}, onClick, analysisStatus
   // Comparador manual: re-render solo si item o analysisStatus cambian significativamente
   if (prevProps.item?.ID_Portafolio !== nextProps.item?.ID_Portafolio) return false;
   if (prevProps.item?.id_del_portafolio !== nextProps.item?.id_del_portafolio) return false;
-  // Comparar analysisStatus por referencia (si cambió, es un nuevo objeto)
-  if (prevProps.analysisStatus !== nextProps.analysisStatus) {
-    // Pero las properties internas son las mismas
-    if (prevProps.analysisStatus?.cumple === nextProps.analysisStatus?.cumple &&
-        prevProps.analysisStatus?.estado === nextProps.analysisStatus?.estado) {
-      return true; // Props iguales, no renderizar
-    }
-    return false; // Props distintas, sí renderizar
-  }
-  return true; // Props iguales, no renderizar
+  // IMPORTANTE: cuando cambia analysisStatus, aunque cumpla/estado sean iguales,
+  // pueden haber llegado requisitos/detalles nuevos (indicadores) y hay que re-renderizar.
+  if (prevProps.analysisStatus !== nextProps.analysisStatus) return false;
+  return true;
 });
 
 export default ResultCard;

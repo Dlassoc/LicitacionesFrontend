@@ -1,403 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React from "react";
 import "../styles/components/preferences.css";
-import { useAuth } from "../auth/AuthContext.jsx";
-
-const API_BASE = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import usePreferencesForm from "./preferences/usePreferencesForm.js";
+import AlertPreferencesSection from "./preferences/AlertPreferencesSection.jsx";
+import FinancialProfileSection from "./preferences/FinancialProfileSection.jsx";
+import SubscriptionsSection from "./preferences/SubscriptionsSection.jsx";
 
 export default function Preferences({ unlocked = true }) {
-  const { updateUser } = useAuth();
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-
-  const [palabras, setPalabras] = useState("");
-  const [departamento, setDepartamento] = useState("");
-  const [ciudad, setCiudad] = useState("");
-
-  const [msg, setMsg] = useState("");
-  const [subs, setSubs] = useState([]);
-
-  const [loadingSession, setLoadingSession] = useState(false);
-  const [loadingSubs, setLoadingSubs] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [savingPrefs, setSavingPrefs] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [msgPrefs, setMsgPrefs] = useState("");
-
-  // Indicadores financieros (todos opcionales)
-  const [savingFin, setSavingFin] = useState(false);
-  const [msgFin, setMsgFin] = useState("");
-
-  const [indicadorLiquidez, setIndicadorLiquidez] = useState("");
-  const [nivelEndeudamiento, setNivelEndeudamiento] = useState("");
-  const [razonCoberturaIntereses, setRazonCoberturaIntereses] = useState("");
-  const [rentabilidadPatrimonio, setRentabilidadPatrimonio] = useState("");
-  const [rentabilidadActivo, setRentabilidadActivo] = useState("");
-  const [capacidadDeudasCortoPlazo, setCapacidadDeudasCortoPlazo] = useState("");
-  const [porcentajeAcreedores, setPorcentajeAcreedores] = useState("");
-  const [retribucionRiesgoPropiedad, setRetribucionRiesgoPropiedad] = useState("");
-  const [capacidadGenerarGanancias, setCapacidadGenerarGanancias] = useState("");
-
-  // Estado para estadísticas de caché
-  const [cacheStats, setCacheStats] = useState(null);
-  const [loadingCache, setLoadingCache] = useState(false);
-  const [clearingCache, setClearingCache] = useState(false);
-  const [msgCache, setMsgCache] = useState("");
-
-  const hasSavedSubs = subs.length > 0;
-  const isActive = useMemo(() => unlocked || hasSavedSubs, [unlocked, hasSavedSubs]);
-
-  const safeJson = async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return {};
-    }
-  };
-
-  const loadSession = useCallback(async () => {
-    setLoadingSession(true);
-    setMsg("");
-    console.log('[PREFERENCES] 🔐 Iniciando carga de sesión. API_BASE:', API_BASE);
-    try {
-      const r = await fetch(`${API_BASE}/auth/me`, { method: "GET", credentials: "include" });
-      console.log("[Preferences] /auth/me response status:", r.status);
-      if (!r.ok) {
-        console.warn("[Preferences] No autenticado:", r.status);
-        setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
-        setEmail("");
-        setName("");
-        return;
-      }
-      const data = await safeJson(r);
-      console.log("[Preferences] /auth/me data:", data);
-      setEmail(data?.email || "");
-      setName(data?.name || "");
-      if (data?.email) {
-        console.log("[Preferences] Usuario cargado:", data.email);
-      }
-    } catch (err) {
-      console.error("[Preferences] Error en loadSession:", err);
-      setMsg("No detecté sesión activa. Inicia sesión para autocompletar tu nombre y correo.");
-      setEmail("");
-      setName("");
-    } finally {
-      setLoadingSession(false);
-    }
-  }, []);
-
-  const loadSubs = useCallback(async (em) => {
-    if (!em) {
-      setSubs([]);
-      return;
-    }
-    setLoadingSubs(true);
-    console.log('[PREFERENCES] 📋 Cargando suscripciones para:', em);
-    try {
-      const r = await fetch(`${API_BASE}/subscriptions?email=${encodeURIComponent(em)}`, {
-        credentials: "include",
-      });
-      if (!r.ok) {
-        console.warn('[PREFERENCES] ⚠️ Error cargando suscripciones:', r.status);
-        setSubs([]);
-        return;
-      }
-      const data = await safeJson(r);
-      setSubs(Array.isArray(data.subscriptions) ? data.subscriptions : []);
-    } catch {
-      setSubs([]);
-    } finally {
-      setLoadingSubs(false);
-    }
-  }, []);
-
-  // NUEVO: Cargar indicadores financieros guardados
-  const loadIndicadores = useCallback(async () => {
-    console.log('[PREFERENCES] 💰 Cargando indicadores financieros...');
-    try {
-      const r = await fetch(`${API_BASE}/finanzas/indicadores`, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!r.ok) {
-        console.warn('[PREFERENCES] ⚠️ Error cargando indicadores:', r.status);
-        return;
-      }
-      
-      const data = await safeJson(r);
-      console.log('[PREFERENCES] 💰 Respuesta indicadores:', data);
-      if (data?.ok && data?.data) {
-        const ind = data.data;
-        // Cargar cada indicador en su estado
-        if (ind.indicador_liquidez !== null && ind.indicador_liquidez !== undefined) setIndicadorLiquidez(String(ind.indicador_liquidez));
-        if (ind.nivel_endeudamiento !== null && ind.nivel_endeudamiento !== undefined) setNivelEndeudamiento(String(ind.nivel_endeudamiento));
-        if (ind.razon_cobertura_intereses !== null && ind.razon_cobertura_intereses !== undefined) setRazonCoberturaIntereses(String(ind.razon_cobertura_intereses));
-        if (ind.rentabilidad_patrimonio !== null && ind.rentabilidad_patrimonio !== undefined) setRentabilidadPatrimonio(String(ind.rentabilidad_patrimonio));
-        if (ind.rentabilidad_activo !== null && ind.rentabilidad_activo !== undefined) setRentabilidadActivo(String(ind.rentabilidad_activo));
-        if (ind.capacidad_deudas_corto_plazo !== null && ind.capacidad_deudas_corto_plazo !== undefined) setCapacidadDeudasCortoPlazo(String(ind.capacidad_deudas_corto_plazo));
-        if (ind.porcentaje_acreedores !== null && ind.porcentaje_acreedores !== undefined) setPorcentajeAcreedores(String(ind.porcentaje_acreedores));
-        if (ind.retribucion_riesgo_propiedad !== null && ind.retribucion_riesgo_propiedad !== undefined) setRetribucionRiesgoPropiedad(String(ind.retribucion_riesgo_propiedad));
-        if (ind.capacidad_generar_ganancias !== null && ind.capacidad_generar_ganancias !== undefined) setCapacidadGenerarGanancias(String(ind.capacidad_generar_ganancias));
-        console.log('[PREFERENCES] ✅ Indicadores cargados correctamente');
-      }
-    } catch (err) {
-      console.error('[PREFERENCES] ❌ Error cargando indicadores:', err);
-    }
-  }, []);
-
-  // NUEVO: Cargar estadísticas de caché
-  const loadCacheStats = useCallback(async () => {
-    if (!email) return;
-    setLoadingCache(true);
-    try {
-      const r = await fetch(`${API_BASE}/analysis/batch/cache/stats`, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!r.ok) {
-        setCacheStats(null);
-        return;
-      }
-      const data = await safeJson(r);
-      if (data?.ok) {
-        setCacheStats(data);
-      }
-    } catch {
-      setCacheStats(null);
-    } finally {
-      setLoadingCache(false);
-    }
-  }, [email]);
-
-  // NUEVO: Limpiar caché
-  const clearAnalysisCache = async () => {
-    if (!email) return;
-    if (!confirm("¿Estás seguro de que deseas limpiar el caché de análisis? Esto forzará el re-análisis de todas las licitaciones.")) {
-      return;
-    }
-    
-    setClearingCache(true);
-    setMsgCache("");
-    try {
-      const r = await fetch(`${API_BASE}/analysis/batch/cache/clear`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      });
-      
-      const data = await safeJson(r);
-      if (data?.ok) {
-        setMsgCache(`✅ Se eliminaron ${data.deleted} análisis del caché`);
-        // Recargar estadísticas
-        await loadCacheStats();
-      } else {
-        setMsgCache(`❌ Error: ${data?.error || 'Error desconocido'}`);
-      }
-    } catch (e) {
-      setMsgCache(`❌ Error al limpiar caché: ${e.message}`);
-    } finally {
-      setClearingCache(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSession();
-  }, [loadSession]);
-
-  useEffect(() => {
-    if (email) {
-      console.log('[PREFERENCES] 📧 Email cargado, iniciando cargas de suscripciones e indicadores');
-      loadSubs(email);
-      loadIndicadores();
-      loadCacheStats();  // NUEVO: Cargar estadísticas de caché
-    }
-  }, [email]);
-
-  // Guardar nombre cuando pierde el foco
-  const saveName = async () => {
-    if (!name || !name.trim()) return;
-    if (!email) return;
-    try {
-      const r = await fetch(`${API_BASE}/auth/users`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, name: name.trim() }),
-      });
-      if (!r.ok) {
-        const data = await safeJson(r);
-        console.error("Error al guardar nombre:", data);
-      } else {
-        // Actualizar el contexto de autenticación
-        updateUser({ name: name.trim() });
-      }
-    } catch (e) {
-      console.error("Error al guardar nombre:", e);
-    }
-  };
-
-  const deactivate = async (id) => {
-    if (!id) return;
-    try {
-      await fetch(`${API_BASE}/subscriptions/${id}/deactivate`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // ignorar
-    } finally {
-      await loadSubs(email);
-    }
-  };
-
-  const runNow = async () => {
-    if (!email) {
-      setMsgPrefs("No hay correo de sesión. Inicia sesión para probar el envío.");
-      return;
-    }
-    setRunning(true);
-    setMsgPrefs("");
-    try {
-      const url = `${API_BASE}/subscriptions/run-digest-now?email=${encodeURIComponent(
-        email
-      )}&days_back=30&force=true`;
-      const res = await fetch(url, { method: "POST", credentials: "include" });
-      const data = await safeJson(res);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "No se pudo ejecutar el envío manual");
-      }
-
-      const itemsCount =
-        typeof data.items === "number"
-          ? data.items
-          : typeof data.items_untrimmed === "number"
-          ? data.items_untrimmed
-          : 0;
-      setMsgPrefs(`Envío de prueba ejecutado: ${data.emails_sent ?? "?"} email(s) enviado(s), ${itemsCount} licitación(es) encontrada(s). Revisa tu correo.`);
-    } catch (e) {
-      setMsgPrefs("No se pudo ejecutar el envío de prueba. " + (e.message || ""));
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  // Guardar solo preferencias (palabras clave, departamento, ciudad)
-  const savePrefs = async () => {
-    if (!email) {
-      setMsgPrefs("Inicia sesión para guardar preferencias.");
-      return;
-    }
-    if (!palabras.trim()) {
-      setMsgPrefs("Ingresa al menos una palabra clave.");
-      return;
-    }
-
-    setSavingPrefs(true);
-    setMsgPrefs("");
-    try {
-      const r = await fetch(`${API_BASE}/subscriptions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, palabras_clave: palabras, departamento, ciudad }),
-      });
-      const data = await safeJson(r);
-      if (!r.ok) throw new Error(data?.detail || data?.error || "Error al guardar preferencias");
-
-      setMsgPrefs("Preferencias de correo guardadas correctamente");
-      await loadSubs(email);
-      
-      // 🆕 AUTO-BUSCAR: Después de guardar preferencias, buscar automáticamente licitaciones
-      console.log('[PREFERENCES] Preferencias guardadas. Buscando licitaciones con palabras clave:', palabras);
-      await buscarLicitacionesAutomaticamente(palabras, departamento, ciudad);
-      
-    } catch (e) {
-      setMsgPrefs("Error al guardar preferencias: " + (e.message || ""));
-    } finally {
-      setSavingPrefs(false);
-    }
-  };
-
-  // 🆕 Función para buscar y mostrar licitaciones automáticamente
-  const buscarLicitacionesAutomaticamente = async (palabrasClave, dept, ciud) => {
-    try {
-      // Construir query de búsqueda
-      const queryParams = new URLSearchParams();
-      if (palabrasClave?.trim()) queryParams.append('q', palabrasClave.trim());
-      if (dept) queryParams.append('departamento', dept);
-      if (ciud) queryParams.append('ciudad', ciud);
-      
-      const searchUrl = `/app?${queryParams.toString()}`;
-      console.log('[PREFERENCES] Redirigiendo a búsqueda:', searchUrl);
-      
-      // Redirigir a la página de búsqueda con los parámetros
-      window.location.href = searchUrl;
-    } catch (e) {
-      console.error('[PREFERENCES] Error en búsqueda automática:', e);
-    }
-  };
-
-  // Helper para parsear números
-  const parseOrNull = (v) => {
-    if (v === null || v === undefined) return null;
-    const s = String(v).trim();
-    if (s === "") return null;
-    const n = Number(s.replace(",", "."));
-    return Number.isFinite(n) ? n : null;
-  };
-
-  // Guardar solo Indicadores Financieros
-  const saveFin = async () => {
-    setMsgFin("");
-    setSavingFin(true);
-    try {
-      const payload = {};
-      const map = [
-        ["indicador_liquidez", indicadorLiquidez],
-        ["nivel_endeudamiento", nivelEndeudamiento],
-        ["razon_cobertura_intereses", razonCoberturaIntereses],
-        ["rentabilidad_patrimonio", rentabilidadPatrimonio],
-        ["rentabilidad_activo", rentabilidadActivo],
-        ["capacidad_deudas_corto_plazo", capacidadDeudasCortoPlazo],
-        ["porcentaje_acreedores", porcentajeAcreedores],
-        ["retribucion_riesgo_propiedad", retribucionRiesgoPropiedad],
-        ["capacidad_generar_ganancias", capacidadGenerarGanancias],
-      ];
-      for (const [k, v] of map) {
-        const pv = parseOrNull(v);
-        if (pv !== null) payload[k] = pv;
-      }
-      if (Object.keys(payload).length === 0) {
-        setMsgFin("No hay valores para guardar. Completa al menos un campo.");
-        return;
-      }
-
-      const r = await fetch(`${API_BASE}/finanzas/indicadores`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      const data = await safeJson(r);
-      if (!r.ok || data?.ok === false) {
-        throw new Error(data?.detail || data?.error || "Error al guardar indicadores");
-      }
-
-      setMsgFin(`Indicadores financieros guardados correctamente`);
-      
-      // Recargar los indicadores después de guardar
-      await loadIndicadores();
-    } catch (e) {
-      setMsgFin("Error al guardar los indicadores: " + (e.message || ""));
-    } finally {
-      setSavingFin(false);
-    }
-  };
+  const form = usePreferencesForm(unlocked);
 
   return (
     <div className="preferences-container">
-      {!isActive && (
+      {!form.isActive && (
         <div className="preferences-overlay">
           <div className="preferences-overlay-content">
             <p className="preferences-overlay-title">
@@ -410,26 +23,25 @@ export default function Preferences({ unlocked = true }) {
         </div>
       )}
 
-      {loadingSession && (
+      {form.loadingSession && (
         <p className="preferences-loading-text">Cargando sesión…</p>
       )}
 
-      {msg && !email && (
-        <p className="preferences-error-text">{msg}</p>
+      {form.msg && !form.email && (
+        <p className="preferences-error-text">{form.msg}</p>
       )}
 
-      {/* Formulario completo */}
       <div className="preferences-grid">
-        {/* Identidad */}
+        {/* Identity */}
         <div className="preferences-field-group">
           <label className="preferences-field-label">Nombre</label>
           <input
             className="preferences-input"
             placeholder="Nombre"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={saveName}
-            disabled={!isActive}
+            value={form.name}
+            onChange={(e) => form.setName(e.target.value)}
+            onBlur={form.saveName}
+            disabled={!form.isActive}
           />
         </div>
         <div className="preferences-field-group">
@@ -437,260 +49,77 @@ export default function Preferences({ unlocked = true }) {
           <input
             className="preferences-input"
             placeholder="Correo"
-            value={email}
+            value={form.email}
             disabled={true}
             title="Este correo proviene de tu sesión"
           />
         </div>
 
-        {/* Sección: Preferencias de Correos */}
-        <div className="preferences-section-divider preferences-grid-full"></div>
-        
-        <div className="preferences-grid-full">
-          <h4 className="preferences-section-title">Preferencias de Alertas por Correo</h4>
-          <p className="preferences-section-description">
-            Configura las palabras clave (separadas por comas) y filtros para recibir alertas automáticas de nuevas licitaciones cada 6 horas. 
-            El sistema buscará licitaciones que contengan <strong>cualquiera</strong> de las palabras indicadas (búsqueda OR).
-          </p>
-        </div>
-
-        {/* Preferencias */}
-        <input
-          className="preferences-input preferences-grid-full"
-          placeholder="Palabras clave separadas por comas (ej. alcaldia, paneles) - Busca cualquiera"
-          value={palabras}
-          onChange={(e) => setPalabras(e.target.value)}
-          disabled={!isActive}
-        />
-        <input
-          className="preferences-input"
-          placeholder="Departamento (opcional)"
-          value={departamento}
-          onChange={(e) => setDepartamento(e.target.value)}
-          disabled={!isActive}
-        />
-        <input
-          className="preferences-input"
-          placeholder="Ciudad (opcional)"
-          value={ciudad}
-          onChange={(e) => setCiudad(e.target.value)}
-          disabled={!isActive}
+        <AlertPreferencesSection
+          palabras={form.palabras} setPalabras={form.setPalabras}
+          departamento={form.departamento} setDepartamento={form.setDepartamento}
+          ciudad={form.ciudad} setCiudad={form.setCiudad}
+          isActive={form.isActive} email={form.email}
+          savingPrefs={form.savingPrefs} running={form.running} msgPrefs={form.msgPrefs}
+          savePrefs={form.savePrefs} runNow={form.runNow}
         />
 
-        <div className="preferences-button-group preferences-grid-full">
-          <button
-            onClick={savePrefs}
-            className="preferences-button preferences-button-primary"
-            disabled={!isActive || !email || savingPrefs}
-          >
-            {savingPrefs ? "Guardando…" : "Guardar Preferencias"}
-          </button>
-          <button
-            onClick={runNow}
-            className="preferences-button preferences-button-secondary"
-            disabled={!isActive || !email || running || savingPrefs}
-            title="Busca licitaciones de los últimos 30 días y envía un correo de prueba"
-          >
-            {running ? "Enviando…" : "Enviar Correo de Prueba"}
-          </button>
-        </div>
-
-        {msgPrefs && (
-          <p className={`preferences-status-message preferences-grid-full ${msgPrefs.includes("Error") ? "preferences-status-error" : "preferences-status-success"}`}>
-            {msgPrefs}
-          </p>
-        )}
-
-        {/* Indicadores financieros (debajo de Departamento/Ciudad) */}
-        <div className="preferences-section-divider preferences-grid-full"></div>
-        
-        <div className="preferences-grid-full" style={{ marginTop: '1rem' }}>
-          <h4 className="preferences-section-title">Indicadores Financieros (opcional)</h4>
-          <p className="preferences-section-description">
-            Ingresa solo valores numéricos. Estos datos se usarán para evaluar si cumples requisitos en las licitaciones.
-          </p>
-
-          <div className="preferences-financial-grid">
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Indicador de liquidez</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 5.13"
-                value={indicadorLiquidez}
-                onChange={(e) => setIndicadorLiquidez(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Capacidad de pagar obligaciones a corto plazo"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Nivel de endeudamiento</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.42"
-                value={nivelEndeudamiento}
-                onChange={(e) => setNivelEndeudamiento(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Proporción de deuda respecto al patrimonio"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Razón de cobertura de intereses</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 16.26"
-                value={razonCoberturaIntereses}
-                onChange={(e) => setRazonCoberturaIntereses(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Capacidad de pagar intereses"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">ROE - Rentabilidad patrimonio</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.14"
-                value={rentabilidadPatrimonio}
-                onChange={(e) => setRentabilidadPatrimonio(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Rentabilidad del capital invertido"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">ROA - Rentabilidad activo</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.08"
-                value={rentabilidadActivo}
-                onChange={(e) => setRentabilidadActivo(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Rentabilidad de los activos totales"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Cap. de deudas corto plazo</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 1.50"
-                value={capacidadDeudasCortoPlazo}
-                onChange={(e) => setCapacidadDeudasCortoPlazo(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Límite de capacidad de deuda a corto plazo"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Porcentaje de acreedores</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.60"
-                value={porcentajeAcreedores}
-                onChange={(e) => setPorcentajeAcreedores(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Proporción máxima de acreedores"
-              />
-            </div>
-            <div className="preferences-financial-item">
-              <label className="preferences-financial-label">Retribución riesgo propiedad</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.10"
-                value={retribucionRiesgoPropiedad}
-                onChange={(e) => setRetribucionRiesgoPropiedad(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Retorno mínimo esperado del riesgo"
-              />
-            </div>
-            <div className="preferences-financial-item preferences-financial-full">
-              <label className="preferences-financial-label">Capacidad de generar ganancias</label>
-              <input
-                type="number" step="any"
-                className="preferences-input"
-                placeholder="ej. 0.05"
-                value={capacidadGenerarGanancias}
-                onChange={(e) => setCapacidadGenerarGanancias(e.target.value)}
-                disabled={!isActive || savingFin}
-                title="Capacidad mínima de generar ganancias"
-              />
-            </div>
-          </div>
-
-          <div className="preferences-button-group preferences-grid-full">
-            <button
-              onClick={saveFin}
-              className="preferences-button preferences-button-primary"
-              disabled={!isActive || !email || savingFin}
-            >
-              {savingFin ? "Guardando…" : "Guardar Indicadores Financieros"}
-            </button>
-          </div>
-
-          {msgFin && (
-            <p className={`preferences-status-message preferences-grid-full ${msgFin.includes("Error") ? "preferences-status-error" : "preferences-status-success"}`}>
-              {msgFin}
-            </p>
-          )}
-        </div>
+        <FinancialProfileSection
+          indicators={form.indicators} setIndicator={form.setIndicator}
+          isActive={form.isActive} email={form.email}
+          savingFin={form.savingFin} msgFin={form.msgFin} saveFin={form.saveFin}
+        />
       </div>
 
-      {/* Estadísticas de Caché de Análisis - Solo en desarrollo */}
-      {email && process.env.NODE_ENV === 'development' && (
+      {/* Cache stats - dev only */}
+      {form.email && process.env.NODE_ENV === "development" && (
         <div className="preferences-section">
-          <h3 className="preferences-section-title">📊 Caché de Análisis</h3>
+          <h3 className="preferences-section-title">Cache de Analisis</h3>
           <div className="preferences-form">
-            {loadingCache ? (
+            {form.loadingCache ? (
               <p className="preferences-loading-text preferences-grid-full">Cargando estadísticas...</p>
-            ) : cacheStats ? (
+            ) : form.cacheStats ? (
               <>
                 <div className="preferences-cache-stats">
                   <div className="preferences-cache-stat-item">
                     <span className="preferences-cache-stat-label">Total de análisis:</span>
-                    <span className="preferences-cache-stat-value">{cacheStats.total_analisis || 0}</span>
+                    <span className="preferences-cache-stat-value">{form.cacheStats.total_analisis || 0}</span>
                   </div>
                   <div className="preferences-cache-stat-item">
                     <span className="preferences-cache-stat-label">Completados:</span>
-                    <span className="preferences-cache-stat-value preferences-cache-stat-success">{cacheStats.completados || 0}</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-success">{form.cacheStats.completados || 0}</span>
                   </div>
                   <div className="preferences-cache-stat-item">
                     <span className="preferences-cache-stat-label">Con errores:</span>
-                    <span className="preferences-cache-stat-value preferences-cache-stat-error">{cacheStats.errores || 0}</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-error">{form.cacheStats.errores || 0}</span>
                   </div>
                   <div className="preferences-cache-stat-item">
                     <span className="preferences-cache-stat-label">Recientes (24h):</span>
-                    <span className="preferences-cache-stat-value preferences-cache-stat-recent">{cacheStats.recientes_24h || 0}</span>
+                    <span className="preferences-cache-stat-value preferences-cache-stat-recent">{form.cacheStats.recientes_24h || 0}</span>
                   </div>
                 </div>
-                
                 <p className="preferences-helper-text preferences-grid-full">
-                  ℹ️ Los análisis se guardan por 1 hora. Limpiar el caché forzará el re-análisis de todas las licitaciones.
+                  Los análisis se guardan por 1 hora. Limpiar el caché forzará el re-análisis de todas las licitaciones.
                 </p>
-
                 <div className="preferences-button-group preferences-grid-full">
                   <button
-                    onClick={clearAnalysisCache}
+                    onClick={form.clearAnalysisCache}
                     className="preferences-button preferences-button-secondary"
-                    disabled={clearingCache || cacheStats.total_analisis === 0}
+                    disabled={form.clearingCache || form.cacheStats.total_analisis === 0}
                   >
-                    {clearingCache ? "Limpiando..." : "🗑️ Limpiar Caché"}
+                    {form.clearingCache ? "Limpiando..." : "Limpiar Cache"}
                   </button>
                   <button
-                    onClick={loadCacheStats}
+                    onClick={form.loadCacheStats}
                     className="preferences-button preferences-button-secondary"
-                    disabled={loadingCache}
+                    disabled={form.loadingCache}
                   >
-                    🔄 Actualizar
+                    Actualizar
                   </button>
                 </div>
-
-                {msgCache && (
-                  <p className={`preferences-status-message preferences-grid-full ${msgCache.includes("❌") ? "preferences-status-error" : "preferences-status-success"}`}>
-                    {msgCache}
+                {form.msgCache && (
+                  <p className={`preferences-status-message preferences-grid-full ${form.msgCache.includes("Error") ? "preferences-status-error" : "preferences-status-success"}`}>
+                    {form.msgCache}
                   </p>
                 )}
               </>
@@ -703,44 +132,12 @@ export default function Preferences({ unlocked = true }) {
         </div>
       )}
 
-      {/* Suscripciones */}
-      <div className="preferences-sub-list">
-        <h4 className="preferences-sub-title">Tus suscripciones</h4>
-
-        {loadingSubs ? (
-          <p className="preferences-loading-text">Cargando suscripciones…</p>
-        ) : subs.length === 0 ? (
-          <p className="preferences-loading-text">No tienes suscripciones activas. Guarda preferencias de búsqueda para crear una.</p>
-        ) : (
-          <ul>
-            {subs.map((s) => (
-              <li key={s.id} className="preferences-sub-item">
-                <div>
-                  <div className="preferences-sub-item-name">
-                    {s.palabras_clave}{" "}
-                    {s.departamento ? `• ${s.departamento}` : ""}{" "}
-                    {s.ciudad ? `• ${s.ciudad}` : ""}
-                  </div>
-                  <div className="preferences-sub-item-meta">
-                    Último envío: {s.last_notified_at || "—"} • Activa: {s.is_active ? "Sí" : "No"}
-                  </div>
-                </div>
-                {s.is_active ? (
-                  <button
-                    onClick={() => deactivate(s.id)}
-                    className="preferences-sub-item-button"
-                    disabled={!isActive}
-                  >
-                    Desactivar
-                  </button>
-                ) : (
-                  <span className="preferences-sub-item-meta">Inactiva</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <SubscriptionsSection
+        subs={form.subs}
+        loadingSubs={form.loadingSubs}
+        isActive={form.isActive}
+        deactivate={form.deactivate}
+      />
     </div>
   );
 }

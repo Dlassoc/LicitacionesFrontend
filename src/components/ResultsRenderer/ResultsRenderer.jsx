@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import ResultCard from "./ResultCard.jsx";
+import ResultCard from "./ExtractionResultCard.jsx";
 import "./results-renderer.css";
 
 /**

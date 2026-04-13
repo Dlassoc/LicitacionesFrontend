@@ -5,6 +5,7 @@ import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaExclamationCircle } fr
 import logo from "../assets/logo_emergente.png";
 import SplashScreen from "../components/SplashScreen.jsx";
 import ThemeToggle from "../components/ThemeToggle.jsx";
+import { isValidEmail } from "../utils/commonHelpers.js";
 import "../styles/register.css";
 
 export default function Register() {
@@ -45,7 +46,7 @@ export default function Register() {
 
   const validateForm = () => {
     if (!form.name.trim()) return "El nombre es obligatorio.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "El correo no es válido.";
+    if (!isValidEmail(form.email)) return "El correo no es válido.";
     if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
     if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
     return null;

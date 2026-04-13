@@ -97,11 +97,11 @@ export default function AnalysisSection({
               <div className="analysis-section-batch-result">
                 {adaptedResults.cumple ? (
                   <span className="analysis-section-batch-badge analysis-section-batch-badge-match">
-                    ✅ CUMPLE ({adaptedResults.porcentaje_cumplimiento?.toFixed(0)}%)
+                    CUMPLE ({(Number(adaptedResults.porcentaje_cumplimiento) || 0).toFixed(0)}%)
                   </span>
                 ) : adaptedResults.cumple === false ? (
                   <span className="analysis-section-batch-badge analysis-section-batch-badge-no-match">
-                    ❌ NO CUMPLE
+                    NO CUMPLE
                   </span>
                 ) : (
                   <span className="analysis-section-batch-badge analysis-section-batch-badge-neutral">
