@@ -1,12 +1,9 @@
 // src/hooks/useSavedLicitaciones.js
 import { useState, useCallback } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+import { apiGet, apiPost, apiDelete } from '../config/httpClient.js';
 
 /**
  * Hook para gestionar licitaciones guardadas (favoritos).
- * 
- * @returns {Object} { saved, loading, error, saveLicitacion, unsaveLicitacion, checkIfSaved, loadSaved }
  */
 export function useSavedLicitaciones() {
   const [saved, setSaved] = useState([]);
@@ -20,36 +17,22 @@ export function useSavedLicitaciones() {
   const loadSaved = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch(`${API_BASE}/saved`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      if (response.status === 401) {
-        setError('Debes iniciar sesión para ver tus licitaciones guardadas');
-        setSaved([]);
-        setSavedIds(new Set());
-        setLoading(false);
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
+      const data = await apiGet('/saved');
+
       if (data.ok) {
         setSaved(data.licitaciones || []);
-        // Actualizar Set de IDs para búsquedas rápidas
         setSavedIds(new Set(data.licitaciones.map(l => l.id_portafolio)));
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (err) {
-      setError(err.message);
+      if (err.status === 401) {
+        setError('Debes iniciar sesión para ver tus licitaciones guardadas');
+      } else {
+        setError(err.message);
+      }
       setSaved([]);
       setSavedIds(new Set());
     } finally {
@@ -62,7 +45,7 @@ export function useSavedLicitaciones() {
    */
   const saveLicitacion = useCallback(async (licitacion) => {
     setError(null);
-    
+
     try {
       const payload = {
         id_portafolio: licitacion.id_portafolio || licitacion.ID_Portafolio,
@@ -75,23 +58,10 @@ export function useSavedLicitaciones() {
         url: licitacion.url || licitacion.urlproceso?.url || licitacion.URL_Proceso,
         metadata: licitacion
       };
-      
-      const response = await fetch(`${API_BASE}/saved`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Error guardando licitación');
-      }
-      
-      const data = await response.json();
-      
+
+      const data = await apiPost('/saved', payload);
+
       if (data.ok) {
-        // Actualizar estado local
         const id = licitacion.id_portafolio || licitacion.ID_Portafolio;
         setSavedIds(prev => new Set([...prev, id]));
         return true;
@@ -109,22 +79,11 @@ export function useSavedLicitaciones() {
    */
   const unsaveLicitacion = useCallback(async (idPortafolio) => {
     setError(null);
-    
+
     try {
-      const response = await fetch(`${API_BASE}/saved/${encodeURIComponent(idPortafolio)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Error eliminando licitación');
-      }
-      
-      const data = await response.json();
-      
+      const data = await apiDelete(`/saved/${encodeURIComponent(idPortafolio)}`);
+
       if (data.ok) {
-        // Actualizar estado local
         setSaved(prev => prev.filter(l => l.id_portafolio !== idPortafolio));
         setSavedIds(prev => {
           const newSet = new Set(prev);
@@ -147,7 +106,7 @@ export function useSavedLicitaciones() {
   const checkIfSaved = useCallback((idPortafolio) => {
     return savedIds.has(idPortafolio);
   }, [savedIds]);
-  
+
   /**
    * Actualiza optimísticamente el estado de guardado antes de la llamada al servidor
    */

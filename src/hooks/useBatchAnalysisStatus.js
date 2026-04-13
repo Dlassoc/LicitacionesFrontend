@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+import { apiGet } from '../config/httpClient.js';
+import API_BASE_URL from '../config/api.js';
 
 export const useBatchAnalysisStatus = (idPortafolio) => {
   const [status, setStatus] = useState(null);
@@ -23,30 +23,18 @@ export const useBatchAnalysisStatus = (idPortafolio) => {
       setError(null);
 
       try {
-        const response = await fetch(
-          `${API_BASE}/analysis/batch/status/${encodeURIComponent(idPortafolio)}`,
-          {
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-            },
-          }
+        const data = await apiGet(
+          `/analysis/batch/status/${encodeURIComponent(idPortafolio)}`,
+          { headers: { 'Accept': 'application/json' } }
         );
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        
         console.log(`[BATCH-STATUS] Estado para ${idPortafolio}:`, data);
-        
         setStatus(data);
       } catch (err) {
         console.error(`[BATCH-STATUS] Error consultando estado para ${idPortafolio}:`, err);
         let errorMsg = err.message;
         if (err.message.includes('Failed to fetch')) {
-          errorMsg = `Conexión rechazada. Backend en ${API_BASE} no responde.`;
+          errorMsg = `Conexión rechazada. Backend en ${API_BASE_URL} no responde.`;
         }
         setError(errorMsg);
         setStatus(null);

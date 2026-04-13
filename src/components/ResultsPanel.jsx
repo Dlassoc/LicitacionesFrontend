@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import ResultCard from "../features/ResultCard.jsx";
 import SkeletonCard from "../features/SkeletonCard.jsx";
+import { normalizeCumpleValue } from "../utils/commonHelpers.js";
 import "../styles/components/results-panel.css";
 
 export default function ResultsPanel({
@@ -24,19 +25,6 @@ export default function ResultsPanel({
   );
   const debugLog = (...args) => {
     if (DEBUG_RESULTS_PANEL) console.log(...args);
-  };
-
-  const normalizeCumpleValue = (raw) => {
-    if (raw === null || raw === undefined) return null;
-    if (typeof raw === 'boolean') return raw;
-    if (typeof raw === 'number') return raw > 0;
-    if (typeof raw === 'string') {
-      const v = raw.trim().toLowerCase();
-      if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
-      if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
-      if (!v) return null;
-    }
-    return null;
   };
 
   const hasFinancialIndicators = (requisitos = {}) => {

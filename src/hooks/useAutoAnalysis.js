@@ -1,28 +1,12 @@
 // src/hooks/useAutoAnalysis.js
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { normalizeCumpleValue, normalizeLicitacionId } from '../utils/commonHelpers.js';
+import API_BASE_URL from '../config/api.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const API_BASE = API_BASE_URL;
 const LIVE_AUTO_ANALYSIS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
   String(import.meta.env.VITE_ENABLE_LIVE_AUTO_ANALYSIS ?? 'true').toLowerCase()
 );
-
-function normalizeCumpleValue(raw) {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw === 'boolean') return raw;
-  if (typeof raw === 'number') return raw > 0;
-  if (typeof raw === 'string') {
-    const v = raw.trim().toLowerCase();
-    if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
-    if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
-    if (!v) return null;
-  }
-  return null;
-}
-
-function normalizeLicitacionId(raw) {
-  if (raw === null || raw === undefined) return '';
-  return typeof raw === 'string' ? raw.trim() : String(raw).trim();
-}
 
 function hasMeaningfulAnalysisEvidence(data) {
   if (!data || typeof data !== 'object') return false;

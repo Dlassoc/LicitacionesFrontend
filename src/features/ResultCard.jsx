@@ -1,4 +1,5 @@
 import React, { useMemo, memo, useState } from "react";
+import { normalizeCumpleValue } from "../utils/commonHelpers.js";
 import "../styles/features/result-card.css";
 
 /* ========== Helpers de normalización ========== */
@@ -66,19 +67,6 @@ const formatCOP = (val) => {
   const num = Number(only.replace(/\./g, "").replace(/,/g, "."));
   if (!isFinite(num) || isNaN(num) || num === 0) return "Cuantía no especificada";
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(num);
-};
-
-const normalizeCumpleValue = (raw) => {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw === 'boolean') return raw;
-  if (typeof raw === 'number') return raw > 0;
-  if (typeof raw === 'string') {
-    const v = raw.trim().toLowerCase();
-    if (['1', 'true', 't', 'yes', 'y', 'si', 's'].includes(v)) return true;
-    if (['0', 'false', 'f', 'no', 'n'].includes(v)) return false;
-    if (!v) return null;
-  }
-  return null;
 };
 
 // 🔧 RE-HABILITADO: memo() con comparador manual para props correcamente

@@ -1,10 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { API_ENDPOINTS } from "../config/api.js";
-import API_BASE_URL from "../config/api.js";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api.js";
 import { getFinalDateRange } from "../utils/dateHelpers.js";
 
-// Asegurar que API_BASE tenga siempre un valor válido
-const API_BASE = import.meta.env.VITE_API_BASE || API_BASE_URL || "http://localhost:5000";
+const API_BASE = API_BASE_URL;
 
 // Claves para localStorage
 const STORAGE_KEYS = {
