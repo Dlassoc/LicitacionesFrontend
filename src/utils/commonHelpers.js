@@ -74,5 +74,23 @@ export const prettyKey = (k) =>
    .replace(/\s+/g, " ")
    .trim();
 
-/** Valida formato de email básico */
-export const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+/** Valida formato de email básico (sin regex compleja para evitar ReDoS). */
+export const isValidEmail = (email) => {
+  const value = String(email || "").trim();
+  if (!value || value.length > 254) return false;
+  if (value.includes(" ")) return false;
+
+  const atIndex = value.indexOf("@");
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf("@")) return false;
+
+  const local = value.slice(0, atIndex);
+  const domain = value.slice(atIndex + 1);
+
+  if (!local || !domain) return false;
+  if (domain.startsWith(".") || domain.endsWith(".")) return false;
+
+  const dotIndex = domain.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === domain.length - 1) return false;
+
+  return true;
+};
