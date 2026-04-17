@@ -49,6 +49,8 @@ npm run dev      # Desarrollo local
 npm run build    # Build de produccion
 npm run preview  # Preview del build
 npm run lint     # Lint del proyecto
+npm run test     # Pruebas unitarias (Vitest)
+npm run test:e2e # Flujo critico E2E (Playwright)
 ```
 
 ## Ejecutar en desarrollo
@@ -77,6 +79,19 @@ Definidas en `src/root.jsx`:
 - `/app`: vista principal protegida
 - `/app/preferences`: preferencias del usuario
 - `/app/saved`: licitaciones excluidas
+
+## Arquitectura y DX (Fase 7)
+
+- Enrutamiento con carga diferida (lazy loading) a nivel de pagina en `src/root.jsx`.
+- Fallback visual consistente durante carga de rutas con `SplashScreen`.
+- Validaciones compartidas de autenticacion centralizadas en `src/features/auth/validation.js`.
+- Hook central de busqueda (`src/features/hooks.js`) documentado con JSDoc para facilitar mantenimiento.
+
+### Convenciones recomendadas
+
+- Mantener componentes de pagina enfocados en UI y mover logica reusable a hooks/helpers.
+- Preferir helpers compartidos para validaciones de formularios y normalizacion de datos.
+- Validar cambios con ciclo completo: unitarias + E2E + build antes de merge.
 
 ## Estructura base
 

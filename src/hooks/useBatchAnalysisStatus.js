@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { apiGet } from '../config/httpClient.js';
 import API_BASE_URL from '../config/api.js';
+import { devLog } from '../utils/devLog.js';
 
 export const useBatchAnalysisStatus = (idPortafolio) => {
   const [status, setStatus] = useState(null);
@@ -28,7 +29,7 @@ export const useBatchAnalysisStatus = (idPortafolio) => {
           { headers: { 'Accept': 'application/json' } }
         );
 
-        console.log(`[BATCH-STATUS] Estado para ${idPortafolio}:`, data);
+        devLog(`[BATCH-STATUS] Estado para ${idPortafolio}:`, data);
         setStatus(data);
       } catch (err) {
         console.error(`[BATCH-STATUS] Error consultando estado para ${idPortafolio}:`, err);

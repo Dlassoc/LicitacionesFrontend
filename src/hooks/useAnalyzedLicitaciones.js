@@ -1,14 +1,22 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { apiGet, apiPost } from '../config/httpClient.js';
+import { devLog } from '../utils/devLog.js';
+import { useFetchResource } from './useFetchResource.js';
 
 /**
  * Hook para cargar licitaciones ya analizadas desde BD local.
  * Carga resultados instantáneamente sin consultar la API de SECOP.
  */
 export const useAnalyzedLicitaciones = () => {
-  const [analyzedLicitaciones, setAnalyzedLicitaciones] = useState([]);
-  const [loadingAnalyzed, setLoadingAnalyzed] = useState(false);
-  const [errorAnalyzed, setErrorAnalyzed] = useState(null);
+  const {
+    data: analyzedLicitaciones,
+    setData: setAnalyzedLicitaciones,
+    loading: loadingAnalyzed,
+    setLoading: setLoadingAnalyzed,
+    error: errorAnalyzed,
+    setError: setErrorAnalyzed,
+    clear,
+  } = useFetchResource({ initialData: [] });
   const latestRequestRef = useRef(0);
 
   const loadAnalyzed = useCallback(async (onlyAptas = false, searchQueryOrIds = null) => {
@@ -28,7 +36,7 @@ export const useAnalyzedLicitaciones = () => {
       }
 
       if (ids.length === 0 && !searchQuery) {
-        console.log(`[ANALYZED] Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
+        devLog(`[ANALYZED] Sin IDs ni palabra clave - no cargando licitaciones guardadas`);
         if (requestId === latestRequestRef.current) {
           setAnalyzedLicitaciones([]);
           setLoadingAnalyzed(false);
@@ -57,7 +65,7 @@ export const useAnalyzedLicitaciones = () => {
 
       if (data.ok && Array.isArray(data.licitaciones)) {
         if (requestId !== latestRequestRef.current) {
-          console.log(`[ANALYZED] Respuesta obsoleta ignorada (requestId=${requestId})`);
+          devLog(`[ANALYZED] Respuesta obsoleta ignorada (requestId=${requestId})`);
           return [];
         }
 
@@ -99,11 +107,11 @@ export const useAnalyzedLicitaciones = () => {
           };
         });
 
-        console.log(`[ANALYZED] ${normalized.length} licitaciones analizadas cargadas de BD local`);
+        devLog(`[ANALYZED] ${normalized.length} licitaciones analizadas cargadas de BD local`);
 
         const cumplen = normalized.filter(l => l.cumple === true).length;
         const noCumplen = normalized.filter(l => l.cumple === false).length;
-        console.log(`[ANALYZED] Cumplen: ${cumplen} | No cumplen: ${noCumplen} | Otros: ${normalized.length - cumplen - noCumplen}`);
+        devLog(`[ANALYZED] Cumplen: ${cumplen} | No cumplen: ${noCumplen} | Otros: ${normalized.length - cumplen - noCumplen}`);
 
         setAnalyzedLicitaciones(normalized);
         return normalized;
@@ -112,7 +120,7 @@ export const useAnalyzedLicitaciones = () => {
       }
     } catch (error) {
       if (requestId !== latestRequestRef.current) {
-        console.log(`[ANALYZED] Error obsoleto ignorado (requestId=${requestId}):`, error.message);
+        devLog(`[ANALYZED] Error obsoleto ignorado (requestId=${requestId}):`, error.message);
         return [];
       }
 
@@ -128,9 +136,8 @@ export const useAnalyzedLicitaciones = () => {
   }, []);
 
   const clearAnalyzed = useCallback(() => {
-    setAnalyzedLicitaciones([]);
-    setErrorAnalyzed(null);
-  }, []);
+    clear();
+  }, [clear]);
 
   return {
     analyzedLicitaciones,

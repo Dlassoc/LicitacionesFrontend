@@ -1,49 +1,78 @@
 // src/root.jsx
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
-import Login from "./pages/Login.jsx";
-import Register from "./pages/Register.jsx";
-import App from "./app/App.jsx";
+import SplashScreen from "./components/SplashScreen.jsx";
 
-// IMPORTA las páginas que ya incluyen el Header:
-import PreferencesPage from "./pages/PreferencesPage.jsx";
-import SavedLicitacionesPage from "./pages/SavedLicitacionesPage.jsx";
 import RootLayout from "./layout/RootLayout.jsx";
+
+const Login = lazy(() => import("./pages/Login.jsx"));
+const Register = lazy(() => import("./pages/Register.jsx"));
+const App = lazy(() => import("./app/App.jsx"));
+const PreferencesPage = lazy(() => import("./pages/PreferencesPage.jsx"));
+const SavedLicitacionesPage = lazy(() => import("./pages/SavedLicitacionesPage.jsx"));
+
+function RouteFallback() {
+  return <SplashScreen text="Cargando vista..." />;
+}
+
+function SuspendedPage({ children }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 export default function Root() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route
+        path="/login"
+        element={
+          <SuspendedPage>
+            <Login />
+          </SuspendedPage>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <SuspendedPage>
+            <Register />
+          </SuspendedPage>
+        }
+      />
 
       <Route
         path="/app"
         element={
           <ProtectedRoute>
-            <App /> {/* Aquí tu App con Header propio */}
+            <SuspendedPage>
+              <App />
+            </SuspendedPage>
           </ProtectedRoute>
         }
       />
 
-      {/* /app/preferences usando la página que SÍ pinta el Header */}
       <Route
         path="/app/preferences"
         element={
           <ProtectedRoute>
-            <PreferencesPage />
+            <RootLayout>
+              <SuspendedPage>
+                <PreferencesPage />
+              </SuspendedPage>
+            </RootLayout>
           </ProtectedRoute>
         }
       />
-      
-      {/* /app/saved - Licitaciones guardadas */}
+
       <Route
         path="/app/saved"
         element={
           <ProtectedRoute>
             <RootLayout>
-              <SavedLicitacionesPage />
+              <SuspendedPage>
+                <SavedLicitacionesPage />
+              </SuspendedPage>
             </RootLayout>
           </ProtectedRoute>
         }

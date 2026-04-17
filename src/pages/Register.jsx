@@ -5,7 +5,7 @@ import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaExclamationCircle } fr
 import logo from "../assets/logo_emergente.png";
 import SplashScreen from "../components/SplashScreen.jsx";
 import ThemeToggle from "../components/ThemeToggle.jsx";
-import { isValidEmail } from "../utils/commonHelpers.js";
+import { normalizeAuthEmail, validateRegisterForm } from "../features/auth/validation.js";
 import "../styles/register.css";
 
 export default function Register() {
@@ -44,24 +44,16 @@ export default function Register() {
     }
   };
 
-  const validateForm = () => {
-    if (!form.name.trim()) return "El nombre es obligatorio.";
-    if (!isValidEmail(form.email)) return "El correo no es válido.";
-    if (form.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
-    if (form.password !== form.confirmPassword) return "Las contraseñas no coinciden.";
-    return null;
-  };
-
   const submit = async (e) => {
     e.preventDefault();
     setMsg("");
-    const error = validateForm();
+    const error = validateRegisterForm(form);
     if (error) return setMsg(error);
 
     try {
       setLoading(true);
       await register({
-        email: form.email.trim().toLowerCase(),
+        email: normalizeAuthEmail(form.email),
         name: form.name.trim(),
         password: form.password,
         is_mypyme: isMYPYME,

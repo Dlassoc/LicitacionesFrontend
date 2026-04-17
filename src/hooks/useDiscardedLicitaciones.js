@@ -1,33 +1,40 @@
 // src/hooks/useDiscardedLicitaciones.js
 import { useState, useCallback } from 'react';
 import { apiGet, apiPost, apiDelete } from '../config/httpClient.js';
+import { devLog } from '../utils/devLog.js';
+import { useFetchResource } from './useFetchResource.js';
 
 /**
  * Hook para gestionar licitaciones descartadas (no interesa).
  */
 export function useDiscardedLicitaciones() {
-  const [discarded, setDiscarded] = useState([]);
+  const {
+    data: discarded,
+    setData: setDiscarded,
+    loading,
+    error,
+    setError,
+    load,
+  } = useFetchResource({ initialData: [] });
   const [discardedIds, setDiscardedIds] = useState(new Set());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   /**
    * Carga todas las licitaciones descartadas del usuario
    */
   const loadDiscarded = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
     try {
-      const data = await apiGet('/saved/discarded');
+      await load(async () => {
+        const data = await apiGet('/saved/discarded');
 
-      if (data.ok) {
-        setDiscarded(data.licitaciones || []);
-        setDiscardedIds(new Set(data.licitaciones.map(l => l.id_portafolio)));
-        console.log(`[DISCARDED] ${data.licitaciones.length} licitaciones descartadas cargadas`);
-      } else {
-        throw new Error(data.error || 'Error desconocido');
-      }
+        if (!data.ok) {
+          throw new Error(data.error || 'Error desconocido');
+        }
+
+        const licitaciones = data.licitaciones || [];
+        setDiscardedIds(new Set(licitaciones.map(l => l.id_portafolio)));
+        devLog(`[DISCARDED] ${licitaciones.length} licitaciones descartadas cargadas`);
+        return licitaciones;
+      });
     } catch (err) {
       console.error('[DISCARDED] Error cargando descartadas:', err);
       if (err.status === 401) {
@@ -35,12 +42,11 @@ export function useDiscardedLicitaciones() {
         setDiscarded([]);
         setDiscardedIds(new Set());
       } else {
-        setError(err.message);
+        setError(err.message || 'Error desconocido');
       }
-    } finally {
-      setLoading(false);
+      return [];
     }
-  }, []);
+  }, [load, setDiscarded, setError]);
 
   /**
    * Descarta una licitación (la marca como no interesa)
@@ -49,7 +55,7 @@ export function useDiscardedLicitaciones() {
     try {
       const idPortafolio = licitacion.ID_Portafolio || licitacion.id_del_portafolio;
 
-      console.log(`[DISCARDED] Descartando: ${idPortafolio}`);
+      devLog(`[DISCARDED] Descartando: ${idPortafolio}`);
 
       const result = await apiPost('/saved/discarded', {
         id_portafolio: idPortafolio,
@@ -70,7 +76,7 @@ export function useDiscardedLicitaciones() {
           created_at: new Date().toISOString()
         }]);
 
-        console.log(`[DISCARDED] Licitación descartada: ${idPortafolio}`);
+        devLog(`[DISCARDED] Licitación descartada: ${idPortafolio}`);
         return true;
       }
     } catch (err) {
@@ -91,7 +97,7 @@ export function useDiscardedLicitaciones() {
    */
   const restoreDiscarded = useCallback(async (idPortafolio) => {
     try {
-      console.log(`[DISCARDED] Restaurando: ${idPortafolio}`);
+      devLog(`[DISCARDED] Restaurando: ${idPortafolio}`);
 
       const result = await apiDelete(`/saved/discarded/${encodeURIComponent(idPortafolio)}`);
 
@@ -103,7 +109,7 @@ export function useDiscardedLicitaciones() {
         });
         setDiscarded(prev => prev.filter(l => l.id_portafolio !== idPortafolio));
 
-        console.log(`[DISCARDED] Licitación restaurada: ${idPortafolio}`);
+        devLog(`[DISCARDED] Licitación restaurada: ${idPortafolio}`);
         return true;
       }
     } catch (err) {

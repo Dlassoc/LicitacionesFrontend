@@ -5,7 +5,7 @@ import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import logo from "../assets/logo_emergente.png";
 import SplashScreen from "../components/SplashScreen.jsx";
 import ThemeToggle from "../components/ThemeToggle.jsx";
-import { isValidEmail } from "../utils/commonHelpers.js";
+import { normalizeAuthEmail, validateLoginForm } from "../features/auth/validation.js";
 import "../styles/register.css"; // reutilizamos mismas clases visuales
 
 export default function Login() {
@@ -29,22 +29,16 @@ export default function Login() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const validateForm = () => {
-    if (!isValidEmail(form.email)) return "El correo no es válido.";
-    if (!form.password) return "Ingresa tu contraseña.";
-    return null;
-  };
-
   const submit = async (e) => {
     e.preventDefault();
     setMsg("");
-    const error = validateForm();
+    const error = validateLoginForm(form);
     if (error) return setMsg(error);
 
     try {
       setLoading(true);
       await login({
-        email: form.email.trim().toLowerCase(),
+        email: normalizeAuthEmail(form.email),
         password: form.password,
       });
       navigate("/", { replace: true });

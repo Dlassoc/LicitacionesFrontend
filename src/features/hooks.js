@@ -1,22 +1,32 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import API_BASE_URL, { API_ENDPOINTS } from "../config/api.js";
-import { getFinalDateRange } from "../utils/dateHelpers.js";
-
-const API_BASE = API_BASE_URL;
-
-// Claves para localStorage
-const STORAGE_KEYS = {
-  RESULTS: 'secop_search_results',
-  QUERY: 'secop_last_query',
-  TOTAL: 'secop_total',
-  OFFSET: 'secop_offset',
-  LIMIT: 'secop_limit'
-};
+import { devLog } from "../utils/devLog.js";
+import { apiGet, apiPost } from "../config/httpClient.js";
+import { SEARCH_STORAGE_KEYS } from "./searchResults/storage.js";
+import { useSearchResultsPersistence } from "./searchResults/useSearchResultsPersistence.js";
+import { buildSearchChips, buildSearchParams } from "./searchResults/queryHelpers.js";
 
 /**
- * Hook de búsqueda para la API SECOP (Procesos)
- * Maneja paginación, filtros y chips de etiquetas activas.
- * IMPORTANTE: NO carga datos guardados en localStorage al iniciar (búsqueda siempre fresca)
+ * Hook de búsqueda para la API SECOP (Procesos).
+ * Maneja estado de resultados, filtros, paginación y chips de filtros activos.
+ * No hidrata resultados desde localStorage al iniciar para evitar datos stale.
+ *
+ * @param {number} [initialLimit=21] Tamaño de página inicial.
+ * @returns {{
+ *   resultados: Array,
+ *   loading: boolean,
+ *   error: string | null,
+ *   total: number,
+ *   limit: number,
+ *   offset: number,
+ *   lastQuery: Record<string, string> | null,
+ *   isFromCache: boolean,
+ *   chips: Array,
+ *   setLimit: import("react").Dispatch<import("react").SetStateAction<number>>,
+ *   buscar: Function,
+ *   cargarMisLicitaciones: Function,
+ *   limpiar: Function,
+ *   goPage: Function,
+ * }} API del hook para componentes de vista.
  */
 export function useSearchResults(initialLimit = 21) {
   // NO cargar datos del caché - siempre empezar vacío
@@ -36,50 +46,7 @@ export function useSearchResults(initialLimit = 21) {
   
   const [lastQuery, setLastQuery] = useState(null);
 
-  // Guardar en localStorage cuando cambien los estados
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(resultados));
-    } catch (e) {
-      console.warn('Error guardando resultados:', e);
-    }
-  }, [resultados]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.TOTAL, total.toString());
-    } catch (e) {
-      console.warn('Error guardando total:', e);
-    }
-  }, [total]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.LIMIT, limit.toString());
-    } catch (e) {
-      console.warn('Error guardando limit:', e);
-    }
-  }, [limit]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.OFFSET, offset.toString());
-    } catch (e) {
-      console.warn('Error guardando offset:', e);
-    }
-  }, [offset]);
-
-  useEffect(() => {
-    try {
-      if (lastQuery) {
-        localStorage.setItem(STORAGE_KEYS.QUERY, JSON.stringify(lastQuery));
-      } else {
-        localStorage.removeItem(STORAGE_KEYS.QUERY);
-      }
-    } catch (e) {
-      console.warn('Error guardando query:', e);
-    }
-  }, [lastQuery]);
+  useSearchResultsPersistence({ resultados, total, limit, offset, lastQuery });
 
   /**
    * Llama al backend /secop/buscar con los parámetros dados
@@ -91,13 +58,7 @@ export function useSearchResults(initialLimit = 21) {
 
       try {
         const params = new URLSearchParams(paramsObj);
-        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`, {
-          credentials: 'include',
-        });
-
-        if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
-
-        const data = await res.json();
+        const data = await apiGet(`/secop/buscar?${params.toString()}`);
         if (data.error) throw new Error(data.error);
 
         setResultados(data.resultados || []);
@@ -105,7 +66,7 @@ export function useSearchResults(initialLimit = 21) {
         setLimit(data.limit || paramsObj.limit || initialLimit);
         setOffset(data.offset || 0);
         
-        console.log(`[SEARCH] Búsqueda completada:`, {
+        devLog(`[SEARCH] Búsqueda completada:`, {
           total: data.total,
           smart_search: data.smart_search,
           analyzed_count: data.analyzed_count,
@@ -115,7 +76,7 @@ export function useSearchResults(initialLimit = 21) {
         
         // 🆕 Si es búsqueda inteligente, mostrar resumen y no cargar análisis por separado
         if (data.smart_search) {
-          console.log(`
+          devLog(`
 ╔════════════════════════════════════════════════════════════╗
 ║ 🔍 BÚSQUEDA INTELIGENTE - RESUMEN
 ╠════════════════════════════════════════════════════════════╣
@@ -133,16 +94,9 @@ export function useSearchResults(initialLimit = 21) {
                 .filter(Boolean);
               
               if (ids.length > 0) {
-                const existingRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analysis/batch/existing`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                  body: JSON.stringify({ ids })
-                });
-                
-                if (existingRes.ok) {
-                  const existingData = await existingRes.json();
-                  console.log('[SEARCH] Análisis existentes cargados:', Object.keys(existingData.data || {}).length);
+                const existingData = await apiPost('/analysis/batch/existing', { ids });
+                if (existingData?.ok) {
+                  devLog('[SEARCH] Análisis existentes cargados:', Object.keys(existingData.data || {}).length);
                   // El hook useAutoAnalysis usará esta información
                 }
               }
@@ -172,19 +126,13 @@ export function useSearchResults(initialLimit = 21) {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/secop/mis-licitaciones?limit=50`, {
-        credentials: 'include'
-      });
-
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
-
-      const data = await res.json();
+      const data = await apiGet('/secop/mis-licitaciones?limit=50');
       setResultados(data.resultados || []);
       setTotal(data.total || 0);
       setLimit(data.limit || 20);
       setOffset(data.offset || 0);
       
-      console.log('[HOOKS] Mis licitaciones cargadas:', data.total);
+      devLog('[HOOKS] Mis licitaciones cargadas:', data.total);
     } catch (err) {
       console.error("[HOOKS] Error en cargarMisLicitaciones:", err);
       setError(err.message || "Error desconocido");
@@ -196,7 +144,7 @@ export function useSearchResults(initialLimit = 21) {
   }, []);
 
   /**
-   * Ejecuta una nueva búsqueda con los filtros dados
+    * Ejecuta una búsqueda nueva y reinicia paginación.
    */
   const buscar = useCallback(
     async (termino, fechaPubDesde, fechaPubHasta, fechaManifDesde, fechaManifHasta, fechaRecDesde, fechaRecHasta, ciudad, departamento, fase, estado) => {
@@ -209,31 +157,26 @@ export function useSearchResults(initialLimit = 21) {
       // 🔧 LIMPIAR resultados previos cuando inicia búsqueda nueva
       setResultados([]);
       setOffset(0);
-      console.log("[BUSCAR] 🔄 Limpiando resultados previos, iniciando búsqueda nueva...");
+      devLog("[BUSCAR] 🔄 Limpiando resultados previos, iniciando búsqueda nueva...");
 
-      // Fecha obligatoria: "Presentación de Ofertas" mes actual (BD actualizada)
-      const { finalFechaRecDesde, finalFechaRecHasta } = getFinalDateRange(fechaRecDesde, fechaRecHasta);
-
-      const baseParams = {
-        palabras_clave: termino.trim(),
-        limit: initialLimit,
-        offset: 0,
-      };
-
-      if (fechaPubDesde) baseParams.fecha_pub_desde = fechaPubDesde;
-      if (fechaPubHasta) baseParams.fecha_pub_hasta = fechaPubHasta;
-      if (fechaManifDesde) baseParams.fecha_manif_desde = fechaManifDesde;
-      if (fechaManifHasta) baseParams.fecha_manif_hasta = fechaManifHasta;
-      if (finalFechaRecDesde) baseParams.fecha_rec_desde = finalFechaRecDesde;
-      if (finalFechaRecHasta) baseParams.fecha_rec_hasta = finalFechaRecHasta;
-      if (departamento) baseParams.departamento = departamento;
-      if (ciudad) baseParams.ciudad = ciudad;
-      if (fase) baseParams.fase = fase;
-      if (estado) baseParams.estado = estado;
+      const baseParams = buildSearchParams({
+        termino,
+        fechaPubDesde,
+        fechaPubHasta,
+        fechaManifDesde,
+        fechaManifHasta,
+        fechaRecDesde,
+        fechaRecHasta,
+        ciudad,
+        departamento,
+        fase,
+        estado,
+        initialLimit,
+      });
 
       setLastQuery(baseParams);
       setIsFromCache(false); // Marcar que ahora tenemos una búsqueda nueva, no del cache
-      console.log("[BUSCAR] Buscando desde BD o SECOP según disponibilidad");
+      devLog("[BUSCAR] Buscando desde BD o SECOP según disponibilidad");
       await fetchBuscar(baseParams);
     },
     [fetchBuscar, initialLimit]
@@ -252,18 +195,19 @@ export function useSearchResults(initialLimit = 21) {
     
     // Limpiar también del localStorage
     try {
-      localStorage.removeItem(STORAGE_KEYS.RESULTS);
-      localStorage.removeItem(STORAGE_KEYS.TOTAL);
-      localStorage.removeItem(STORAGE_KEYS.OFFSET);
-      localStorage.removeItem(STORAGE_KEYS.LIMIT);
-      localStorage.removeItem(STORAGE_KEYS.QUERY);
+      localStorage.removeItem(SEARCH_STORAGE_KEYS.RESULTS);
+      localStorage.removeItem(SEARCH_STORAGE_KEYS.TOTAL);
+      localStorage.removeItem(SEARCH_STORAGE_KEYS.OFFSET);
+      localStorage.removeItem(SEARCH_STORAGE_KEYS.LIMIT);
+      localStorage.removeItem(SEARCH_STORAGE_KEYS.QUERY);
     } catch (e) {
       console.warn('Error limpiando localStorage:', e);
     }
   }, []);
 
   /**
-   * Paginación: avanza a un nuevo offset conservando filtros anteriores
+    * Cambia de página conservando los filtros de la última búsqueda.
+    * @param {number} newOffset Offset de inicio para la página objetivo.
    */
   const goPage = useCallback(
     async (newOffset) => {
@@ -279,13 +223,7 @@ export function useSearchResults(initialLimit = 21) {
         // Paginación conserva los mismos filtros
         const p = { ...lastQuery, offset: newOffset, limit };
         const params = new URLSearchParams(p);
-        const res = await fetch(`${API_ENDPOINTS.SEARCH}?${params.toString()}`, {
-          credentials: 'include',
-        });
-
-        if (!res.ok) throw new Error(`Error ${res.status}: no se pudo conectar al servidor`);
-
-        const data = await res.json();
+        const data = await apiGet(`/secop/buscar?${params.toString()}`);
         if (data.error) throw new Error(data.error);
 
         // Fallback visual: si el offset solicitado cae en pagina vacia,
@@ -306,15 +244,7 @@ export function useSearchResults(initialLimit = 21) {
               offset: String(maxValidOffset),
               limit: String(backendLimit),
             });
-            const fallbackRes = await fetch(`${API_ENDPOINTS.SEARCH}?${fallbackParams.toString()}`, {
-              credentials: 'include',
-            });
-
-            if (!fallbackRes.ok) {
-              throw new Error(`Error ${fallbackRes.status}: no se pudo cargar la última página válida`);
-            }
-
-            const fallbackData = await fallbackRes.json();
+            const fallbackData = await apiGet(`/secop/buscar?${fallbackParams.toString()}`);
             if (fallbackData.error) throw new Error(fallbackData.error);
 
             const fallbackResultados = fallbackData.resultados || [];
@@ -330,7 +260,7 @@ export function useSearchResults(initialLimit = 21) {
         // useAutoAnalysis ya acumula internamente allResultados para métricas/progreso.
         const newResultados = pageResults;
         setResultados(newResultados);
-        console.log(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: ${newResultados.length} licitaciones`);
+        devLog(`[SEARCH] 📄 Página ${Math.floor(newOffset / limit) + 1}: ${newResultados.length} licitaciones`);
         
         setTotal(data.total || 0);
         setOffset(newOffset);
@@ -349,34 +279,7 @@ export function useSearchResults(initialLimit = 21) {
   /**
    * Chips de etiquetas activas (para mostrar los filtros usados)
    */
-  const chips = useMemo(() => {
-    if (!lastQuery) return [];
-    
-    // Procesar palabras clave: si hay múltiples separadas por comas, mostrar cada una
-    let palabrasClave = [];
-    if (lastQuery.palabras_clave) {
-      palabrasClave = lastQuery.palabras_clave
-        .split(",")
-        .map(p => p.trim())
-        .filter(p => p);
-    }
-    
-    const map = {
-      ...(palabrasClave.length > 0 && { 
-        palabras_clave: ["Busqueda", lastQuery.palabras_clave] 
-      }),
-      fecha_pub_desde: ["Pub. Desde", lastQuery.fecha_pub_desde],
-      fecha_pub_hasta: ["Pub. Hasta", lastQuery.fecha_pub_hasta],
-      fecha_rec_desde: ["Presentación Desde", lastQuery.fecha_rec_desde],
-      fecha_rec_hasta: ["Presentación Hasta", lastQuery.fecha_rec_hasta],
-      departamento: ["Depto", lastQuery.departamento],
-      ciudad: ["Ciudad", lastQuery.ciudad],
-    };
-
-    return Object.entries(map)
-      .filter(([k, [, v]]) => v) // solo valores definidos/no vacíos
-      .map(([k, [label, v]]) => ({ key: k, label, value: v }));
-  }, [lastQuery]);
+  const chips = useMemo(() => buildSearchChips(lastQuery), [lastQuery]);
 
   return {
     resultados,

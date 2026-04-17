@@ -1,44 +1,49 @@
 // src/hooks/useSavedLicitaciones.js
 import { useState, useCallback } from 'react';
 import { apiGet, apiPost, apiDelete } from '../config/httpClient.js';
+import { useFetchResource } from './useFetchResource.js';
 
 /**
  * Hook para gestionar licitaciones guardadas (favoritos).
  */
 export function useSavedLicitaciones() {
-  const [saved, setSaved] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    data: saved,
+    setData: setSaved,
+    loading,
+    error,
+    setError,
+    load,
+  } = useFetchResource({ initialData: [] });
   const [savedIds, setSavedIds] = useState(new Set());
 
   /**
    * Carga todas las licitaciones guardadas del usuario
    */
   const loadSaved = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
     try {
-      const data = await apiGet('/saved');
+      await load(async () => {
+        const data = await apiGet('/saved');
 
-      if (data.ok) {
-        setSaved(data.licitaciones || []);
-        setSavedIds(new Set(data.licitaciones.map(l => l.id_portafolio)));
-      } else {
-        throw new Error(data.error || 'Error desconocido');
-      }
+        if (!data.ok) {
+          throw new Error(data.error || 'Error desconocido');
+        }
+
+        const licitaciones = data.licitaciones || [];
+        setSavedIds(new Set(licitaciones.map(l => l.id_portafolio)));
+        return licitaciones;
+      });
     } catch (err) {
       if (err.status === 401) {
         setError('Debes iniciar sesión para ver tus licitaciones guardadas');
       } else {
-        setError(err.message);
+        setError(err.message || 'Error desconocido');
       }
       setSaved([]);
       setSavedIds(new Set());
-    } finally {
-      setLoading(false);
+      return [];
     }
-  }, []);
+  }, [load, setError, setSaved]);
 
   /**
    * Guarda una licitación
