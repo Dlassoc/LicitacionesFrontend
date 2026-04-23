@@ -149,7 +149,7 @@ export default function Register() {
                 {showPw ? <FaEyeSlash /> : <FaEye />}
               </span>
             </div>
-            <p className="hint-muted">La contraseña debe tener al menos 6 caracteres.</p>
+            <p className="hint-muted">La contraseña debe tener al menos 8 caracteres.</p>
           </div>
 
           {/* Confirm Password */}

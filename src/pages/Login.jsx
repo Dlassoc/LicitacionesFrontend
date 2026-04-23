@@ -20,7 +20,8 @@ export default function Login() {
   // ✅ NUEVO: Usar useEffect para redirigir, no durante render
   useEffect(() => {
     if (ready && user) {
-      navigate("/app", { replace: true });
+      const redirectPath = user?.is_superadmin ? "/admin" : "/app";
+      navigate(redirectPath, { replace: true });
     }
   }, [ready, user, navigate]);
 

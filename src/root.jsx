@@ -2,6 +2,7 @@
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import AdminRoute from "./auth/AdminRoute.jsx";
 import SplashScreen from "./components/SplashScreen.jsx";
 
 import RootLayout from "./layout/RootLayout.jsx";
@@ -11,6 +12,7 @@ const Register = lazy(() => import("./pages/Register.jsx"));
 const App = lazy(() => import("./app/App.jsx"));
 const PreferencesPage = lazy(() => import("./pages/PreferencesPage.jsx"));
 const SavedLicitacionesPage = lazy(() => import("./pages/SavedLicitacionesPage.jsx"));
+const AdminPanel = lazy(() => import("./pages/admin/AdminPanel.jsx"));
 
 function RouteFallback() {
   return <SplashScreen text="Cargando vista..." />;
@@ -75,6 +77,17 @@ export default function Root() {
               </SuspendedPage>
             </RootLayout>
           </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <SuspendedPage>
+              <AdminPanel />
+            </SuspendedPage>
+          </AdminRoute>
         }
       />
 

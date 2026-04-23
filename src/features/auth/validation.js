@@ -13,7 +13,7 @@ export function validateLoginForm({ email, password }) {
 export function validateRegisterForm({ name, email, password, confirmPassword }) {
   if (!String(name || "").trim()) return "El nombre es obligatorio.";
   if (!isValidEmail(email)) return "El correo no es válido.";
-  if (String(password || "").length < 6) return "La contraseña debe tener al menos 6 caracteres.";
+  if (String(password || "").length < 8) return "La contraseña debe tener al menos 8 caracteres.";
   if (password !== confirmPassword) return "Las contraseñas no coinciden.";
   return null;
 }

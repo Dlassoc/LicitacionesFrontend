@@ -53,7 +53,7 @@ async function request(
       let errorMsg = `HTTP ${response.status}`;
       try {
         const errData = await response.json();
-        errorMsg = errData.error || errData.message || errorMsg;
+        errorMsg = errData.detail || errData.error || errData.message || errorMsg;
       } catch { /* response sin JSON */ }
       const err = new Error(errorMsg);
       err.status = response.status;

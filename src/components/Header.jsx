@@ -102,6 +102,19 @@ export default function Header({ chips, onBuscar, onLimpiar }) {
                         </li>
                       )}
 
+                      {user?.is_superadmin && (
+                        <li>
+                          <Link
+                            to="/admin"
+                            className="menu-item"
+                            role="menuitem"
+                            onClick={() => setOpenMenu(false)}
+                          >
+                            Admin
+                          </Link>
+                        </li>
+                      )}
+
                       <li>
                         <Link
                           to="/app/saved"
